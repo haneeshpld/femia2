@@ -92,39 +92,48 @@ const { hero: h, image, city } = Astro.props;
 
 <script>
   import { gsap } from 'gsap';
+  import { onPage } from '../../lib/lifecycle.ts';
 
-  const root = document.querySelector<HTMLElement>('[data-hero]');
-  const html = document.documentElement;
-  if (root && html.classList.contains('motion')) {
+  // Runs every time the home page is shown (first load or client-router navigation back to it).
+  onPage(() => {
+    const root = document.querySelector<HTMLElement>('[data-hero]');
+    const html = document.documentElement;
+    if (!root || !html.classList.contains('motion')) { html.classList.remove('hero-pending'); return; }
     const art = root.querySelector<HTMLElement>('[data-hero-art]');
     const img = root.querySelector<HTMLElement>('[data-hero-img]');
     const lines = root.querySelectorAll('[data-hero-line]');
     const fades = root.querySelectorAll('[data-hero-fade]');
     const stitch = root.querySelector('[data-stitch-mask]');
+    let io: IntersectionObserver | undefined;
 
-    // Diagonal silk wipe: the reveal edge runs parallel to the ribbon (top-right → bottom-left).
-    const hidden = 'polygon(100% 0%, 100% 0%, 100% 100%, 165% 100%)';
-    const shown = 'polygon(-65% 0%, 100% 0%, 100% 100%, 0% 100%)';
-    // Drop the CSS hold first (same frame, no paint) so GSAP doesn't read it as a starting offset.
-    html.classList.remove('hero-pending');
-    gsap.set(lines, { y: 0, yPercent: 105 });
-    gsap.set(fades, { autoAlpha: 0, y: 18 });
-    if (art) gsap.set(art, { clipPath: hidden, autoAlpha: 1 });
-    if (img) gsap.set(img, { scale: 1.14, filter: 'blur(14px)' });
-    if (stitch) gsap.set(stitch, { strokeDashoffset: 1 });
+    const ctx = gsap.context(() => {
+      // Diagonal silk wipe: the reveal edge runs parallel to the ribbon (top-right → bottom-left).
+      const hidden = 'polygon(100% 0%, 100% 0%, 100% 100%, 165% 100%)';
+      const shown = 'polygon(-65% 0%, 100% 0%, 100% 100%, 0% 100%)';
+      // Drop the CSS hold first (same frame, no paint) so GSAP doesn't read it as a starting offset.
+      html.classList.remove('hero-pending');
+      gsap.set(lines, { y: 0, yPercent: 105 });
+      gsap.set(fades, { autoAlpha: 0, y: 18 });
+      if (art) gsap.set(art, { clipPath: hidden, autoAlpha: 1 });
+      if (img) gsap.set(img, { scale: 1.14, filter: 'blur(14px)' });
+      if (stitch) gsap.set(stitch, { strokeDashoffset: 1 });
 
-    const tl = gsap.timeline({ defaults: { ease: 'expo.out' } });
-    if (art) tl.to(art, { clipPath: shown, duration: 1.7, ease: 'power4.inOut' }, 0);
-    if (img) tl.to(img, { scale: 1, filter: 'blur(0px)', duration: 2, ease: 'power3.out', clearProps: 'filter' }, 0.15);
-    tl.to(lines, { yPercent: 0, duration: 1.15, stagger: 0.13 }, 0.2)
-      .to(fades, { autoAlpha: 1, y: 0, duration: 1, stagger: 0.12 }, 0.6);
-    if (stitch) tl.to(stitch, { strokeDashoffset: 0, duration: 1.3, ease: 'power2.inOut' }, 0.75);
+      const tl = gsap.timeline({ defaults: { ease: 'expo.out' } });
+      if (art) tl.to(art, { clipPath: shown, duration: 1.7, ease: 'power4.inOut' }, 0);
+      if (img) tl.to(img, { scale: 1, filter: 'blur(0px)', duration: 2, ease: 'power3.out', clearProps: 'filter' }, 0.15);
+      tl.to(lines, { yPercent: 0, duration: 1.15, stagger: 0.13 }, 0.2)
+        .to(fades, { autoAlpha: 1, y: 0, duration: 1, stagger: 0.12 }, 0.6);
+      if (stitch) tl.to(stitch, { strokeDashoffset: 0, duration: 1.3, ease: 'power2.inOut' }, 0.75);
 
-    // The ribbon keeps breathing, but only while the hero is on screen.
-    if (img) {
-      const drift = gsap.to(img, { yPercent: -1.8, rotation: 0.5, duration: 6.5, ease: 'sine.inOut', yoyo: true, repeat: -1, paused: true });
-      tl.eventCallback('onComplete', () => drift.play());
-      new IntersectionObserver(([e]) => (e?.isIntersecting && tl.progress() === 1 ? drift.play() : drift.pause())).observe(root);
-    }
-  }
+      // The ribbon keeps breathing, but only while the hero is on screen.
+      if (img) {
+        const drift = gsap.to(img, { yPercent: -1.8, rotation: 0.5, duration: 6.5, ease: 'sine.inOut', yoyo: true, repeat: -1, paused: true });
+        tl.eventCallback('onComplete', () => drift.play());
+        io = new IntersectionObserver(([e]) => (e?.isIntersecting && tl.progress() === 1 ? drift.play() : drift.pause()));
+        io.observe(root);
+      }
+    }, root);
+
+    return () => { io?.disconnect(); ctx.revert(); };
+  });
 </script>

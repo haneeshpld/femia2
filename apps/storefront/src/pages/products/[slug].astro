@@ -228,6 +228,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
   import { emit } from '../../lib/ui-events.ts';
   import { track } from '../../lib/analytics.ts';
   import { formatINR, percentOff } from '@femia/contracts/money';
+  import { onPage } from '../../lib/lifecycle.ts';
 
   type Img = { id: string; alt: string; w: number; h: number; src: Record<string, string> };
   type Data = {
@@ -236,6 +237,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
     variants: { id: string; o1: string | null; o2: string | null; price: number; cap: number | null; available: number }[];
     galleries: Record<string, Img[]>;
   };
+  onPage(() => {
   const root = document.querySelector<HTMLElement>('[data-pdp]');
   if (root) {
     const d = JSON.parse(root.querySelector('[data-pdp-data]')!.textContent!) as Data;
@@ -351,4 +353,5 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
     renderSizes();
     track('view_item', { productId: d.id, value: d.price });
   }
+  });
 </script>

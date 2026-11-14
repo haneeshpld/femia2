@@ -102,6 +102,16 @@ const right: Item[] = [
 <script>
   import { $cartCount, $wishlist } from '../lib/stores.ts';
   import { emit } from '../lib/ui-events.ts';
+  import { onPage } from '../lib/lifecycle.ts';
+
+  // Header and tab bar persist across client-router navigations: mark the current section on every page.
+  const section = (p: string) => (p === '/' ? '/' : p.startsWith('/shop') || p.startsWith('/products') ? '/shop' : p.startsWith('/collections') ? '/collections' : p.startsWith('/visit') ? '/visit' : null);
+  onPage(() => {
+    const cur = section(location.pathname);
+    document.querySelectorAll<HTMLAnchorElement>('.hdr__nav a, .tabbar a').forEach((a) => {
+      if (a.getAttribute('href') === cur) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    });
+  });
 
   // ── Masthead: slims, flattens its arch and tucks the logo in as you scroll ──
   const header = document.querySelector<HTMLElement>('[data-header]');

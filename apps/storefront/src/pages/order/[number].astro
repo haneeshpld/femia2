@@ -86,21 +86,27 @@ Astro.response.headers.set('Cache-Control', 'no-store');
   @media (max-width: 767px) { .order__grid { grid-template-columns: 1fr; } }
 </style>
 <script>
+  import { navigate } from 'astro:transitions/client';
   import { clearCart } from '../../lib/stores.ts';
   import { track } from '../../lib/analytics.ts';
-  // Arriving here means the order exists: empty the bag once, record the purchase.
-  const key = `femia.ordered.${location.pathname}`;
-  try { if (!sessionStorage.getItem(key)) { clearCart(); track('purchase'); sessionStorage.setItem(key, '1'); } } catch { clearCart(); }
-  document.querySelectorAll<HTMLButtonElement>('[data-copy]').forEach((b) => b.addEventListener('click', async () => {
-    try { await navigator.clipboard.writeText(b.dataset.copy!); b.textContent = 'Copied'; } catch { /* clipboard blocked */ }
-  }));
-  // Poll while awaiting UPI verification so the page flips to "paid" without a refresh.
-  if (document.querySelector('[data-upi]')) {
+  import { onPage } from '../../lib/lifecycle.ts';
+
+  onPage(() => {
+    if (!location.pathname.startsWith('/order/')) return;
+    // Arriving here means the order exists: empty the bag once, record the purchase.
+    const key = `femia.ordered.${location.pathname}`;
+    try { if (!sessionStorage.getItem(key)) { clearCart(); track('purchase'); sessionStorage.setItem(key, '1'); } } catch { clearCart(); }
+    document.querySelectorAll<HTMLButtonElement>('[data-copy]').forEach((b) => b.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(b.dataset.copy!); b.textContent = 'Copied'; } catch { /* clipboard blocked */ }
+    }));
+    // Poll while awaiting UPI verification so the page flips to "paid" by itself.
+    if (!document.querySelector('[data-upi]')) return;
     const u = new URL(location.href);
     const poll = setInterval(async () => {
       const r = await fetch(`/api/orders/${u.pathname.split('/').pop()}?token=${u.searchParams.get('token')}`).catch(() => null);
       const o = r?.ok ? ((await r.json()) as { status: string }) : null;
-      if (o && o.status !== 'pending_payment') { clearInterval(poll); location.reload(); }
+      if (o && o.status !== 'pending_payment') { clearInterval(poll); void navigate(location.pathname + location.search, { history: 'replace' }); }
     }, 15000);
-  }
+    return () => clearInterval(poll);
+  });
 </script>

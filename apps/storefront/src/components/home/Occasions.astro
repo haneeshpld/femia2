@@ -59,40 +59,50 @@ const pad = (n: number) => String(n).padStart(2, '0');
   }
 </style>
 <script>
-  document.querySelectorAll<HTMLElement>('[data-carousel]').forEach((root) => {
-    const track = root.querySelector<HTMLElement>('[data-track]')!;
-    const items = [...track.children] as HTMLElement[];
-    const cur = root.querySelector('[data-current]');
-    const prev = root.querySelector<HTMLButtonElement>('[data-prev]');
-    const next = root.querySelector<HTMLButtonElement>('[data-next]');
-    const index = () => {
-      const left = track.scrollLeft + 1;
-      let i = 0; items.forEach((it, n) => { if (it.offsetLeft - track.offsetLeft <= left + it.offsetWidth / 2) i = n; });
-      return i;
-    };
-    const update = () => {
-      const i = index();
-      if (cur) cur.textContent = String(i + 1).padStart(2, '0');
-      if (prev) prev.disabled = track.scrollLeft <= 2;
-      if (next) next.disabled = track.scrollLeft + track.clientWidth >= track.scrollWidth - 2;
-    };
-    const go = (d: number) => {
-      const target = items[Math.max(0, Math.min(items.length - 1, index() + d))];
-      if (target) track.scrollTo({ left: target.offsetLeft - track.offsetLeft - parseFloat(getComputedStyle(track).paddingLeft), behavior: 'smooth' });
-    };
-    prev?.addEventListener('click', () => go(-1));
-    next?.addEventListener('click', () => go(1));
-    const drift = () => {
-      if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-      const mid = track.getBoundingClientRect().left + track.clientWidth / 2;
-      items.forEach((it) => {
-        const r = it.getBoundingClientRect();
-        const d = Math.max(-1, Math.min(1, (r.left + r.width / 2 - mid) / track.clientWidth));
-        it.querySelector<HTMLElement>('[data-drift]')?.style.setProperty('--drift', `${(-d * 6).toFixed(2)}%`);
-      });
-    };
-    track.addEventListener('scroll', () => requestAnimationFrame(() => { update(); drift(); }), { passive: true });
-    addEventListener('resize', () => requestAnimationFrame(drift));
-    update(); drift();
+  import { onPage, reducedMotion } from '../../lib/lifecycle.ts';
+
+  onPage(() => {
+    const offs: (() => void)[] = [];
+    document.querySelectorAll<HTMLElement>('[data-carousel]').forEach((root) => {
+      const track = root.querySelector<HTMLElement>('[data-track]')!;
+      const items = [...track.children] as HTMLElement[];
+      const cur = root.querySelector('[data-current]');
+      const prev = root.querySelector<HTMLButtonElement>('[data-prev]');
+      const next = root.querySelector<HTMLButtonElement>('[data-next]');
+      const index = () => {
+        const left = track.scrollLeft + 1;
+        let i = 0; items.forEach((it, n) => { if (it.offsetLeft - track.offsetLeft <= left + it.offsetWidth / 2) i = n; });
+        return i;
+      };
+      const update = () => {
+        if (cur) cur.textContent = String(index() + 1).padStart(2, '0');
+        if (prev) prev.disabled = track.scrollLeft <= 2;
+        if (next) next.disabled = track.scrollLeft + track.clientWidth >= track.scrollWidth - 2;
+      };
+      const go = (d: number) => {
+        const target = items[Math.max(0, Math.min(items.length - 1, index() + d))];
+        if (target) track.scrollTo({ left: target.offsetLeft - track.offsetLeft - parseFloat(getComputedStyle(track).paddingLeft), behavior: 'smooth' });
+      };
+      // Photos drift gently inside their frames as the row scrolls.
+      const drift = () => {
+        if (reducedMotion()) return;
+        const mid = track.getBoundingClientRect().left + track.clientWidth / 2;
+        items.forEach((it) => {
+          const r = it.getBoundingClientRect();
+          const d = Math.max(-1, Math.min(1, (r.left + r.width / 2 - mid) / track.clientWidth));
+          it.querySelector<HTMLElement>('[data-drift]')?.style.setProperty('--drift', `${(-d * 6).toFixed(2)}%`);
+        });
+      };
+      const onPrev = () => go(-1), onNext = () => go(1);
+      const onScroll = () => requestAnimationFrame(() => { update(); drift(); });
+      const onResize = () => requestAnimationFrame(drift);
+      prev?.addEventListener('click', onPrev);
+      next?.addEventListener('click', onNext);
+      track.addEventListener('scroll', onScroll, { passive: true });
+      addEventListener('resize', onResize);
+      update(); drift();
+      offs.push(() => { prev?.removeEventListener('click', onPrev); next?.removeEventListener('click', onNext); track.removeEventListener('scroll', onScroll); removeEventListener('resize', onResize); });
+    });
+    return () => offs.forEach((f) => f());
   });
 </script>

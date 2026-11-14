@@ -11,7 +11,8 @@ import Header from '../components/Header.astro';
 import TrustStrip from '../components/TrustStrip.astro';
 import Footer from '../components/Footer.astro';
 import MobileTabBar from '../components/MobileTabBar.astro';
-import Shell from '../components/islands/Shell.tsx';
+import ShellLoader from '../components/ShellLoader.astro';
+import { ClientRouter } from 'astro:transitions';
 import type { SiteData } from '../lib/content.ts';
 import type { Category } from '@femia/contracts';
 import { t } from '@femia/i18n';
@@ -69,29 +70,48 @@ const ld = [org, ...(jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [])]
     <meta name="twitter:card" content="summary_large_image" />
     <script is:inline>
       (function () {
-        var d = document.documentElement;
-        d.classList.replace('no-js', 'js');
-        // Hold the hero for its GSAP entrance, but never longer than 1.6s if scripts fail.
-        if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
-          d.classList.add('motion', 'hero-pending');
-          setTimeout(function () { d.classList.remove('hero-pending'); }, 1600);
+        // Runs on first load and again after each client-router swap (which replaces <html> attributes).
+        function flags(first) {
+          var d = document.documentElement;
+          d.classList.remove('no-js'); d.classList.add('js');
+          if (window.__lenis) d.classList.add('lenis', 'lenis-smooth');
+          // Hold the hero for its GSAP entrance, but never longer than 1.6s if scripts fail.
+          if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            d.classList.add('motion');
+            if (document.querySelector('[data-hero]') || first) {
+              d.classList.add('hero-pending');
+              setTimeout(function () { d.classList.remove('hero-pending'); }, 1600);
+            }
+          }
+        }
+        if (!window.__femiaFlags) {
+          window.__femiaFlags = flags;
+          flags(true);
+          document.addEventListener('astro:after-swap', function () { flags(false); });
         }
       })();
     </script>
+    <ClientRouter />
+    {import.meta.env.DEV && (
+      /* Dev only: React islands can arrive after a client-router navigation (or via the lazy shell) on pages that
+         had none at first load, so install Vite's React-refresh preamble up front. Not emitted in production. */
+      <script type="module" is:inline set:html={`import RefreshRuntime from "/@react-refresh"; RefreshRuntime.injectIntoGlobalHook(window); window.$RefreshReg$ = () => {}; window.$RefreshSig$ = () => (type) => type; window.__vite_plugin_react_preamble_installed__ = true;`} />
+    )}
     <slot name="head" />
     <script type="application/ld+json" set:html={JSON.stringify(ld.length === 1 ? ld[0] : ld)} />
   </head>
   <body>
     <a class="skip-link" href="#main">{t('nav.skip')}</a>
-    <AnnouncementBar messages={announcement} />
-    <Header />
+    <!-- Persisted across client-router navigations (display: contents keeps sticky/fixed layout intact). -->
+    <div class="persist" transition:persist="announce"><AnnouncementBar messages={announcement} /></div>
+    <div class="persist" transition:persist="header"><Header /></div>
     <main id="main" tabindex="-1">
       <slot />
     </main>
     {!minimal && <TrustStrip items={c.trust?.items ?? []} />}
-    <Footer settings={settings} categories={categories} newsletter={c.newsletter ?? {}} minimal={minimal} />
-    <MobileTabBar />
-    <Shell client:idle freeShippingThreshold={settings.shipping.freeShippingThreshold} sizeGuide={c.sizeGuide?.chart ?? ''} />
+    <div class="persist" transition:persist={minimal ? 'footer-min' : 'footer'}><Footer settings={settings} categories={categories} newsletter={c.newsletter ?? {}} minimal={minimal} /></div>
+    <div class="persist" transition:persist="tabbar"><MobileTabBar /></div>
+    <ShellLoader freeShippingThreshold={settings.shipping.freeShippingThreshold} sizeGuide={c.sizeGuide?.chart ?? ''} />
     <script>
       import '../scripts/motion.ts';
     </script>

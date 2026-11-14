@@ -153,7 +153,7 @@ Cron: `*/5 * * * *` release expired holds · `30 3 * * *` (09:00 IST) daily summ
 | # | Item | When |
 |---|---|---|
 | 1 | Visual QA against the mockups at 360/390/430/768/1280/1440 (web analysis pass) | Week 4, next session |
-| 2 | Hydrate the storefront React shell on first interaction instead of idle (React DOM is ~65 KB gz) to protect TBT on low-end Android | Week 4 perf pass |
+| 2 | ~~Hydrate the storefront React shell on first interaction~~ Done: shell loads on intent; client router + prefetch + edge HTML cache (15 Nov) | Done |
 | 3 | Playwright e2e for browse → bag → checkout (each method), add product, update stock, publish content | Week 4 |
 | 4 | Gateway "retry payment" button on the order page when the customer dismisses the payment window | Week 4 |
 | 5 | ~~Categories and collections editing in Admin~~ Done: Catalog setup page + inline "+ New" everywhere (15 Nov) | Done |

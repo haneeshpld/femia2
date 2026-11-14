@@ -6,6 +6,7 @@ import { formatINR } from '@femia/contracts/money';
 import { t } from '@femia/i18n';
 import { $cart, removeLine, setQty } from '../../lib/stores.ts';
 import { Icon } from './Icon.tsx';
+import { navigate } from 'astro:transitions/client';
 import './shell.css';
 import './checkout.css';
 
@@ -121,15 +122,15 @@ export default function Checkout({ payments }: { payments: PublicSettings['payme
           ...r.next.payload,
           handler: async (resp: Record<string, string>) => {
             await fetch(`/api/payments/${(r.next as { provider: string }).provider}/return`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ number: r.order.number, token: r.accessToken, params: resp }) }).catch(() => {});
-            location.assign(orderUrl);
+            void navigate(orderUrl);
           },
-          modal: { ondismiss: () => location.assign(orderUrl) },
+          modal: { ondismiss: () => void navigate(orderUrl) },
         });
         rz.open();
-      } catch { location.assign(orderUrl); }
+      } catch { void navigate(orderUrl); }
       return;
     }
-    location.assign(orderUrl);
+    void navigate(orderUrl);
   }
 
   if (!hydrated) return <div className="co-skel"><div className="skeleton" style={{ height: 420 }} /><div className="skeleton" style={{ height: 300 }} /></div>;

@@ -168,24 +168,34 @@ const pageWindow = Array.from({ length: pages }, (_, i) => i + 1).filter((n) => 
   }
 </style>
 <script>
-  // Auto-apply filters; close other dropdowns; price band → min/max.
-  document.querySelectorAll<HTMLFormElement>('[data-filters]').forEach((form) => {
-    const submit = () => {
-      const fd = new FormData(form);
-      const u = new URL(form.action, location.href);
-      const multi: Record<string, string[]> = {};
-      for (const [k, v] of fd) {
-        if (k === 'price') { const [lo, hi] = String(v).split('-'); if (lo && lo !== '0') u.searchParams.set('min', lo); if (hi) u.searchParams.set('max', hi); continue; }
-        if (v) (multi[k] ??= []).push(String(v));
-      }
-      for (const [k, vs] of Object.entries(multi)) u.searchParams.set(k, vs.join(','));
-      if (u.searchParams.get('sort') === 'new') u.searchParams.delete('sort');
-      location.assign(u.pathname + u.search);
-    };
-    form.addEventListener('change', submit);
-    const dds = [...form.querySelectorAll('details')];
-    dds.forEach((d) => d.addEventListener('toggle', () => { if (d.open) dds.forEach((o) => o !== d && (o.open = false)); }));
-    document.addEventListener('click', (e) => { if (!form.contains(e.target as Node)) dds.forEach((d) => (d.open = false)); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') dds.forEach((d) => (d.open = false)); });
+  import { navigate } from 'astro:transitions/client';
+  import { onPage } from '../../lib/lifecycle.ts';
+
+  // Auto-apply filters (client-router navigation, no reload); close other dropdowns; price band → min/max.
+  onPage(() => {
+    const offs: (() => void)[] = [];
+    document.querySelectorAll<HTMLFormElement>('[data-filters]').forEach((form) => {
+      const submit = () => {
+        const fd = new FormData(form);
+        const u = new URL(form.action, location.href);
+        const multi: Record<string, string[]> = {};
+        for (const [k, v] of fd) {
+          if (k === 'price') { const [lo, hi] = String(v).split('-'); if (lo && lo !== '0') u.searchParams.set('min', lo); if (hi) u.searchParams.set('max', hi); continue; }
+          if (v) (multi[k] ??= []).push(String(v));
+        }
+        for (const [k, vs] of Object.entries(multi)) u.searchParams.set(k, vs.join(','));
+        if (u.searchParams.get('sort') === 'new') u.searchParams.delete('sort');
+        void navigate(u.pathname + u.search);
+      };
+      form.addEventListener('change', submit);
+      const dds = [...form.querySelectorAll('details')];
+      dds.forEach((d) => d.addEventListener('toggle', () => { if (d.open) dds.forEach((o) => o !== d && (o.open = false)); }));
+      const outside = (e: Event) => { if (!form.contains(e.target as Node)) dds.forEach((d) => (d.open = false)); };
+      const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') dds.forEach((d) => (d.open = false)); };
+      document.addEventListener('click', outside);
+      document.addEventListener('keydown', esc);
+      offs.push(() => { document.removeEventListener('click', outside); document.removeEventListener('keydown', esc); });
+    });
+    return () => offs.forEach((f) => f());
   });
 </script>

@@ -9,6 +9,6 @@ const heroImg = site.content.hero?.image ? site.media[site.content.hero.image] :
 Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=600');
 ---
 <Base site={site} categories={categories} image={heroImg?.src['1600']}>
-  {heroImg && <link slot="head" rel="preload" as="image" href={heroImg.src['960']} imagesrcset={srcset(heroImg)} imagesizes="(min-width: 768px) 55vw, 100vw" fetchpriority="high" />}
+  {heroImg && <link slot="head" rel="preload" as="image" href={heroImg.src['960']} imagesrcset={srcset(heroImg)} imagesizes="(min-width: 768px) 58vw, 100vw" fetchpriority="high" />}
   <HomeView site={site} categories={categories} />
 </Base>

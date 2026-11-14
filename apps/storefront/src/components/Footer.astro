@@ -138,37 +138,42 @@ const marquee = categories.map((c) => c.name);
   import { t } from '@femia/i18n';
   import { track } from '../lib/analytics.ts';
   import { boutiqueStatus, type DayHours } from '../lib/hours.ts';
+  import { onPage } from '../lib/lifecycle.ts';
 
-  // Live open/closed (the page itself may be cached).
-  const st = document.querySelector<HTMLElement>('[data-hours]');
-  if (st) {
-    const update = () => {
-      const s = boutiqueStatus(JSON.parse(st.dataset.hours || 'null') as DayHours[] | null);
-      if (!s) return;
-      st.classList.toggle('is-open', s.open);
-      st.querySelector('[data-status-text]')!.textContent = s.text;
-    };
-    update(); setInterval(update, 60_000);
-  }
+  // The footer persists across navigations (and swaps for the checkout variant), so binding is idempotent.
+  const updateStatus = () => {
+    const st = document.querySelector<HTMLElement>('[data-hours]');
+    if (!st) return;
+    const s = boutiqueStatus(JSON.parse(st.dataset.hours || 'null') as DayHours[] | null);
+    if (!s) return;
+    st.classList.toggle('is-open', s.open);
+    st.querySelector('[data-status-text]')!.textContent = s.text;
+  };
+  setInterval(updateStatus, 60_000);
 
   // Pause the zari glint when the band is off screen.
   const io = new IntersectionObserver((es) => es.forEach((e) => e.target.classList.toggle('is-visible', e.isIntersecting)));
-  document.querySelectorAll('[data-zari]').forEach((el) => io.observe(el));
 
-  document.querySelectorAll<HTMLFormElement>('[data-newsletter]').forEach((form) => {
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const msg = form.parentElement!.querySelector<HTMLElement>('[data-msg]')!;
-      const input = form.querySelector('input')!;
-      if (!input.checkValidity()) { msg.textContent = t('home.newsletter.error'); input.focus(); return; }
-      const btn = form.querySelector('button')!;
-      btn.disabled = true;
-      try {
-        const res = await fetch('/api/newsletter', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: input.value, source: 'footer' }) });
-        if (!res.ok) throw new Error();
-        msg.textContent = t('home.newsletter.thanks'); form.reset(); track('newsletter_signup');
-      } catch { msg.textContent = t('home.newsletter.error'); }
-      btn.disabled = false;
+  onPage(() => {
+    updateStatus();
+    document.querySelectorAll('[data-zari]').forEach((el) => io.observe(el));
+    document.querySelectorAll<HTMLFormElement>('[data-newsletter]').forEach((form) => {
+      if (form.dataset.bound) return;
+      form.dataset.bound = '1';
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const msg = form.parentElement!.querySelector<HTMLElement>('[data-msg]')!;
+        const input = form.querySelector('input')!;
+        if (!input.checkValidity()) { msg.textContent = t('home.newsletter.error'); input.focus(); return; }
+        const btn = form.querySelector('button')!;
+        btn.disabled = true;
+        try {
+          const res = await fetch('/api/newsletter', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: input.value, source: 'footer' }) });
+          if (!res.ok) throw new Error();
+          msg.textContent = t('home.newsletter.thanks'); form.reset(); track('newsletter_signup');
+        } catch { msg.textContent = t('home.newsletter.error'); }
+        btn.disabled = false;
+      });
     });
   });
 </script>

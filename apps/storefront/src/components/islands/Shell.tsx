@@ -6,18 +6,22 @@ import { SearchOverlay } from './SearchOverlay.tsx';
 import './shell.css';
 
 /** One island for every overlay, hydrated on idle. Static markup talks to it through ui-events. */
-export default function Shell({ freeShippingThreshold, sizeGuide }: { freeShippingThreshold: number; sizeGuide: string }) {
+export default function Shell({ freeShippingThreshold, sizeGuide, onReady }: { freeShippingThreshold: number; sizeGuide: string; onReady?: () => void }) {
   const [cart, setCart] = useState(false);
   const [search, setSearch] = useState(false);
   const [quick, setQuick] = useState<{ slug: string; colour?: string | null; origin?: DOMRect; imageUrl?: string | null } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  useEffect(() => onUi((e) => {
-    if (e.type === 'cart:open') setCart(true);
-    if (e.type === 'search:open') setSearch(true);
-    if (e.type === 'quick-add') setQuick({ slug: e.slug, colour: e.colour, origin: e.origin, imageUrl: e.imageUrl });
-    if (e.type === 'toast') setToast(e.message);
-  }), []);
+  useEffect(() => {
+    const off = onUi((e) => {
+      if (e.type === 'cart:open') setCart(true);
+      if (e.type === 'search:open') setSearch(true);
+      if (e.type === 'quick-add') setQuick({ slug: e.slug, colour: e.colour, origin: e.origin, imageUrl: e.imageUrl });
+      if (e.type === 'toast') setToast(e.message);
+    });
+    onReady?.(); // listening now: the loader replays anything queued before React arrived
+    return off;
+  }, []);
 
   useEffect(() => {
     if (!toast) return;

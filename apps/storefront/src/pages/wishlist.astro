@@ -26,10 +26,13 @@ const { site, categories } = await getCommon();
   import { $wishlist, toggleWish } from '../lib/stores.ts';
   import { emit } from '../lib/ui-events.ts';
   import { formatINR } from '@femia/contracts/money';
-  const list = document.querySelector<HTMLElement>('[data-wishlist]')!;
-  const empty = document.querySelector<HTMLElement>('[data-wl-empty]')!;
+  import { onPage } from '../lib/lifecycle.ts';
+  onPage(() => {
+  const list = document.querySelector<HTMLElement>('[data-wishlist]');
+  const empty = document.querySelector<HTMLElement>('[data-wl-empty]');
+  if (!list || !empty) return;
   const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
-  $wishlist.subscribe((items) => {
+  const unsubscribe = $wishlist.subscribe((items) => {
     empty.hidden = items.length > 0;
     list.innerHTML = items.map((w) => `
       <li><article class="pcard">
@@ -47,5 +50,7 @@ const { site, categories } = await getCommon();
     if (rm) { const w = $wishlist.get().find((x) => x.productId === rm.dataset.remove); if (w) toggleWish(w); return; }
     const add = t.closest<HTMLElement>('[data-add]');
     if (add) { const img = add.closest('.pcard')?.querySelector('img'); emit({ type: 'quick-add', slug: add.dataset.add!, origin: img?.getBoundingClientRect(), imageUrl: img?.currentSrc }); }
+  });
+  return unsubscribe;
   });
 </script>

@@ -1,0 +1,46 @@
+---
+/**
+ * Mount point for the React shell (bag drawer, size sheet, search, toasts).
+ * React is not part of first load: it's fetched on the first sign of intent (hover / touch / focus on a
+ * bag, search or "Add to Bag" control) or the first UI event, and queued events are replayed once it's ready.
+ * Persisted across client-router navigations, so it loads at most once per visit.
+ */
+interface Props { freeShippingThreshold: number; sizeGuide: string }
+const { freeShippingThreshold, sizeGuide } = Astro.props;
+---
+<div id="femia-shell" transition:persist="shell" data-threshold={freeShippingThreshold} data-size-guide={sizeGuide}></div>
+<script>
+  import type { UiEvent } from '../lib/ui-events.ts';
+
+  const el = document.getElementById('femia-shell')!;
+  const queue: UiEvent[] = [];
+  let state: 'idle' | 'loading' | 'ready' = 'idle';
+
+  const load = () => {
+    if (state !== 'idle') return;
+    state = 'loading';
+    import('./islands/mount-shell.tsx').then(({ mount }) => mount(el, {
+      freeShippingThreshold: Number(el.dataset.threshold ?? 99900),
+      sizeGuide: el.dataset.sizeGuide ?? '',
+      onReady: () => {
+        state = 'ready';
+        window.removeEventListener('femia:ui', capture, true);
+        for (const e of queue.splice(0)) window.dispatchEvent(new CustomEvent('femia:ui', { detail: e }));
+      },
+    })).catch((e) => { state = 'idle'; console.error('[femia] shell failed to load', e); });
+  };
+
+  // Until the shell is listening, hold UI events (open bag, quick-add, toast) and replay them.
+  function capture(ev: Event) {
+    if (state === 'ready') return;
+    queue.push((ev as CustomEvent<UiEvent>).detail);
+    load();
+  }
+  window.addEventListener('femia:ui', capture, true);
+
+  const INTENT = '[data-ui], [data-quick-add], [data-bag-button], [data-add], a[href="/checkout"]';
+  const onIntent = (e: Event) => { if ((e.target as Element | null)?.closest?.(INTENT)) load(); };
+  for (const type of ['pointerover', 'touchstart', 'focusin']) document.addEventListener(type, onIntent, { passive: true, capture: true });
+  // Anything already in the bag? The shell will be needed for the count-driven drawer soon.
+  try { if (JSON.parse(localStorage.getItem('femia.cart.v1') ?? '[]').length && 'requestIdleCallback' in window) requestIdleCallback(load, { timeout: 6000 }); } catch { /* storage blocked */ }
+</script>

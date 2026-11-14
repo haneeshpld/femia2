@@ -36,6 +36,10 @@ npm run typecheck && npm test && npm run build
 API tests run inside the Workers runtime (`@cloudflare/vitest-plugin`) and cover the money paths: last-unit race,
 hold expiry, UPI mark-paid, gateway success / failure / abandoned with signed webhooks, pincode blocking, staff permissions.
 
+## Storefront scripts (client router)
+
+The storefront navigates in place (Astro `ClientRouter`), so `<script>` modules run **once**. Anything that touches page content must use `onPage()` from `src/lib/lifecycle.ts`: it runs on every page and takes a cleanup that runs before the next swap. Header, footer, announcement bar, tab bar and the cart shell are persisted (`transition:persist`). Pages that send `Cache-Control: … s-maxage` are cached at the edge by `src/middleware.ts`; personal pages must send `no-store`.
+
 ## Rules that keep 1.1 additive
 
 - Money is integer paise; the server recomputes every price.

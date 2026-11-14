@@ -1,0 +1,9 @@
+# Brand assets and icons change rarely; let browsers keep them for a week (filenames are stable, so not immutable).
+/brand/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+/favicon-32.png
+  Cache-Control: public, max-age=604800
+/apple-touch-icon.png
+  Cache-Control: public, max-age=604800
+/icon-*.png
+  Cache-Control: public, max-age=604800

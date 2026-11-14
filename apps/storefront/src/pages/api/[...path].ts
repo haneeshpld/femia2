@@ -11,9 +11,16 @@ export const ALL: APIRoute = async ({ params, request, url }) => {
   for (const h of ['content-type', 'accept']) { const v = request.headers.get(h); if (v) headers.set(h, v); }
   const ip = request.headers.get('cf-connecting-ip');
   if (ip) headers.set('cf-connecting-ip', ip);
+  // Catalog reads the API marks cacheable (s-maxage) are served from the edge; stock, orders and writes never are.
+  const cache = request.method === 'GET' ? (globalThis as unknown as { caches?: { default?: Cache } }).caches?.default : undefined;
+  const key = cache ? new Request(url.toString(), { method: 'GET' }) : undefined;
+  if (cache && key) { const hit = await cache.match(key); if (hit) return hit; }
   const res = await apiFetch(`/${path}${url.search}`, {
     method: request.method, headers,
     body: ['GET', 'HEAD'].includes(request.method) ? undefined : await request.arrayBuffer(),
   });
-  return new Response(res.body, { status: res.status, headers: res.headers });
+  const out = new Response(res.body, { status: res.status, headers: res.headers });
+  const cc = out.headers.get('Cache-Control') ?? '';
+  if (cache && key && out.status === 200 && /s-maxage=\d+/.test(cc) && !/no-store|private/.test(cc)) await cache.put(key, out.clone()).catch(() => {});
+  return out;
 };

@@ -49,17 +49,23 @@ const wish = JSON.stringify({ productId: p.id, slug: p.slug, title: p.title, pri
 <script>
   import { $wishlist, toggleWish } from '../lib/stores.ts';
   import { emit } from '../lib/ui-events.ts';
+  import { onPage } from '../lib/lifecycle.ts';
+
+  // Name this card's photo before the router snapshots the page, so it morphs into the product page's image.
+  const nameForMorph = (e: Event) => {
+    const link = (e.target as Element).closest<HTMLAnchorElement>('.pcard__title a');
+    if (!link) return;
+    document.querySelectorAll<HTMLElement>('[data-card-img]').forEach((i) => (i.style.viewTransitionName = ''));
+    const card = link.closest<HTMLElement>('[data-card]');
+    const img = card?.querySelector<HTMLElement>('[data-card-img]');
+    if (img && card?.dataset.slug) img.style.viewTransitionName = `p-${card.dataset.slug}`;
+  };
+  document.addEventListener('pointerdown', nameForMorph, true);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Enter') nameForMorph(e); }, true);
 
   // One delegated listener per page for every card.
   document.addEventListener('click', (e) => {
     const target = e.target as Element;
-    // Name this card's photo so the browser morphs it into the product page's main image.
-    const link = target.closest<HTMLAnchorElement>('.pcard__title a');
-    if (link) {
-      const img = link.closest('[data-card]')?.querySelector<HTMLElement>('[data-card-img]');
-      const slug = link.closest<HTMLElement>('[data-card]')?.dataset.slug;
-      if (img && slug) img.style.viewTransitionName = `p-${slug}`;
-    }
     const sw = target.closest<HTMLButtonElement>('[data-swatch]');
     if (sw) {
       const card = sw.closest<HTMLElement>('[data-card]')!;
@@ -81,7 +87,7 @@ const wish = JSON.stringify({ productId: p.id, slug: p.slug, title: p.title, pri
     }
   });
 
-  $wishlist.subscribe((list) => {
+  const syncHearts = (list: readonly { productId: string }[] = $wishlist.get()) => {
     const ids = new Set(list.map((w) => w.productId));
     document.querySelectorAll<HTMLButtonElement>('[data-wish]').forEach((b) => {
       const { productId, title } = JSON.parse(b.dataset.wish!);
@@ -89,5 +95,7 @@ const wish = JSON.stringify({ productId: p.id, slug: p.slug, title: p.title, pri
       b.setAttribute('aria-pressed', String(on));
       b.setAttribute('aria-label', on ? `Remove ${title} from wishlist` : `Save ${title} to wishlist`);
     });
-  });
+  };
+  $wishlist.listen((list) => syncHearts([...list]));
+  onPage(() => syncHearts());
 </script>

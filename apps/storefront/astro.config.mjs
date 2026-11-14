@@ -9,7 +9,8 @@ export default defineConfig({
   adapter: cloudflare({ imageService: 'passthrough', persistState: { path: '../../.wrangler/state' } }),
   session: false,
   integrations: [react()],
-  prefetch: { prefetchAll: false, defaultStrategy: 'hover' },
+  // Every internal link is fetched on hover / first touch, so client-router navigations feel instant.
+  prefetch: { prefetchAll: true, defaultStrategy: 'hover' },
   build: { inlineStylesheets: 'auto' },
   vite: { server: { fs: { allow: ['../..'] } } },
 });
