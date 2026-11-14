@@ -1,0 +1,68 @@
+---
+import Icon from './ui/Icon.astro';
+import Logo from './ui/Logo.astro';
+import { t } from '@femia/i18n';
+const path = Astro.url.pathname;
+const nav = [
+  { href: '/', label: t('nav.home'), match: (p: string) => p === '/' },
+  { href: '/shop', label: t('nav.shop'), match: (p: string) => p.startsWith('/shop') || p.startsWith('/products') },
+  { href: '/collections', label: t('nav.collections'), match: (p: string) => p.startsWith('/collections') },
+  { href: '/visit', label: t('nav.visit'), match: (p: string) => p.startsWith('/visit') },
+];
+---
+<header class="site-header" data-header>
+  <div class="container site-header__inner">
+    <a href="/" class="site-header__logo" aria-label="Femia home"><Logo /></a>
+    <nav class="site-nav" aria-label="Main">
+      <ul role="list">
+        {nav.map((n) => (
+          <li><a href={n.href} aria-current={n.match(path) ? 'page' : undefined}>{n.label}</a></li>
+        ))}
+      </ul>
+    </nav>
+    <div class="site-header__actions">
+      <button class="icon-btn" type="button" data-ui="search:open" aria-label={t('nav.search')}><Icon name="search" /></button>
+      <a class="icon-btn" href="/wishlist" aria-label={t('nav.wishlist')}>
+        <Icon name="heart" /><span class="badge" data-wish-count hidden></span>
+      </a>
+      <button class="icon-btn" type="button" data-ui="cart:open" aria-label={t('nav.bag')} data-bag-button>
+        <Icon name="bag" /><span class="badge" data-cart-count hidden></span>
+      </button>
+    </div>
+  </div>
+</header>
+<style>
+  .site-header { position: sticky; top: 0; z-index: 40; background: color-mix(in srgb, var(--c-cream) 88%, transparent); backdrop-filter: saturate(1.4) blur(12px); -webkit-backdrop-filter: saturate(1.4) blur(12px); transition: box-shadow var(--motion-base) ease; }
+  .site-header.is-scrolled { box-shadow: 0 1px 0 var(--c-line), 0 8px 24px -18px rgba(58, 31, 20, .3); }
+  .site-header__inner { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-6); height: var(--layout-header); }
+  .site-nav ul { display: flex; gap: clamp(var(--sp-6), 4vw, var(--sp-12)); }
+  .site-nav a { position: relative; display: inline-flex; align-items: center; min-height: 44px; font-weight: 500; color: var(--c-ink); transition: color var(--motion-fast) ease; }
+  .site-nav a::after { content: ''; position: absolute; left: 0; right: 0; bottom: 4px; height: 2px; background: var(--c-maroon); transform: scaleX(0); transition: transform var(--motion-base) var(--motion-ease); }
+  .site-nav a:hover { color: var(--c-maroon); }
+  .site-nav a:hover::after, .site-nav a[aria-current='page']::after { transform: scaleX(1); }
+  .site-nav a[aria-current='page'] { color: var(--c-maroon); font-weight: 600; }
+  .site-header__actions { display: flex; gap: var(--sp-1); margin-right: -10px; }
+  @media (max-width: 767px) {
+    .site-header__inner { height: var(--layout-header-mobile); }
+    .site-nav { display: none; }
+  }
+</style>
+<script>
+  import { $cartCount, $wishlist } from '../lib/stores.ts';
+  import { emit } from '../lib/ui-events.ts';
+  const header = document.querySelector('[data-header]');
+  const onScroll = () => header?.classList.toggle('is-scrolled', scrollY > 8);
+  addEventListener('scroll', onScroll, { passive: true }); onScroll();
+  const setBadge = (el: Element | null, n: number) => { if (el instanceof HTMLElement) { el.hidden = n === 0; el.textContent = String(n); } };
+  $cartCount.subscribe((n) => {
+    setBadge(document.querySelector('[data-cart-count]'), n);
+    document.querySelector('[data-bag-button]')?.setAttribute('aria-label', n ? `Bag, ${n} items` : 'Bag');
+  });
+  $wishlist.subscribe((w) => setBadge(document.querySelector('[data-wish-count]'), w.length));
+  document.addEventListener('click', (e) => {
+    const el = (e.target as Element).closest<HTMLElement>('[data-ui]');
+    if (!el) return;
+    e.preventDefault();
+    emit({ type: el.dataset.ui as 'cart:open' | 'search:open' });
+  });
+</script>

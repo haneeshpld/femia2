@@ -1,0 +1,10 @@
+{
+  "$comment": "Copy to clients/femia.json (gitignored). IDs come from `node tools/release/provision.mjs clients/femia.json`.",
+  "client": "femia",
+  "accountId": "",
+  "domains": { "store": "femia.in", "admin": "admin.femia.in", "api": "api.femia.in" },
+  "d1": { "name": "femia", "id": "" },
+  "r2": { "bucket": "femia-media" },
+  "access": { "teamDomain": "femia.cloudflareaccess.com", "aud": "" },
+  "email": { "from": "Femia <orders@femia.in>" }
+}

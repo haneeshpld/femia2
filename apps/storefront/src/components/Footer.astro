@@ -1,0 +1,69 @@
+---
+import Icon from './ui/Icon.astro';
+import Logo from './ui/Logo.astro';
+import type { PublicSettings, Category } from '@femia/contracts';
+import { t } from '@femia/i18n';
+interface Props { settings: PublicSettings; categories: Category[] }
+const { settings, categories } = Astro.props;
+const s = settings.store;
+const wa = s.whatsapp ? `https://wa.me/${s.whatsapp.replace(/\D/g, '').replace(/^(\d{10})$/, '91$1')}` : null;
+---
+<footer class="footer">
+  <div class="container">
+    <div class="footer__grid">
+      <div class="footer__brand">
+        <Logo variant="light" size="lg" />
+        <p class="footer__tagline">{s.tagline}</p>
+        <div class="footer__social">
+          {s.socials.instagram && <a class="icon-btn" href={s.socials.instagram} rel="noopener" target="_blank" aria-label="Femia on Instagram"><Icon name="instagram" /></a>}
+          {wa && <a class="icon-btn" href={wa} rel="noopener" target="_blank" aria-label="Chat with Femia on WhatsApp"><Icon name="whatsapp" /></a>}
+        </div>
+      </div>
+      <nav aria-label={t('footer.shop')}>
+        <h2 class="footer__h">{t('footer.shop')}</h2>
+        <ul role="list">{categories.map((c) => <li><a href={`/shop/${c.slug}`}>{c.name}</a></li>)}</ul>
+      </nav>
+      <nav aria-label={t('footer.help')}>
+        <h2 class="footer__h">{t('footer.help')}</h2>
+        <ul role="list">
+          <li><a href="/policies/shipping">Shipping</a></li>
+          <li><a href="/policies/returns">Returns</a></li>
+          <li><a href="/size-guide">Size Guide</a></li>
+          <li><a href="/track">Track Order</a></li>
+          <li><a href="/policies/contact">Contact</a></li>
+        </ul>
+      </nav>
+      <nav aria-label={t('footer.visit')}>
+        <h2 class="footer__h">{t('footer.visit')}</h2>
+        <ul role="list">
+          <li><a href="/visit">Our Boutique</a></li>
+          <li><a href="/visit#hours">Store Hours</a></li>
+          {s.mapUrl && <li><a href={s.mapUrl} target="_blank" rel="noopener">Directions</a></li>}
+          <li><a href="/about">About Femia</a></li>
+        </ul>
+      </nav>
+    </div>
+    <div class="footer__bottom">
+      <p>{t('footer.rights', { year: new Date().getFullYear(), name: s.name })}</p>
+      <p><a href="/policies/privacy">Privacy</a><span aria-hidden="true"> · </span><a href="/policies/terms">Terms</a></p>
+    </div>
+  </div>
+</footer>
+<style>
+  .footer { background: var(--c-maroon-800); color: var(--c-cream); padding-top: var(--sp-12); }
+  .footer__grid { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); gap: var(--sp-10); padding-bottom: var(--sp-10); }
+  .footer__brand { padding-right: var(--sp-10); border-right: 1px solid rgba(251, 241, 233, .25); }
+  .footer__tagline { font-family: var(--font-display); font-style: italic; font-size: 1.375rem; margin-top: var(--sp-3); }
+  .footer__social { display: flex; gap: var(--sp-2); margin-top: var(--sp-4); margin-left: -10px; }
+  .footer__social .icon-btn { color: var(--c-cream); }
+  .footer__social .icon-btn:hover { background: rgba(251, 241, 233, .12); }
+  .footer__h { font-family: var(--font-body); font-size: .8125rem; letter-spacing: .26em; text-transform: uppercase; color: var(--c-white); font-weight: 600; margin-bottom: var(--sp-3); }
+  .footer ul a { display: inline-flex; min-height: 32px; align-items: center; opacity: .88; transition: opacity var(--motion-fast) ease; }
+  .footer a:hover { opacity: 1; text-decoration: underline; text-underline-offset: 3px; }
+  .footer__bottom { display: flex; justify-content: space-between; gap: var(--sp-4); padding-block: var(--sp-5); border-top: 1px solid rgba(251, 241, 233, .2); font-size: .875rem; background: transparent; }
+  @media (max-width: 899px) {
+    .footer__grid { grid-template-columns: 1fr 1fr; }
+    .footer__brand { grid-column: 1 / -1; border-right: 0; padding-right: 0; }
+  }
+  @media (max-width: 767px) { .footer { padding-bottom: calc(64px + env(safe-area-inset-bottom)); } .footer__bottom { flex-direction: column; } }
+</style>

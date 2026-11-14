@@ -1,0 +1,17 @@
+---
+import Base from '../../layouts/Base.astro';
+import PageBanner from '../../components/shop/PageBanner.astro';
+import Listing from '../../components/shop/Listing.astro';
+import { api } from '../../lib/api.ts';
+import { getCommon } from '../../lib/content.ts';
+import { listQuery } from '../../lib/listing.ts';
+
+const { site, categories } = await getCommon();
+const list = await api().catalog.products(listQuery(Astro.url));
+const banner = site.content.hero?.image ? site.media[site.content.hero.image] : null;
+Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=600');
+---
+<Base site={site} categories={categories} title="Shop all" description="Kurtas, co-ord sets, dresses, tops and bottoms from Femia, Kochi." noindex={Astro.url.search.length > 0}>
+  <PageBanner eyebrow="Shop our collections" title="All Collections" sub={categories.map((c) => c.name).slice(0, 3).join(', ') + ' and more.'} image={banner} />
+  <Listing list={list} categories={categories} basePath="/shop" />
+</Base>

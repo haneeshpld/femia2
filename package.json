@@ -1,0 +1,40 @@
+{
+  "name": "femia",
+  "private": true,
+  "version": "1.0.0-dev",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "dev:api": "npm run dev -w @femia/api",
+    "dev:store": "npm run dev -w @femia/storefront",
+    "dev:admin": "npm run dev -w @femia/admin",
+    "db:reset": "npm run db:reset -w @femia/api",
+    "seed:images": "node tools/seed/build-seed-images.mjs",
+    "seed": "node tools/seed/build-seed.mjs && node tools/seed/load-local.mjs",
+    "dev": "echo 'Run in 3 terminals: npm run dev:api | npm run dev:store | npm run dev:admin'",
+    "provision": "node tools/release/provision.mjs",
+    "deploy": "node tools/release/deploy.mjs",
+    "rollback": "node tools/release/rollback.mjs"
+  },
+  "devDependencies": {
+    "sharp": "^0.35.5",
+    "typescript": "~5.9.3",
+    "vitest": "^5.1.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true,
+    "esbuild@0.28.2": true,
+    "workerd@1.20261113.1": true,
+    "fsevents@2.3.3": true,
+    "workerd@1.20261110.1": true
+  }
+}

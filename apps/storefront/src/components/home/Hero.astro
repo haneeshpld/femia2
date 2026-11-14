@@ -1,0 +1,61 @@
+---
+import type { MediaRef } from '@femia/contracts';
+import Icon from '../ui/Icon.astro';
+import { srcset } from '../../lib/format.ts';
+import { t } from '@femia/i18n';
+interface Props { hero: Record<string, any>; image?: MediaRef }
+const { hero: h, image } = Astro.props;
+---
+<section class="hero" aria-labelledby="hero-title">
+  {image && (
+    <div class="hero__art" aria-hidden="true">
+      <img src={image.src['960']} srcset={srcset(image)} sizes="(min-width: 768px) 55vw, 100vw" width={image.width} height={image.height}
+        alt="" fetchpriority="high" decoding="async" data-parallax="10" />
+    </div>
+  )}
+  <div class="container hero__inner">
+    <div class="hero__copy">
+      {h.eyebrow && <p class="eyebrow hero__eyebrow">{h.eyebrow}</p>}
+      <h1 id="hero-title" class="hero__title">
+        <span class="line"><span>{h.title}</span></span>
+        {h.titleAccent && <span class="line"><span class="accent">{h.titleAccent}</span></span>}
+      </h1>
+      {h.body && <p class="hero__body">{h.body}</p>}
+      <div class="hero__ctas">
+        <a class="btn" href={h.ctaLink}>{h.ctaLabel} <Icon name="arrowRight" size={20} class="arrow" /></a>
+        {h.secondaryLabel && h.secondaryLink && <a class="hero__link" href={h.secondaryLink}>{h.secondaryLabel}</a>}
+      </div>
+    </div>
+  </div>
+  <a href="#after-hero" class="hero__scroll"><span>{t('common.scroll')}</span><i aria-hidden="true"></i></a>
+</section>
+<div id="after-hero"></div>
+<style>
+  .hero { position: relative; isolation: isolate; overflow: hidden; min-height: clamp(560px, 82vh, 760px); display: grid; align-items: center;
+    background: radial-gradient(120% 90% at 85% 30%, #F8E2D6 0%, transparent 60%), linear-gradient(180deg, #FAEDE4 0%, var(--c-cream) 100%); }
+  .hero__art { position: absolute; z-index: -1; inset: -6% 0 -6% auto; width: 58%;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 28%); mask-image: linear-gradient(90deg, transparent 0%, #000 28%); }
+  .hero__art img { width: 100%; height: 100%; object-fit: cover; object-position: 30% 50%; }
+  .hero__inner { padding-block: var(--sp-16) var(--sp-24); }
+  .hero__copy { max-width: 600px; }
+  .hero__eyebrow { animation: rise 900ms var(--motion-ease-out) both; }
+  .hero__title { font-size: clamp(2.75rem, 1.6rem + 4.6vw, 5rem); line-height: 1.02; margin-top: var(--sp-5); font-weight: 600; }
+  .hero__title .line { display: block; overflow: hidden; padding-bottom: .08em; }
+  .hero__title .line > span { display: inline-block; animation: line-up 1000ms var(--motion-ease-out) both; }
+  .hero__title .line:nth-child(2) > span { animation-delay: 120ms; }
+  .hero__body { font-size: var(--fs-md); max-width: 34ch; margin-top: var(--sp-5); animation: rise 900ms 250ms var(--motion-ease-out) both; }
+  .hero__ctas { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4) var(--sp-8); margin-top: var(--sp-8); animation: rise 900ms 380ms var(--motion-ease-out) both; }
+  .hero__link { color: var(--c-ink); font-weight: 600; text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 6px; min-height: 44px; display: inline-flex; align-items: center; }
+  .hero__link:hover { color: var(--c-maroon); }
+  .hero__scroll { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); display: grid; justify-items: center; gap: var(--sp-2); font-size: .75rem; letter-spacing: .3em; color: var(--c-ink); text-transform: uppercase; }
+  .hero__scroll i { width: 1px; height: 44px; background: currentColor; transform-origin: top; animation: scroll-line 2.2s var(--motion-ease) infinite; }
+  @keyframes scroll-line { 0% { transform: scaleY(0); } 50% { transform: scaleY(1); transform-origin: top; } 51% { transform-origin: bottom; } 100% { transform: scaleY(0); transform-origin: bottom; } }
+  @media (max-width: 767px) {
+    .hero { min-height: auto; align-items: start; }
+    .hero__art { inset: auto -10% -4% 18%; width: auto; height: 58%; -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 45%), linear-gradient(90deg, transparent, #000 35%); mask-image: linear-gradient(160deg, transparent 20%, #000 60%); }
+    .hero__inner { padding-block: var(--sp-10) 220px; }
+    .hero__body { max-width: 30ch; }
+    .hero__ctas { flex-direction: column; align-items: flex-start; }
+    .hero__scroll { display: none; }
+  }
+</style>

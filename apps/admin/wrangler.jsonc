@@ -1,0 +1,10 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "femia-admin",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-11-01",
+  // Whole hostname is protected by Cloudflare Access (email one-time code).
+  "assets": { "directory": "./dist", "binding": "ASSETS", "not_found_handling": "single-page-application", "run_worker_first": ["/api/*", "/media/*"] },
+  "services": [{ "binding": "API", "service": "femia-api" }],
+  "observability": { "enabled": true }
+}

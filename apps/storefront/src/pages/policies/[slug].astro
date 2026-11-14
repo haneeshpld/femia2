@@ -1,0 +1,36 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getCommon } from '../../lib/content.ts';
+import { richText } from '../../lib/format.ts';
+const TITLES: Record<string, string> = { shipping: 'Shipping policy', returns: 'Returns & exchanges', privacy: 'Privacy policy', terms: 'Terms of service', contact: 'Contact us' };
+const slug = Astro.params.slug!;
+if (!TITLES[slug]) return Astro.rewrite('/404');
+const { site, categories } = await getCommon();
+const body = site.content.policies?.[slug] ?? '';
+Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
+---
+<Base site={site} categories={categories} title={TITLES[slug]}>
+  <section class="section container policy">
+    <nav aria-label="Policies" class="policy__nav">
+      <ul role="list">{Object.entries(TITLES).map(([k, v]) => <li><a href={`/policies/${k}`} aria-current={k === slug ? 'page' : undefined}>{v}</a></li>)}</ul>
+    </nav>
+    <article>
+      <h1 class="h2">{TITLES[slug]}</h1>
+      <div class="prose policy__body" set:html={richText(body)} />
+    </article>
+  </section>
+</Base>
+<style>
+  .policy { display: grid; grid-template-columns: 240px 1fr; gap: var(--sp-12); align-items: start; }
+  .policy__nav { position: sticky; top: calc(var(--layout-header) + var(--sp-6)); }
+  .policy__nav ul { display: grid; gap: var(--sp-1); }
+  .policy__nav a { display: block; padding: var(--sp-2) var(--sp-3); border-radius: var(--r-sm); min-height: 44px; }
+  .policy__nav a[aria-current='page'] { background: var(--c-blush); color: var(--c-maroon); font-weight: 600; }
+  .policy__body { margin-top: var(--sp-6); }
+  @media (max-width: 767px) {
+    .policy { grid-template-columns: 1fr; gap: var(--sp-6); }
+    .policy__nav { position: static; }
+    .policy__nav ul { display: flex; overflow-x: auto; gap: var(--sp-2); }
+    .policy__nav a { white-space: nowrap; }
+  }
+</style>

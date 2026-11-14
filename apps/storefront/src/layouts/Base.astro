@@ -1,0 +1,89 @@
+---
+import '@fontsource-variable/cormorant-garamond/wght.css';
+import '@fontsource-variable/cormorant-garamond/wght-italic.css';
+import '@fontsource-variable/dm-sans/wght.css';
+import '../styles/global.css';
+import displayFont from '@fontsource-variable/cormorant-garamond/files/cormorant-garamond-latin-wght-normal.woff2?url';
+import bodyFont from '@fontsource-variable/dm-sans/files/dm-sans-latin-wght-normal.woff2?url';
+import AnnouncementBar from '../components/AnnouncementBar.astro';
+import Header from '../components/Header.astro';
+import TrustStrip from '../components/TrustStrip.astro';
+import Newsletter from '../components/Newsletter.astro';
+import Footer from '../components/Footer.astro';
+import MobileTabBar from '../components/MobileTabBar.astro';
+import Shell from '../components/islands/Shell.tsx';
+import type { SiteData } from '../lib/content.ts';
+import type { Category } from '@femia/contracts';
+import { t } from '@femia/i18n';
+
+interface Props {
+  site: SiteData;
+  categories: Category[];
+  title?: string;
+  description?: string;
+  image?: string;
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
+  noindex?: boolean;
+  /** pages like checkout hide newsletter/trust to stay focused */
+  minimal?: boolean;
+}
+const { site, categories, title, description, image, jsonLd, noindex = false, minimal = false } = Astro.props;
+const { content: c, settings } = site;
+const store = settings.store;
+const fullTitle = title ? `${title} | ${store.name}` : `${store.name} | ${store.tagline}`;
+const desc = description ?? c.hero?.body ?? store.tagline;
+const canonical = new URL(Astro.url.pathname, Astro.site).toString();
+const ogImage = image ? new URL(image, Astro.site).toString() : new URL('/og-default.jpg', Astro.site).toString();
+const announcement = c.announcement?.enabled ? (c.announcement.messages ?? []) : [];
+const org = {
+  '@context': 'https://schema.org', '@type': 'ClothingStore', name: store.name, url: Astro.site?.toString(),
+  logo: new URL('/icon-512.png', Astro.site).toString(), telephone: store.phone || undefined,
+  address: { '@type': 'PostalAddress', streetAddress: [store.address.line1, store.address.line2].filter(Boolean).join(', '), addressLocality: store.address.city, addressRegion: store.address.state, postalCode: store.address.pincode, addressCountry: 'IN' },
+  ...(store.geo ? { geo: { '@type': 'GeoCoordinates', latitude: store.geo.lat, longitude: store.geo.lng } } : {}),
+  sameAs: [store.socials.instagram, store.socials.facebook].filter(Boolean),
+};
+const ld = [org, ...(jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [])];
+---
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={desc} />
+    <link rel="canonical" href={canonical} />
+    {noindex && <meta name="robots" content="noindex" />}
+    <meta name="theme-color" content="#7A1628" />
+    <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="preload" href={displayFont} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={bodyFont} as="font" type="font/woff2" crossorigin />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={store.name} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={desc} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:locale" content="en_IN" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script is:inline>document.documentElement.classList.replace('no-js', 'js');</script>
+    <slot name="head" />
+    <script type="application/ld+json" set:html={JSON.stringify(ld.length === 1 ? ld[0] : ld)} />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">{t('nav.skip')}</a>
+    <AnnouncementBar messages={announcement} />
+    <Header />
+    <main id="main" tabindex="-1">
+      <slot />
+    </main>
+    {!minimal && <TrustStrip items={c.trust?.items ?? []} />}
+    {!minimal && <Newsletter title={c.newsletter?.title ?? 'Get Style Updates'} body={c.newsletter?.body ?? ''} />}
+    <Footer settings={settings} categories={categories} />
+    <MobileTabBar />
+    <Shell client:idle freeShippingThreshold={settings.shipping.freeShippingThreshold} sizeGuide={c.sizeGuide?.chart ?? ''} />
+    <script>
+      import '../scripts/motion.ts';
+    </script>
+  </body>
+</html>

@@ -1,0 +1,191 @@
+---
+import type { Category, ProductList } from '@femia/contracts';
+import { formatINR } from '@femia/contracts';
+import PCard from '../ProductCard.astro';
+import Icon from '../ui/Icon.astro';
+import { t } from '@femia/i18n';
+
+interface Props {
+  list: ProductList;
+  categories: Category[];
+  /** base path for tabs + pagination, e.g. /shop or /collections/festive-edit */
+  basePath: string;
+  activeCategory?: string;
+  showTabs?: boolean;
+}
+const { list, categories, basePath, activeCategory, showTabs = true } = Astro.props;
+const url = Astro.url;
+const sp = url.searchParams;
+const selected = (k: string) => (sp.get(k) ?? '').split(',').filter(Boolean);
+const sort = sp.get('sort') ?? 'new';
+const pages = Math.max(1, Math.ceil(list.total / list.pageSize));
+const pageHref = (n: number) => { const u = new URL(url); n === 1 ? u.searchParams.delete('page') : u.searchParams.set('page', String(n)); return u.pathname + u.search; };
+const filtersActive = ['size', 'colour', 'fabric', 'min', 'max'].some((k) => sp.get(k));
+const clearHref = (() => { const u = new URL(url); ['size', 'colour', 'fabric', 'min', 'max', 'page'].forEach((k) => u.searchParams.delete(k)); return u.pathname + u.search; })();
+const bands = [[0, 99900], [99900, 149900], [149900, 199900], [199900, null]] as const;
+const sorts = ['new', 'price-asc', 'price-desc', 'popular'] as const;
+const pageWindow = Array.from({ length: pages }, (_, i) => i + 1).filter((n) => n === 1 || n === pages || Math.abs(n - list.page) <= 1);
+---
+{showTabs && (
+  <nav class="tabs container" aria-label="Categories">
+    <ul role="list">
+      <li><a href={`/shop${url.search.replace(/([?&])page=\d+&?/, '$1')}`} aria-current={!activeCategory ? 'page' : undefined}>{t('shop.all')}</a></li>
+      {categories.map((c) => <li><a href={`/shop/${c.slug}`} aria-current={activeCategory === c.slug ? 'page' : undefined}>{c.name}</a></li>)}
+    </ul>
+  </nav>
+)}
+
+<form class="filters container" method="get" action={basePath} data-filters>
+  {sp.get('q') && <input type="hidden" name="q" value={sp.get('q')} />}
+  <div class="filters__group">
+    <details class="dd">
+      <summary>{t('shop.size')}{selected('size').length > 0 && <span class="dd__n">{selected('size').length}</span>} <Icon name="chevronDown" size={16} /></summary>
+      <div class="dd__panel">
+        <fieldset><legend class="sr-only">{t('shop.size')}</legend>
+          <div class="chipset">{list.facets.sizes.map((s) => <label class="chk"><input type="checkbox" name="size" value={s.value} checked={selected('size').includes(s.value)} /><span>{s.value}</span></label>)}</div>
+        </fieldset>
+      </div>
+    </details>
+    <details class="dd">
+      <summary>{t('shop.colour')}{selected('colour').length > 0 && <span class="dd__n">{selected('colour').length}</span>} <Icon name="chevronDown" size={16} /></summary>
+      <div class="dd__panel">
+        <fieldset><legend class="sr-only">{t('shop.colour')}</legend>
+          <ul role="list" class="opts">{list.facets.colours.map((c) => (
+            <li><label class="chk chk--row"><input type="checkbox" name="colour" value={c.value} checked={selected('colour').includes(c.value)} /><span class="dot" style={`--sw:${c.swatch ?? '#ccc'}`}></span>{c.label}<span class="muted">({c.count})</span></label></li>
+          ))}</ul>
+        </fieldset>
+      </div>
+    </details>
+    <details class="dd">
+      <summary>{t('shop.fabric')}{selected('fabric').length > 0 && <span class="dd__n">{selected('fabric').length}</span>} <Icon name="chevronDown" size={16} /></summary>
+      <div class="dd__panel">
+        <fieldset><legend class="sr-only">{t('shop.fabric')}</legend>
+          <ul role="list" class="opts">{list.facets.fabrics.map((f) => (
+            <li><label class="chk chk--row"><input type="checkbox" name="fabric" value={f.value} checked={selected('fabric').includes(f.value)} />{f.value}<span class="muted">({f.count})</span></label></li>
+          ))}</ul>
+        </fieldset>
+      </div>
+    </details>
+    <details class="dd">
+      <summary>{t('shop.price')}{(sp.get('min') || sp.get('max')) && <span class="dd__n">1</span>} <Icon name="chevronDown" size={16} /></summary>
+      <div class="dd__panel">
+        <fieldset><legend class="sr-only">{t('shop.price')}</legend>
+          <ul role="list" class="opts">
+            <li><label class="chk chk--row"><input type="radio" name="price" value="" checked={!sp.get('min') && !sp.get('max')} />Any price</label></li>
+            {bands.map(([lo, hi]) => {
+              const v = `${lo}-${hi ?? ''}`;
+              const on = (sp.get('min') ?? '0') === String(lo) && (sp.get('max') ?? '') === String(hi ?? '') && (sp.get('min') || sp.get('max'));
+              return <li><label class="chk chk--row"><input type="radio" name="price" value={v} checked={!!on} />{hi ? (lo ? `${formatINR(lo)} – ${formatINR(hi)}` : `Under ${formatINR(hi)}`) : `${formatINR(lo)} & above`}</label></li>;
+            })}
+          </ul>
+        </fieldset>
+      </div>
+    </details>
+    {filtersActive && <a class="filters__clear" href={clearHref}>{t('shop.clear')}</a>}
+  </div>
+  <label class="filters__sort">
+    <span>{t('shop.sortBy')}</span>
+    <select name="sort">{sorts.map((s) => <option value={s} selected={s === sort}>{t(`shop.sort.${s}`)}</option>)}</select>
+    <Icon name="chevronDown" size={16} />
+  </label>
+  <noscript><button class="btn btn--sm" type="submit">Apply</button></noscript>
+</form>
+
+<div class="container listing">
+  <p class="listing__count muted" role="status">{t('shop.results', { count: list.total })}</p>
+  {list.items.length === 0 ? (
+    <div class="listing__empty">
+      <span class="listing__empty-icon"><Icon name="filter" size={32} /></span>
+      <h2 class="h3">{t('shop.empty.title')}</h2>
+      <p>{t('shop.empty.body')}</p>
+      <a class="btn btn--outline" href={filtersActive ? clearHref : '/shop'}>{filtersActive ? t('shop.clear') : 'Shop all'}</a>
+    </div>
+  ) : (
+    <ul role="list" class="grid-products" data-reveal-group>
+      {list.items.map((p, i) => <li><PCard product={p} eager={i < 4} /></li>)}
+    </ul>
+  )}
+  {pages > 1 && (
+    <nav class="pager" aria-label="Pagination">
+      {list.page > 1 ? <a class="pager__btn" href={pageHref(list.page - 1)} aria-label={t('common.prev')} rel="prev"><Icon name="chevronLeft" size={20} /></a> : <span class="pager__btn" aria-hidden="true"><Icon name="chevronLeft" size={20} /></span>}
+      {pageWindow.map((n, i) => (
+        <>
+          {i > 0 && n - pageWindow[i - 1]! > 1 && <span class="pager__gap">…</span>}
+          <a class:list={['pager__n', { 'is-on': n === list.page }]} href={pageHref(n)} aria-current={n === list.page ? 'page' : undefined} aria-label={t('common.page', { n })}>{n}</a>
+        </>
+      ))}
+      {list.page < pages ? <a class="pager__btn" href={pageHref(list.page + 1)} aria-label={t('common.next')} rel="next"><Icon name="chevronRight" size={20} /></a> : <span class="pager__btn" aria-hidden="true"><Icon name="chevronRight" size={20} /></span>}
+    </nav>
+  )}
+</div>
+
+<style>
+  .tabs { margin-top: var(--sp-6); }
+  .tabs ul { display: flex; gap: clamp(var(--sp-5), 4vw, var(--sp-12)); overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--c-line); }
+  .tabs ul::-webkit-scrollbar { display: none; }
+  .tabs a { position: relative; display: inline-flex; align-items: center; min-height: 52px; white-space: nowrap; font-size: 1.0625rem; color: var(--c-ink); padding-inline: var(--sp-1); }
+  .tabs a[aria-current='page'] { color: var(--c-maroon); font-weight: 600; }
+  .tabs a[aria-current='page']::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2.5px; background: var(--c-maroon); }
+  .filters { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); padding-block: var(--sp-5); position: relative; z-index: 5; }
+  .filters__group { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-8); }
+  .dd { position: relative; }
+  .dd summary { list-style: none; display: inline-flex; align-items: center; gap: var(--sp-2); min-height: 44px; cursor: pointer; font-size: .8125rem; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: var(--c-ink); }
+  .dd summary::-webkit-details-marker { display: none; }
+  .dd[open] summary :global(svg) { transform: rotate(180deg); }
+  .dd__n { display: inline-grid; place-items: center; min-width: 20px; height: 20px; border-radius: 10px; background: var(--c-maroon); color: var(--c-white); font-size: 11px; letter-spacing: 0; }
+  .dd__panel { position: absolute; top: calc(100% + 6px); left: 0; min-width: 240px; background: var(--c-surface); border-radius: var(--r-md); box-shadow: var(--shadow-raised); padding: var(--sp-4); }
+  .dd fieldset { border: 0; padding: 0; }
+  .chipset { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+  .chk { position: relative; display: inline-flex; align-items: center; gap: var(--sp-2); cursor: pointer; }
+  .chipset .chk input { position: absolute; opacity: 0; }
+  .chipset .chk span { display: grid; place-items: center; min-width: 48px; min-height: 44px; padding: 0 var(--sp-3); border: 1.5px solid var(--c-line); border-radius: var(--r-md); font-weight: 600; }
+  .chipset .chk input:checked + span { background: var(--c-maroon); border-color: var(--c-maroon); color: var(--c-white); }
+  .chipset .chk input:focus-visible + span { outline: 2px solid var(--c-maroon); outline-offset: 2px; }
+  .opts { display: grid; gap: 2px; }
+  .chk--row { min-height: 40px; width: 100%; }
+  .chk--row input { width: 18px; height: 18px; accent-color: var(--c-maroon); }
+  .chk--row .muted { margin-left: auto; font-size: .875rem; }
+  .dot { width: 18px; height: 18px; border-radius: 50%; background: var(--sw); box-shadow: inset 0 0 0 1px rgba(58, 31, 20, .2); }
+  .filters__clear { font-size: .875rem; color: var(--c-maroon); text-decoration: underline; text-underline-offset: 3px; min-height: 44px; display: inline-flex; align-items: center; }
+  .filters__sort { position: relative; display: inline-flex; align-items: center; gap: var(--sp-3); font-size: .8125rem; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: var(--c-ink); }
+  .filters__sort select { appearance: none; border: 0; background: transparent; font-size: 1rem; letter-spacing: 0; text-transform: none; font-weight: 500; min-height: 44px; padding-right: 22px; color: var(--c-ink); cursor: pointer; }
+  .filters__sort :global(svg) { position: absolute; right: 0; pointer-events: none; }
+  .listing__count { margin-bottom: var(--sp-4); font-size: .9375rem; }
+  .listing__empty { display: grid; justify-items: center; text-align: center; gap: var(--sp-3); padding: var(--sp-16) 0; }
+  .listing__empty-icon { display: grid; place-items: center; width: 80px; height: 80px; border-radius: 50%; background: var(--c-blush); color: var(--c-maroon); }
+  .listing__empty p { color: var(--c-muted); max-width: 36ch; }
+  .pager { display: flex; justify-content: center; align-items: center; gap: var(--sp-3); margin-top: var(--sp-12); }
+  .pager__btn, .pager__n { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid var(--c-line); color: var(--c-ink); font-weight: 600; }
+  .pager__btn { border-color: var(--c-maroon); color: var(--c-maroon); }
+  span.pager__btn { opacity: .3; }
+  .pager__n.is-on { background: var(--c-maroon); border-color: var(--c-maroon); color: var(--c-white); }
+  .pager a:hover:not(.is-on) { background: var(--c-blush); }
+  @media (max-width: 767px) {
+    .filters { flex-direction: column; align-items: stretch; }
+    .filters__group { gap: var(--sp-1) var(--sp-5); }
+    .dd { position: static; }
+    .dd__panel { left: var(--layout-gutter); right: var(--layout-gutter); }
+  }
+</style>
+<script>
+  // Auto-apply filters; close other dropdowns; price band → min/max.
+  document.querySelectorAll<HTMLFormElement>('[data-filters]').forEach((form) => {
+    const submit = () => {
+      const fd = new FormData(form);
+      const u = new URL(form.action, location.href);
+      const multi: Record<string, string[]> = {};
+      for (const [k, v] of fd) {
+        if (k === 'price') { const [lo, hi] = String(v).split('-'); if (lo && lo !== '0') u.searchParams.set('min', lo); if (hi) u.searchParams.set('max', hi); continue; }
+        if (v) (multi[k] ??= []).push(String(v));
+      }
+      for (const [k, vs] of Object.entries(multi)) u.searchParams.set(k, vs.join(','));
+      if (u.searchParams.get('sort') === 'new') u.searchParams.delete('sort');
+      location.assign(u.pathname + u.search);
+    };
+    form.addEventListener('change', submit);
+    const dds = [...form.querySelectorAll('details')];
+    dds.forEach((d) => d.addEventListener('toggle', () => { if (d.open) dds.forEach((o) => o !== d && (o.open = false)); }));
+    document.addEventListener('click', (e) => { if (!form.contains(e.target as Node)) dds.forEach((d) => (d.open = false)); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') dds.forEach((d) => (d.open = false)); });
+  });
+</script>

@@ -1,0 +1,33 @@
+---
+import type { MediaRef } from '@femia/contracts';
+import Icon from '../ui/Icon.astro';
+import { srcset } from '../../lib/format.ts';
+interface Props { block: Record<string, any>; media: Record<string, MediaRef>; instagram: string }
+const { block: b, media, instagram } = Astro.props;
+const imgs = (b.images ?? []).map((i: { image: string; link?: string }) => ({ ...i, m: media[i.image] })).filter((i: { m?: MediaRef }) => i.m);
+---
+{b.enabled && imgs.length > 0 && (
+  <section class="section styled" aria-labelledby="styled-title">
+    <div class="container section-head">
+      <h2 id="styled-title" class="eyebrow">{b.eyebrow}</h2>
+      {b.handle && instagram && <a class="link-arrow styled__handle" href={instagram} target="_blank" rel="noopener"><Icon name="instagram" /> {b.handle}</a>}
+    </div>
+    <ul role="list" class="styled__track" data-reveal-group>
+      {imgs.map((i: { m: MediaRef; link?: string }) => (
+        <li>
+          {i.link ? <a href={i.link} target="_blank" rel="noopener"><img src={i.m.src['480']} srcset={srcset(i.m)} sizes="(min-width: 1024px) 20vw, 44vw" width={i.m.width} height={i.m.height} alt={i.m.alt} loading="lazy" decoding="async" /></a>
+                  : <img src={i.m.src['480']} srcset={srcset(i.m)} sizes="(min-width: 1024px) 20vw, 44vw" width={i.m.width} height={i.m.height} alt={i.m.alt} loading="lazy" decoding="async" />}
+        </li>
+      ))}
+    </ul>
+  </section>
+)}
+<style>
+  .styled { padding-bottom: 0; }
+  .styled__handle { text-decoration: underline; }
+  .styled__track { display: flex; gap: var(--sp-4); overflow-x: auto; scrollbar-width: none; padding-inline: var(--layout-gutter); scroll-snap-type: x proximity; }
+  .styled__track::-webkit-scrollbar { display: none; }
+  @media (min-width: 1280px) { .styled__track { padding-inline: calc((100vw - var(--layout-max-width)) / 2 + var(--layout-gutter)); } }
+  .styled__track li { flex: 0 0 clamp(160px, 21vw, 280px); scroll-snap-align: start; }
+  .styled__track img { width: 100%; aspect-ratio: 0.95; object-fit: cover; border-radius: var(--r-sm); background: var(--c-sand); }
+</style>

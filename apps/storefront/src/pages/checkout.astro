@@ -1,0 +1,19 @@
+---
+import Base from '../layouts/Base.astro';
+import Checkout from '../components/islands/Checkout.tsx';
+import { getCommon } from '../lib/content.ts';
+import { t } from '@femia/i18n';
+const { site, categories } = await getCommon();
+Astro.response.headers.set('Cache-Control', 'no-store');
+---
+<Base site={site} categories={categories} title={t('checkout.title')} noindex minimal>
+  <section class="container checkout">
+    <h1 class="h2">{t('checkout.title')}</h1>
+    <p class="muted">Guest checkout. We deliver within Kerala. Free shipping above ₹999.</p>
+    <Checkout client:load payments={site.settings.payments} />
+  </section>
+</Base>
+<style>
+  .checkout { padding-block: var(--sp-8) var(--sp-16); }
+  .checkout > .muted { margin: var(--sp-2) 0 var(--sp-8); }
+</style>

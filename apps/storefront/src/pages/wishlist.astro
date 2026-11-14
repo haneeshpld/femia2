@@ -1,0 +1,51 @@
+---
+import Base from '../layouts/Base.astro';
+import Icon from '../components/ui/Icon.astro';
+import { getCommon } from '../lib/content.ts';
+import { t } from '@femia/i18n';
+const { site, categories } = await getCommon();
+---
+<Base site={site} categories={categories} title={t('wishlist.title')} noindex>
+  <section class="section container">
+    <p class="eyebrow">Saved on this device</p>
+    <h1 class="h2" style="margin-top: var(--sp-2)">{t('wishlist.title')}</h1>
+    <ul role="list" class="grid-products wl" data-wishlist></ul>
+    <div class="wl-empty" data-wl-empty hidden>
+      <span class="wl-empty__icon"><Icon name="heart" size={32} /></span>
+      <p>{t('wishlist.empty')}</p>
+      <a class="btn" href="/shop">Browse the collection</a>
+    </div>
+  </section>
+</Base>
+<style>
+  .wl { margin-top: var(--sp-8); }
+  .wl-empty { display: grid; justify-items: center; gap: var(--sp-4); text-align: center; padding-block: var(--sp-16); }
+  .wl-empty__icon { display: grid; place-items: center; width: 80px; height: 80px; border-radius: 50%; background: var(--c-blush); color: var(--c-maroon); }
+</style>
+<script>
+  import { $wishlist, toggleWish } from '../lib/stores.ts';
+  import { emit } from '../lib/ui-events.ts';
+  import { formatINR } from '@femia/contracts/money';
+  const list = document.querySelector<HTMLElement>('[data-wishlist]')!;
+  const empty = document.querySelector<HTMLElement>('[data-wl-empty]')!;
+  const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+  $wishlist.subscribe((items) => {
+    empty.hidden = items.length > 0;
+    list.innerHTML = items.map((w) => `
+      <li><article class="pcard">
+        <div class="pcard__media">${w.image ? `<img class="is-active" src="${esc(w.image)}" alt="" width="480" height="640" loading="lazy">` : ''}
+          <button class="icon-btn pcard__wish" type="button" data-remove="${esc(w.productId)}" aria-pressed="true" aria-label="Remove ${esc(w.title)} from wishlist">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.6"><path d="M12 20s-7.5-4.4-7.5-10A4.4 4.4 0 0 1 12 7.3 4.4 4.4 0 0 1 19.5 10C19.5 15.6 12 20 12 20Z"/></svg>
+          </button></div>
+        <div class="pcard__body"><h2 class="pcard__title"><a href="/products/${esc(w.slug)}">${esc(w.title)}</a></h2><p class="price">${formatINR(w.price)}</p>
+          <div class="pcard__cta"><button type="button" class="btn btn--outline btn--sm btn--block" data-add="${esc(w.slug)}">Add to Bag</button></div></div>
+      </article></li>`).join('');
+  });
+  list.addEventListener('click', (e) => {
+    const t = e.target as Element;
+    const rm = t.closest<HTMLElement>('[data-remove]');
+    if (rm) { const w = $wishlist.get().find((x) => x.productId === rm.dataset.remove); if (w) toggleWish(w); return; }
+    const add = t.closest<HTMLElement>('[data-add]');
+    if (add) emit({ type: 'quick-add', slug: add.dataset.add!, origin: add.closest('.pcard')?.querySelector('img')?.getBoundingClientRect() });
+  });
+</script>

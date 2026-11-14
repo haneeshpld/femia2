@@ -1,0 +1,17 @@
+---
+import Base from '../layouts/Base.astro';
+import PageBanner from '../components/shop/PageBanner.astro';
+import Listing from '../components/shop/Listing.astro';
+import { api } from '../lib/api.ts';
+import { getCommon } from '../lib/content.ts';
+import { listQuery } from '../lib/listing.ts';
+
+const { site, categories } = await getCommon();
+const q = Astro.url.searchParams.get('q')?.trim() ?? '';
+const list = await api().catalog.products(listQuery(Astro.url));
+Astro.response.headers.set('Cache-Control', 'no-store');
+---
+<Base site={site} categories={categories} title={q ? `Search: ${q}` : 'Search'} noindex>
+  <PageBanner eyebrow="Search" title={q ? `“${q}”` : 'Search'} sub={`${list.total} styles found`} />
+  <Listing list={list} categories={categories} basePath="/search" showTabs={false} />
+</Base>

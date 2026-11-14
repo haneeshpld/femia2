@@ -1,0 +1,352 @@
+---
+import Base from '../../layouts/Base.astro';
+import PCard from '../../components/ProductCard.astro';
+import Icon from '../../components/ui/Icon.astro';
+import { api } from '../../lib/api.ts';
+import { getCommon } from '../../lib/content.ts';
+import { formatINR, percentOff, richText, srcset } from '../../lib/format.ts';
+import { ApiError } from '@femia/sdk';
+import { t } from '@femia/i18n';
+
+const slug = Astro.params.slug!;
+const [{ site, categories }, product] = await Promise.all([
+  getCommon(),
+  api().catalog.product(slug).catch((e) => { if (e instanceof ApiError && e.status === 404) return null; throw e; }),
+]);
+if (!product) return Astro.rewrite('/404');
+const p = product;
+const store = site.settings.store;
+const firstColour = p.option2Values[0]?.value ?? null;
+const imagesFor = (colour: string | null) => {
+  const own = p.images.filter((i) => i.option2 === colour);
+  const shared = p.images.filter((i) => i.option2 === null);
+  const list = [...own, ...shared];
+  return list.length ? list : p.images;
+};
+const gallery = imagesFor(firstColour);
+const pct = percentOff(p.price, p.compareAtPrice);
+const chart = p.sizeChart || site.content.sizeGuide?.chart || '';
+const wa = store.whatsapp ? `https://wa.me/${store.whatsapp.replace(/\D/g, '').replace(/^(\d{10})$/, '91$1')}?text=${encodeURIComponent(`Hi Femia! I have a question about the ${p.title}: ${new URL(`/products/${p.slug}`, Astro.site)}`)}` : null;
+const available = p.variants.some((v) => v.available > 0);
+const pageUrl = new URL(`/products/${p.slug}`, Astro.site).toString();
+const ld = {
+  '@context': 'https://schema.org', '@type': 'Product', name: p.title, description: p.seo.description, sku: p.variants[0]?.sku,
+  brand: { '@type': 'Brand', name: store.name }, category: p.category.name, material: p.fabric || undefined,
+  image: p.images.map((i) => new URL(i.src['1600'] ?? i.src['960']!, Astro.site).toString()),
+  offers: {
+    '@type': 'AggregateOffer', priceCurrency: 'INR', lowPrice: (Math.min(...p.variants.map((v) => v.price)) / 100).toFixed(2), highPrice: (Math.max(...p.variants.map((v) => v.price)) / 100).toFixed(2),
+    offerCount: p.variants.length, availability: available ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock', url: pageUrl,
+  },
+};
+const crumbs = { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [
+  { '@type': 'ListItem', position: 1, name: 'Shop', item: new URL('/shop', Astro.site).toString() },
+  { '@type': 'ListItem', position: 2, name: p.category.name, item: new URL(`/shop/${p.category.slug}`, Astro.site).toString() },
+  { '@type': 'ListItem', position: 3, name: p.title, item: pageUrl },
+] };
+const clientData = {
+  id: p.id, slug: p.slug, title: p.title, price: p.price, compareAtPrice: p.compareAtPrice,
+  option1Name: p.option1Name, option2Values: p.option2Values, option1Values: p.option1Values,
+  variants: p.variants.map((v) => ({ id: v.id, o1: v.option1, o2: v.option2, price: v.price, cap: v.compareAtPrice, available: v.available })),
+  galleries: Object.fromEntries((p.option2Values.length ? p.option2Values.map((o) => o.value) : [null]).map((c) => [c ?? '', imagesFor(c).map((i) => ({ id: i.id, alt: i.alt, w: i.width, h: i.height, src: i.src }))])),
+};
+Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=600');
+---
+<Base site={site} categories={categories} title={p.seo.title} description={p.seo.description} image={gallery[0]?.src['1600']} jsonLd={[ld, crumbs]}>
+  <link slot="head" rel="preload" as="image" href={gallery[0]?.src['960']} imagesrcset={srcset(gallery[0])} imagesizes="(min-width: 1024px) 46vw, 100vw" fetchpriority="high" />
+  <nav class="container crumbs" aria-label="Breadcrumb">
+    <ol role="list"><li><a href="/shop">Shop</a></li><li><a href={`/shop/${p.category.slug}`}>{p.category.name}</a></li><li aria-current="page">{p.title}</li></ol>
+  </nav>
+
+  <div class="container pdp" data-pdp>
+    <script type="application/json" data-pdp-data set:html={JSON.stringify(clientData)} />
+    <section class="gallery" aria-label="Photos">
+      <div class="gallery__track" data-track tabindex="0" aria-label="Product photos, swipe or use arrow keys">
+        {gallery.map((img, i) => (
+          <button type="button" class="gallery__slide" data-zoom={i} aria-label={`${t('product.zoom')} ${i + 1} of ${gallery.length}`}>
+            <img src={img.src['960']} srcset={srcset(img)} sizes="(min-width: 1024px) 46vw, 100vw" width={img.width} height={img.height} alt={img.alt}
+              loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : undefined} decoding="async" style={img.placeholder ? `background:${img.placeholder}` : undefined} />
+          </button>
+        ))}
+      </div>
+      <div class="gallery__dots" data-dots aria-hidden="true">{gallery.map((_, i) => <span class:list={{ 'is-on': i === 0 }}></span>)}</div>
+      {gallery.length > 1 && (
+        <ul role="list" class="gallery__thumbs" data-thumbs>
+          {gallery.map((img, i) => (
+            <li><button type="button" data-thumb={i} aria-label={`Show photo ${i + 1}`} aria-current={i === 0 ? 'true' : undefined}><img src={img.src['480']} alt="" width="80" height="107" loading="lazy" /></button></li>
+          ))}
+        </ul>
+      )}
+    </section>
+
+    <section class="info" aria-labelledby="p-title">
+      <p class="eyebrow info__cat"><a href={`/shop/${p.category.slug}`}>{p.category.name}</a></p>
+      <h1 id="p-title" class="info__title">{p.title}</h1>
+      <p class="price info__price" data-price>
+        <span data-price-now>{formatINR(p.price)}</span>
+        {pct > 0 && <><s data-price-was><span class="sr-only">MRP </span>{formatINR(p.compareAtPrice!)}</s><span class="off" data-price-off>{t('common.off', { pct })}</span></>}
+      </p>
+      <p class="muted info__tax">Inclusive of all taxes. Free shipping above ₹999.</p>
+
+      {p.option2Values.length > 0 && (
+        <fieldset class="opt">
+          <legend>{p.option2Name}: <strong data-colour-label>{p.option2Values[0]!.label}</strong></legend>
+          <div class="swatches swatches--lg">
+            {p.option2Values.map((o, i) => (
+              <button type="button" class="swatch" style={`--sw:${o.swatch ?? '#ccc'}`} data-colour={o.value} aria-pressed={i === 0 ? 'true' : 'false'} aria-label={o.label}></button>
+            ))}
+          </div>
+        </fieldset>
+      )}
+
+      {p.option1Values.length > 0 && (
+        <fieldset class="opt">
+          <legend class="opt__head">
+            <span>{p.option1Name}<span data-size-label></span></span>
+            {chart && <button type="button" class="opt__chart" data-open-chart><Icon name="ruler" size={20} /> {t('product.sizeChart')}</button>}
+          </legend>
+          <div class="sizes" data-sizes>
+            {p.option1Values.map((o) => <button type="button" class="size" data-size={o.value} aria-pressed="false">{o.label}</button>)}
+          </div>
+          <p class="low" data-low role="status" aria-live="polite"></p>
+        </fieldset>
+      )}
+
+      <div class="info__buy" data-buybar>
+        <button type="button" class="btn btn--block info__add" data-add disabled={!available}>
+          <Icon name="bag" size={20} /> <span data-add-label>{available ? (p.option1Values.length ? t('product.selectSize') : t('common.addToBag')) : t('common.soldOut')}</span>
+        </button>
+        <button type="button" class="icon-btn info__wish pcard__wish" data-wish={JSON.stringify({ productId: p.id, slug: p.slug, title: p.title, price: p.price, image: gallery[0]?.src['480'] ?? null })} aria-pressed="false" aria-label={t('common.saveToWishlist', { title: p.title })}>
+          <Icon name="heart" />
+        </button>
+      </div>
+      {wa && <a class="info__wa" href={wa} target="_blank" rel="noopener"><Icon name="whatsapp" size={20} /> {t('product.askWhatsApp')}</a>}
+
+      <div class="acc">
+        <details open><summary>Description <Icon name="plus" size={18} /></summary><div class="acc__body prose" set:html={richText(p.description)} /></details>
+        <details><summary>{t('product.fabricCare')} <Icon name="plus" size={18} /></summary><div class="acc__body">{p.fabric && <p><strong>Fabric:</strong> {p.fabric}</p>}<p>{p.care}</p></div></details>
+        <details><summary>{t('product.delivery')} <Icon name="plus" size={18} /></summary><div class="acc__body"><p>{t('product.deliveryBody')}</p><p><a href="/policies/shipping">Shipping policy</a> · <a href="/policies/returns">Returns policy</a></p></div></details>
+      </div>
+    </section>
+  </div>
+
+  {p.related.length > 0 && (
+    <section class="section" aria-labelledby="rel-title">
+      <div class="container">
+        <div class="section-head"><div><p class="eyebrow">Complete the look</p><h2 id="rel-title">{t('product.related')}</h2></div></div>
+        <ul role="list" class="grid-products" data-reveal-group>{p.related.map((r) => <li><PCard product={r} /></li>)}</ul>
+      </div>
+    </section>
+  )}
+
+  <dialog class="zoom" data-zoom-dialog aria-label="Zoomed photo">
+    <button type="button" class="icon-btn zoom__close" data-close aria-label="Close"><Icon name="close" /></button>
+    <img data-zoom-img alt="" />
+  </dialog>
+  {chart && (
+    <dialog class="chart" data-chart-dialog aria-labelledby="chart-title">
+      <div class="chart__head"><h2 id="chart-title" class="h3">{t('product.sizeChart')}</h2><button type="button" class="icon-btn" data-close aria-label="Close"><Icon name="close" /></button></div>
+      <div class="prose" set:html={richText(chart)} />
+      {site.content.sizeGuide?.howToMeasure && <p class="muted chart__how">{site.content.sizeGuide.howToMeasure}</p>}
+    </dialog>
+  )}
+</Base>
+
+<style>
+  .crumbs ol { display: flex; flex-wrap: wrap; gap: var(--sp-2); padding-block: var(--sp-4); font-size: .875rem; color: var(--c-muted); }
+  .crumbs li + li::before { content: '/'; margin-right: var(--sp-2); opacity: .6; }
+  .crumbs a:hover { color: var(--c-maroon); }
+  .crumbs [aria-current] { color: var(--c-ink); }
+  .pdp { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: clamp(var(--sp-8), 5vw, var(--sp-16)); align-items: start; padding-bottom: var(--sp-12); }
+  .gallery { position: sticky; top: calc(var(--layout-header) + var(--sp-4)); display: grid; grid-template-columns: 80px 1fr; gap: var(--sp-4); }
+  .gallery__track { grid-column: 2; grid-row: 1; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; border-radius: var(--r-md); background: var(--c-sand); }
+  .gallery__track::-webkit-scrollbar { display: none; }
+  .gallery__slide { flex: 0 0 100%; scroll-snap-align: center; aspect-ratio: 3 / 4; cursor: zoom-in; }
+  .gallery__slide img { width: 100%; height: 100%; object-fit: cover; }
+  .gallery__thumbs { grid-column: 1; grid-row: 1; display: grid; gap: var(--sp-3); align-content: start; }
+  .gallery__thumbs button { display: block; width: 80px; aspect-ratio: 3 / 4; border-radius: var(--r-sm); overflow: hidden; outline: 1.5px solid transparent; outline-offset: 2px; opacity: .7; transition: opacity var(--motion-fast) ease; }
+  .gallery__thumbs button[aria-current='true'] { outline-color: var(--c-maroon); opacity: 1; }
+  .gallery__thumbs img { width: 100%; height: 100%; object-fit: cover; }
+  .gallery__dots { display: none; }
+  .gallery:not(:has(.gallery__thumbs)) { grid-template-columns: 1fr; }
+  .gallery:not(:has(.gallery__thumbs)) .gallery__track { grid-column: 1; }
+  .info { display: grid; gap: var(--sp-5); }
+  .info__cat a:hover { color: var(--c-maroon); }
+  .info__title { font-size: clamp(2.25rem, 1.8rem + 2vw, 3.25rem); }
+  .info__price { font-size: 1.375rem; margin-top: calc(var(--sp-2) * -1); }
+  .info__tax { font-size: .875rem; margin-top: calc(var(--sp-4) * -1); }
+  .opt { border: 0; padding: 0; display: grid; gap: var(--sp-3); }
+  .opt legend { font-size: .9375rem; color: var(--c-muted); margin-bottom: var(--sp-3); width: 100%; }
+  .opt legend strong, .opt__head > span { color: var(--c-ink); }
+  .opt__head { display: flex; justify-content: space-between; align-items: center; }
+  .opt__chart { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--c-maroon); font-weight: 600; text-decoration: underline; text-underline-offset: 4px; min-height: 44px; }
+  .swatches--lg .swatch { width: 34px; height: 34px; }
+  .sizes { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+  .size { min-width: 56px; min-height: 48px; padding: 0 var(--sp-3); border-radius: var(--r-md); border: 1.5px solid var(--c-line); background: var(--c-surface); font-weight: 600; color: var(--c-ink); transition: border-color var(--motion-fast) ease, background var(--motion-fast) ease; }
+  .size:hover:not(:disabled) { border-color: var(--c-ink); }
+  .size[aria-pressed='true'] { background: var(--c-maroon); border-color: var(--c-maroon); color: var(--c-white); }
+  .size:disabled { color: var(--c-muted); text-decoration: line-through; background: repeating-linear-gradient(135deg, transparent 0 6px, rgba(58, 31, 20, .06) 6px 7px), var(--c-surface); cursor: not-allowed; }
+  .low { color: var(--c-warning); font-weight: 600; font-size: .9375rem; min-height: 1.4em; }
+  .info__buy { display: flex; gap: var(--sp-3); align-items: center; }
+  .info__add { min-height: 56px; font-size: 1.0625rem; }
+  .info__wish { position: static; flex: none; width: 56px; height: 56px; border: 1.5px solid var(--c-line); box-shadow: none; background: var(--c-surface); }
+  .info__wa { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--c-ink); font-weight: 500; text-decoration: underline; text-underline-offset: 4px; min-height: 44px; }
+  .acc { border-top: 1px solid var(--c-line); }
+  .acc details { border-bottom: 1px solid var(--c-line); }
+  .acc summary { list-style: none; display: flex; justify-content: space-between; align-items: center; min-height: 56px; cursor: pointer; font-weight: 600; color: var(--c-ink); }
+  .acc summary::-webkit-details-marker { display: none; }
+  .acc summary :global(svg) { transition: transform var(--motion-base) var(--motion-ease); }
+  .acc details[open] summary :global(svg) { transform: rotate(45deg); }
+  .acc__body { padding-bottom: var(--sp-5); display: grid; gap: var(--sp-2); }
+  .acc__body a { color: var(--c-maroon); text-decoration: underline; }
+  dialog { border: 0; padding: 0; background: transparent; max-width: none; max-height: none; }
+  dialog::backdrop { background: rgba(42, 20, 14, .6); }
+  .zoom[open] { position: fixed; inset: 0; width: 100vw; height: 100dvh; background: var(--c-cream); overflow: auto; }
+  .zoom img { width: 100%; max-width: 1200px; margin: 0 auto; }
+  .zoom__close { position: fixed; top: var(--sp-3); right: var(--sp-3); background: var(--c-surface); box-shadow: var(--shadow-card); z-index: 1; }
+  .chart[open] { width: min(640px, calc(100vw - 32px)); max-height: 85vh; overflow: auto; margin: auto; background: var(--c-cream); border-radius: var(--r-lg); padding: var(--sp-6); }
+  .chart__head { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--sp-4); }
+  .chart__how { margin-top: var(--sp-4); font-size: .9375rem; }
+  @media (max-width: 1023px) {
+    .pdp { grid-template-columns: 1fr; }
+    .gallery { position: static; grid-template-columns: 1fr; margin-inline: calc(var(--layout-gutter) * -1); }
+    .gallery__track { grid-column: 1; border-radius: 0; }
+    .gallery__thumbs { display: none; }
+    .gallery__dots { display: flex; justify-content: center; gap: 6px; }
+    .gallery__dots span { width: 6px; height: 6px; border-radius: 3px; background: var(--c-line); transition: width var(--motion-base) ease, background var(--motion-base) ease; }
+    .gallery__dots span.is-on { width: 18px; background: var(--c-maroon); }
+  }
+  @media (max-width: 767px) {
+    .info__buy { position: fixed; left: 0; right: 0; bottom: calc(56px + env(safe-area-inset-bottom)); z-index: 44; background: color-mix(in srgb, var(--c-cream) 95%, transparent); backdrop-filter: blur(10px); padding: var(--sp-3) var(--layout-gutter); border-top: 1px solid var(--c-line); }
+    .pdp { padding-bottom: 96px; }
+  }
+</style>
+
+<script>
+  import { addToCart } from '../../lib/stores.ts';
+  import { flyToBag } from '../../lib/fly.ts';
+  import { emit } from '../../lib/ui-events.ts';
+  import { track } from '../../lib/analytics.ts';
+  import { formatINR, percentOff } from '@femia/contracts/money';
+
+  type Img = { id: string; alt: string; w: number; h: number; src: Record<string, string> };
+  type Data = {
+    id: string; slug: string; title: string; price: number; compareAtPrice: number | null; option1Name: string;
+    option1Values: { value: string; label: string }[]; option2Values: { value: string; label: string }[];
+    variants: { id: string; o1: string | null; o2: string | null; price: number; cap: number | null; available: number }[];
+    galleries: Record<string, Img[]>;
+  };
+  const root = document.querySelector<HTMLElement>('[data-pdp]');
+  if (root) {
+    const d = JSON.parse(root.querySelector('[data-pdp-data]')!.textContent!) as Data;
+    const $ = <T extends Element>(s: string) => root.querySelector<T>(s);
+    const track_ = $<HTMLElement>('[data-track]')!;
+    let colour: string | null = d.option2Values[0]?.value ?? null;
+    let size: string | null = d.option1Values.length ? null : null;
+    const hasSizes = d.option1Values.length > 0;
+    const srcsetOf = (i: Img) => Object.entries(i.src).map(([w, u]) => `${u} ${w}w`).join(', ');
+
+    const variant = () => d.variants.find((v) => (hasSizes ? v.o1 === size : true) && (v.o2 ?? null) === colour);
+    const avail = (s: string) => d.variants.find((v) => v.o1 === s && (v.o2 ?? null) === colour)?.available ?? 0;
+
+    function renderGallery() {
+      const imgs = d.galleries[colour ?? ''] ?? d.galleries[''] ?? Object.values(d.galleries)[0] ?? [];
+      track_.innerHTML = imgs.map((i, n) => `<button type="button" class="gallery__slide" data-zoom="${n}" aria-label="Zoom image ${n + 1} of ${imgs.length}"><img src="${i.src['960']}" srcset="${srcsetOf(i)}" sizes="(min-width: 1024px) 46vw, 100vw" width="${i.w}" height="${i.h}" alt="${i.alt.replace(/"/g, '&quot;')}" decoding="async"></button>`).join('');
+      const thumbs = $<HTMLElement>('[data-thumbs]');
+      if (thumbs) thumbs.innerHTML = imgs.map((i, n) => `<li><button type="button" data-thumb="${n}" aria-label="Show photo ${n + 1}"${n === 0 ? ' aria-current="true"' : ''}><img src="${i.src['480']}" alt="" width="80" height="107"></button></li>`).join('');
+      const dots = $<HTMLElement>('[data-dots]');
+      if (dots) dots.innerHTML = imgs.map((_, n) => `<span${n === 0 ? ' class="is-on"' : ''}></span>`).join('');
+      track_.scrollTo({ left: 0 });
+    }
+
+    function renderSizes() {
+      root!.querySelectorAll<HTMLButtonElement>('[data-size]').forEach((b) => {
+        const a = avail(b.dataset.size!);
+        b.disabled = a <= 0;
+        b.setAttribute('aria-pressed', String(b.dataset.size === size));
+        b.setAttribute('aria-label', `${b.textContent?.trim()}${a <= 0 ? ', sold out' : a <= 2 ? `, only ${a} left` : ''}`);
+      });
+      if (size && avail(size) <= 0) size = null;
+      const v = variant();
+      const sizeLabel = $<HTMLElement>('[data-size-label]');
+      if (sizeLabel) sizeLabel.textContent = size ? `: ${size}` : '';
+      const lowEl = $<HTMLElement>('[data-low]');
+      if (lowEl) lowEl.textContent = v && v.available > 0 && v.available <= 2 ? `Only ${v.available} left` : '';
+      const add = $<HTMLButtonElement>('[data-add]')!;
+      const label = $<HTMLElement>('[data-add-label]')!;
+      const anyAvail = d.variants.some((x) => (x.o2 ?? null) === colour && x.available > 0);
+      add.disabled = !anyAvail;
+      label.textContent = !anyAvail ? 'Sold out in this colour' : hasSizes && !size ? 'Select a size' : 'Add to Bag';
+      if (v) {
+        $<HTMLElement>('[data-price-now]')!.textContent = formatINR(v.price);
+        const off = $<HTMLElement>('[data-price-off]');
+        if (off && v.cap) off.textContent = `${percentOff(v.price, v.cap)}% off`;
+      }
+    }
+
+    root.addEventListener('click', (e) => {
+      const t = e.target as Element;
+      const c = t.closest<HTMLButtonElement>('[data-colour]');
+      if (c) {
+        colour = c.dataset.colour!;
+        root.querySelectorAll('[data-colour]').forEach((b) => b.setAttribute('aria-pressed', String(b === c)));
+        $<HTMLElement>('[data-colour-label]')!.textContent = d.option2Values.find((o) => o.value === colour)?.label ?? '';
+        renderGallery(); renderSizes();
+        return;
+      }
+      const s = t.closest<HTMLButtonElement>('[data-size]');
+      if (s && !s.disabled) { size = s.dataset.size!; renderSizes(); return; }
+      const th = t.closest<HTMLButtonElement>('[data-thumb]');
+      if (th) { const i = Number(th.dataset.thumb); track_.scrollTo({ left: track_.clientWidth * i, behavior: 'smooth' }); return; }
+      const z = t.closest<HTMLButtonElement>('[data-zoom]');
+      if (z) {
+        const imgs = d.galleries[colour ?? ''] ?? Object.values(d.galleries)[0] ?? [];
+        const img = imgs[Number(z.dataset.zoom)];
+        const dlg = document.querySelector<HTMLDialogElement>('[data-zoom-dialog]')!;
+        const el = dlg.querySelector<HTMLImageElement>('[data-zoom-img]')!;
+        if (img) { el.src = img.src['1600'] ?? img.src['960']!; el.alt = img.alt; }
+        dlg.showModal();
+        return;
+      }
+      if (t.closest('[data-open-chart]')) { document.querySelector<HTMLDialogElement>('[data-chart-dialog]')?.showModal(); return; }
+      if (t.closest('[data-add]')) {
+        if (hasSizes && !size) {
+          const sizes = $<HTMLElement>('[data-sizes]');
+          sizes?.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-6px)' }, { transform: 'translateX(6px)' }, { transform: 'translateX(0)' }], { duration: 300 });
+          (sizes?.querySelector('button:not(:disabled)') as HTMLElement | null)?.focus();
+          $<HTMLElement>('[data-low]')!.textContent = 'Please choose a size';
+          return;
+        }
+        const v = variant();
+        if (!v || v.available <= 0) return;
+        const imgs = d.galleries[colour ?? ''] ?? Object.values(d.galleries)[0] ?? [];
+        const colourLabel = d.option2Values.find((o) => o.value === colour)?.label;
+        addToCart({ variantId: v.id, productId: d.id, slug: d.slug, title: d.title, optionLabel: [size, colourLabel].filter(Boolean).join(' / '), price: v.price, compareAtPrice: v.cap, image: imgs[0]?.src['480'] ?? null });
+        flyToBag(track_, imgs[0]?.src['480']);
+        track('add_to_bag', { productId: d.id, variantId: v.id, value: v.price });
+        emit({ type: 'toast', message: `${d.title} · ${[size, colourLabel].filter(Boolean).join(' / ')} added to your bag` });
+      }
+    });
+
+    document.querySelectorAll<HTMLDialogElement>('dialog').forEach((dlg) => {
+      dlg.addEventListener('click', (e) => { if (e.target === dlg || (e.target as Element).closest('[data-close]')) dlg.close(); });
+    });
+
+    track_.addEventListener('scroll', () => {
+      const i = Math.round(track_.scrollLeft / Math.max(1, track_.clientWidth));
+      root.querySelectorAll('[data-dots] span').forEach((s, n) => s.classList.toggle('is-on', n === i));
+      root.querySelectorAll('[data-thumb]').forEach((b, n) => (n === i ? b.setAttribute('aria-current', 'true') : b.removeAttribute('aria-current')));
+    }, { passive: true });
+    track_.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); track_.scrollBy({ left: (e.key === 'ArrowRight' ? 1 : -1) * track_.clientWidth, behavior: 'smooth' }); }
+    });
+
+    // Page HTML is cached; stock is live.
+    fetch(`/api/catalog/products/${d.slug}/stock`).then((r) => (r.ok ? (r.json() as Promise<Record<string, number>>) : null)).then((stock: Record<string, number> | null) => {
+      if (!stock) return;
+      d.variants.forEach((v) => { v.available = stock[v.id] ?? 0; });
+      renderSizes();
+    }).catch(() => {});
+    renderSizes();
+    track('view_item', { productId: d.id, value: d.price });
+  }
+</script>

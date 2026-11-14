@@ -1,0 +1,43 @@
+---
+import Base from '../../layouts/Base.astro';
+import PageBanner from '../../components/shop/PageBanner.astro';
+import Icon from '../../components/ui/Icon.astro';
+import { api } from '../../lib/api.ts';
+import { getCommon } from '../../lib/content.ts';
+import { srcset } from '../../lib/format.ts';
+const { site, categories } = await getCommon();
+const collections = await api().catalog.collections();
+const occasions = collections.filter((c) => c.kind === 'occasion');
+const edits = collections.filter((c) => c.kind === 'collection');
+const banner = site.content.hero?.image ? site.media[site.content.hero.image] : null;
+Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=600');
+---
+<Base site={site} categories={categories} title="Collections" description="Curated Femia edits for every day, every celebration and every workday.">
+  <PageBanner eyebrow="Curated edits" title="Collections" sub="Dressed for every moment." image={banner} />
+  {[{ title: 'Shop by occasion', items: occasions }, { title: 'Our edits', items: edits }].filter((g) => g.items.length).map((g) => (
+    <section class="section container" aria-label={g.title}>
+      <p class="eyebrow">{g.title}</p>
+      <ul role="list" class="colls" data-reveal-group>
+        {g.items.map((c) => (
+          <li>
+            <a href={`/collections/${c.slug}`} class="coll">
+              <span class="coll__img ph">{c.image && <img src={c.image.src['960']} srcset={srcset(c.image)} sizes="(min-width: 768px) 33vw, 100vw" width={c.image.width} height={c.image.height} alt={c.image.alt} loading="lazy" />}</span>
+              <span class="coll__body"><span class="coll__name">{c.name}</span>{c.description && <span class="muted">{c.description}</span>}<span class="link-arrow">Explore <Icon name="arrowRight" size={18} /></span></span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  ))}
+</Base>
+<style>
+  .colls { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-6); margin-top: var(--sp-6); }
+  .coll { display: grid; background: var(--c-surface); border-radius: var(--r-md); overflow: hidden; box-shadow: var(--shadow-card); height: 100%; }
+  .coll__img { aspect-ratio: 1.2; overflow: hidden; background: linear-gradient(135deg, var(--c-blush), var(--c-sand)); }
+  .coll__img img { width: 100%; height: 100%; object-fit: cover; transition: transform 900ms var(--motion-ease-out); }
+  .coll:hover img { transform: scale(1.04); }
+  .coll__body { display: grid; gap: var(--sp-2); padding: var(--sp-5); align-content: start; }
+  .coll__name { font-family: var(--font-display); font-size: 1.75rem; font-weight: 600; color: var(--c-ink); }
+  @media (max-width: 899px) { .colls { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 560px) { .colls { grid-template-columns: 1fr; } }
+</style>

@@ -1,0 +1,106 @@
+---
+import Base from '../../layouts/Base.astro';
+import OrderTimeline from '../../components/OrderTimeline.astro';
+import OrderItems from '../../components/OrderItems.astro';
+import Icon from '../../components/ui/Icon.astro';
+import { api } from '../../lib/api.ts';
+import { getCommon } from '../../lib/content.ts';
+import { formatINR, upiUri } from '@femia/contracts';
+import { ApiError } from '@femia/sdk';
+import { renderSVG } from 'uqr';
+import { t } from '@femia/i18n';
+
+const number = Astro.params.number!.toUpperCase();
+const token = Astro.url.searchParams.get('token') ?? '';
+const { site, categories } = await getCommon();
+const order = await api().orders.get(number, token).catch((e) => { if (e instanceof ApiError && e.status === 404) return null; throw e; });
+if (!order) return Astro.rewrite('/404');
+const pay = site.settings.payments;
+const store = site.settings.store;
+const awaitingUpi = order.status === 'pending_payment' && order.paymentMethod === 'upi' && pay.upiVpa;
+const uri = awaitingUpi ? upiUri({ vpa: pay.upiVpa, payee: pay.upiPayee, amount: order.total, number: order.number }) : '';
+const qr = awaitingUpi ? renderSVG(uri, { border: 1, pixelSize: 6, blackColor: '#3A1F14', whiteColor: '#FFFDFA' }) : '';
+const waDigits = store.whatsapp.replace(/\D/g, '').replace(/^(\d{10})$/, '91$1');
+const waUrl = order.paymentMethod === 'whatsapp' && waDigits
+  ? `https://wa.me/${waDigits}?text=${encodeURIComponent(`Hi Femia! I'd like to place order ${order.number}.\n${order.items.map((i) => `• ${i.title} (${i.optionLabel}) × ${i.qty}`).join('\n')}\nTotal: ${formatINR(order.total)}\nName: ${order.customerName}`)}` : null;
+const first = order.customerName.split(' ')[0];
+Astro.response.headers.set('Cache-Control', 'no-store');
+---
+<Base site={site} categories={categories} title={`Order ${order.number}`} noindex minimal>
+  <section class="container order">
+    <header class="order__head">
+      <span class="order__tick" aria-hidden="true"><Icon name={order.status === 'cancelled' ? 'info' : 'check'} size={30} /></span>
+      <h1 class="h2">{order.status === 'cancelled' ? 'Order cancelled' : t('order.thanks', { name: first ?? '' })}</h1>
+      <p>{order.status === 'cancelled' ? `Order ${order.number} was cancelled.` : t('order.placed', { number: order.number })} {order.status !== 'cancelled' && order.paymentStatus === 'paid' && 'Payment received.'}</p>
+    </header>
+
+    {awaitingUpi && (
+      <div class="upi" data-upi>
+        <h2 class="h3">{t('order.upi.title', { amount: formatINR(order.total) })}</h2>
+        <p>{t('order.upi.body')}</p>
+        <div class="upi__qr" set:html={qr} role="img" aria-label={`UPI QR code to pay ${formatINR(order.total)} to ${pay.upiVpa}`} />
+        <p class="upi__vpa">UPI ID: <strong>{pay.upiVpa}</strong> <button type="button" class="upi__copy" data-copy={pay.upiVpa}>Copy</button></p>
+        <a class="btn upi__open" href={uri}>{t('order.upi.open')}</a>
+        <p class="muted upi__note">Add <strong>{order.number}</strong> in the payment note. We hold your pieces for you while we confirm the payment.</p>
+      </div>
+    )}
+
+    {waUrl && order.status !== 'cancelled' && (
+      <div class="upi">
+        <h2 class="h3">One last step</h2>
+        <p>Send us your order on WhatsApp and we'll confirm payment and delivery with you.</p>
+        <a class="btn" href={waUrl} target="_blank" rel="noopener"><Icon name="whatsapp" size={20} /> {t('order.whatsapp.cta')}</a>
+      </div>
+    )}
+
+    <div class="order__grid">
+      <section aria-labelledby="st-title" class="order__card">
+        <h2 id="st-title" class="h3">Order status</h2>
+        <OrderTimeline order={order} />
+      </section>
+      <section aria-labelledby="sum-title" class="order__card">
+        <h2 id="sum-title" class="h3">{t('checkout.summary')}</h2>
+        <OrderItems order={order} />
+        <p class="muted order__ship">Delivering to {order.city} {order.pincode} · {({ upi: 'UPI', gateway: 'Paid online', cod: 'Cash on Delivery', whatsapp: 'WhatsApp order' } as const)[order.paymentMethod]}</p>
+      </section>
+    </div>
+    <p class="order__help">We've emailed your order details. Questions? <a href="/policies/contact">Contact us</a> or <a href={`/track?number=${order.number}`}>track this order</a> any time.</p>
+  </section>
+</Base>
+<style>
+  .order { padding-block: var(--sp-10) var(--sp-16); max-width: 1040px; }
+  .order__head { display: grid; justify-items: center; text-align: center; gap: var(--sp-3); margin-bottom: var(--sp-8); }
+  .order__tick { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; background: var(--c-maroon); color: var(--c-white); animation: rise 600ms var(--motion-ease-out) both; }
+  .upi { display: grid; justify-items: center; text-align: center; gap: var(--sp-3); background: var(--c-surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: var(--sp-8) var(--sp-6); margin: 0 auto var(--sp-8); max-width: 520px; }
+  .upi__qr { width: 220px; }
+  .upi__qr :global(svg) { width: 100%; height: auto; }
+  .upi__copy { color: var(--c-maroon); text-decoration: underline; min-height: 44px; padding-inline: var(--sp-2); }
+  .upi__note { font-size: .875rem; max-width: 40ch; }
+  @media (min-width: 1024px) and (pointer: fine) { .upi__open { display: none; } }
+  .order__grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-6); }
+  .order__card { background: var(--c-surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: var(--sp-6); }
+  .order__card h2 { margin-bottom: var(--sp-5); font-size: 1.625rem; }
+  .order__ship { margin-top: var(--sp-4); font-size: .9375rem; }
+  .order__help { text-align: center; margin-top: var(--sp-8); }
+  .order__help a { color: var(--c-maroon); text-decoration: underline; }
+  @media (max-width: 767px) { .order__grid { grid-template-columns: 1fr; } }
+</style>
+<script>
+  import { clearCart } from '../../lib/stores.ts';
+  import { track } from '../../lib/analytics.ts';
+  // Arriving here means the order exists: empty the bag once, record the purchase.
+  const key = `femia.ordered.${location.pathname}`;
+  try { if (!sessionStorage.getItem(key)) { clearCart(); track('purchase'); sessionStorage.setItem(key, '1'); } } catch { clearCart(); }
+  document.querySelectorAll<HTMLButtonElement>('[data-copy]').forEach((b) => b.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(b.dataset.copy!); b.textContent = 'Copied'; } catch { /* clipboard blocked */ }
+  }));
+  // Poll while awaiting UPI verification so the page flips to "paid" without a refresh.
+  if (document.querySelector('[data-upi]')) {
+    const u = new URL(location.href);
+    const poll = setInterval(async () => {
+      const r = await fetch(`/api/orders/${u.pathname.split('/').pop()}?token=${u.searchParams.get('token')}`).catch(() => null);
+      const o = r?.ok ? ((await r.json()) as { status: string }) : null;
+      if (o && o.status !== 'pending_payment') { clearInterval(poll); location.reload(); }
+    }, 15000);
+  }
+</script>

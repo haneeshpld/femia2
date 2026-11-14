@@ -1,0 +1,18 @@
+{
+  "name": "@femia/tokens",
+  "version": "1.0.0-dev",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/tokens.ts",
+    "./tokens.css": "./tokens.css"
+  },
+  "scripts": {
+    "build": "node --experimental-strip-types scripts/build-css.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --experimental-strip-types scripts/build-css.ts --check"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2"
+  }
+}

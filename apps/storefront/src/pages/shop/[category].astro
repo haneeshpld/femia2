@@ -1,0 +1,19 @@
+---
+import Base from '../../layouts/Base.astro';
+import PageBanner from '../../components/shop/PageBanner.astro';
+import Listing from '../../components/shop/Listing.astro';
+import { api } from '../../lib/api.ts';
+import { getCommon } from '../../lib/content.ts';
+import { listQuery } from '../../lib/listing.ts';
+
+const { site, categories } = await getCommon();
+const category = categories.find((c) => c.slug === Astro.params.category);
+if (!category) return Astro.rewrite('/404');
+const list = await api().catalog.products(listQuery(Astro.url, { category: category.slug }));
+const banner = site.content.hero?.image ? site.media[site.content.hero.image] : null;
+Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=600');
+---
+<Base site={site} categories={categories} title={category.name} description={`Shop ${category.name.toLowerCase()} at Femia: contemporary ethnic wear from Kochi.`} noindex={Astro.url.search.length > 0}>
+  <PageBanner eyebrow="Shop our collections" title={category.name} sub={`${list.total} styles`} image={banner} />
+  <Listing list={list} categories={categories} basePath={`/shop/${category.slug}`} activeCategory={category.slug} />
+</Base>

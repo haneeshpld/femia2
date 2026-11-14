@@ -1,0 +1,52 @@
+---
+import Base from '../layouts/Base.astro';
+import OrderTimeline from '../components/OrderTimeline.astro';
+import OrderItems from '../components/OrderItems.astro';
+import { api } from '../lib/api.ts';
+import { getCommon } from '../lib/content.ts';
+import { ApiError } from '@femia/sdk';
+import type { PublicOrder } from '@femia/contracts';
+import { t } from '@femia/i18n';
+
+const { site, categories } = await getCommon();
+let number = Astro.url.searchParams.get('number') ?? '';
+let order: PublicOrder | null = null;
+let error = '';
+// POST keeps the phone number out of URLs and logs.
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  number = String(f.get('number') ?? '').trim().toUpperCase();
+  const phone = String(f.get('phone') ?? '');
+  try { order = await api().orders.track({ number, phone }); }
+  catch (e) { error = e instanceof ApiError && e.status !== 500 ? (e.status === 422 ? 'Check the order number and mobile number.' : e.message) : t('error.generic'); }
+}
+Astro.response.headers.set('Cache-Control', 'no-store');
+---
+<Base site={site} categories={categories} title={t('track.title')} noindex>
+  <section class="container track">
+    <p class="eyebrow">Orders</p>
+    <h1 class="h2">{t('track.title')}</h1>
+    <form method="post" class="track__form">
+      <div class="field"><label for="tn">{t('track.number')}</label><input class="input" id="tn" name="number" required value={number} placeholder="FEM1001" autocapitalize="characters" /></div>
+      <div class="field"><label for="tp">{t('track.phone')}</label><input class="input" id="tp" name="phone" required type="tel" inputmode="numeric" autocomplete="tel-national" placeholder="98470 12345" /></div>
+      <button class="btn" type="submit">{t('track.submit')}</button>
+      {error && <p class="field-error" role="alert">{error}</p>}
+    </form>
+    {order && (
+      <div class="track__result">
+        <section class="track__card"><h2 class="h3">Order {order.number}</h2><OrderTimeline order={order} /></section>
+        <section class="track__card"><h2 class="h3">Items</h2><OrderItems order={order} /></section>
+      </div>
+    )}
+  </section>
+</Base>
+<style>
+  .track { padding-block: var(--sp-12); max-width: 960px; }
+  .track h1 { margin-top: var(--sp-2); }
+  .track__form { display: grid; grid-template-columns: 1fr 1fr auto; gap: var(--sp-4); align-items: end; margin-top: var(--sp-8); }
+  .track__form .field-error { grid-column: 1 / -1; }
+  .track__result { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-6); margin-top: var(--sp-10); }
+  .track__card { background: var(--c-surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: var(--sp-6); }
+  .track__card h2 { margin-bottom: var(--sp-5); font-size: 1.625rem; }
+  @media (max-width: 767px) { .track__form, .track__result { grid-template-columns: 1fr; } }
+</style>

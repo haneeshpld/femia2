@@ -1,0 +1,23 @@
+---
+import type { MediaRef } from '@femia/contracts';
+import { srcset } from '../../lib/format.ts';
+interface Props { eyebrow: string; title: string; sub?: string; image?: MediaRef | null }
+const { eyebrow, title, sub, image } = Astro.props;
+---
+<section class="banner">
+  {image && <div class="banner__art" aria-hidden="true"><img src={image.src['960']} srcset={srcset(image)} sizes="60vw" width={image.width} height={image.height} alt="" fetchpriority="high" /></div>}
+  <div class="container banner__inner">
+    <p class="eyebrow">{eyebrow}</p>
+    <h1>{title}</h1>
+    {sub && <p class="banner__sub">{sub}</p>}
+  </div>
+</section>
+<style>
+  .banner { position: relative; isolation: isolate; overflow: hidden; background: linear-gradient(180deg, #FAEDE4, var(--c-cream)); }
+  .banner__art { position: absolute; inset: 0 0 0 auto; width: 55%; z-index: -1; -webkit-mask-image: linear-gradient(90deg, transparent, #000 35%); mask-image: linear-gradient(90deg, transparent, #000 35%); }
+  .banner__art img { width: 100%; height: 100%; object-fit: cover; }
+  .banner__inner { padding-block: clamp(var(--sp-10), 6vw, var(--sp-16)); }
+  .banner h1 { margin-top: var(--sp-3); font-size: clamp(2.5rem, 1.8rem + 3vw, 4rem); }
+  .banner__sub { font-family: var(--font-display); font-size: 1.375rem; color: var(--c-text); margin-top: var(--sp-2); }
+  @media (max-width: 767px) { .banner__art { width: 70%; opacity: .55; } }
+</style>

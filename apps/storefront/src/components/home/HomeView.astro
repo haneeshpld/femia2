@@ -1,0 +1,33 @@
+---
+import Hero from './Hero.astro';
+import CategoryArches from './CategoryArches.astro';
+import ProductRail from './ProductRail.astro';
+import Occasions from './Occasions.astro';
+import Boutique from './Boutique.astro';
+import StyledByYou from './StyledByYou.astro';
+import { api } from '../../lib/api.ts';
+import type { SiteData } from '../../lib/content.ts';
+import type { Category } from '@femia/contracts';
+
+interface Props { site: SiteData; categories: Category[] }
+const { site, categories } = Astro.props;
+const c = site.content;
+const collections = await api().catalog.collections();
+const newArrivalColl = c.newArrivals?.collection ? collections.find((x) => x.id === c.newArrivals.collection) : undefined;
+const arrivals = await api().catalog.products({ sort: 'new', pageSize: Math.min(Math.max(c.newArrivals?.count ?? 8, 4), 12), collection: newArrivalColl?.slug });
+const catById = new Map(categories.map((x) => [x.id, x]));
+const tiles = (c.categories?.items ?? [])
+  .map((i: { category: string; image?: string }) => ({ category: catById.get(i.category)!, image: (i.image && site.media[i.image]) || catById.get(i.category)?.image || null }))
+  .filter((x: { category?: unknown }) => x.category);
+const collById = new Map(collections.map((x) => [x.id, x]));
+const occasions = (c.occasions?.items ?? [])
+  .map((i: { collection: string; title: string; image?: string }) => ({ collection: collById.get(i.collection)!, title: i.title, image: (i.image && site.media[i.image]) || collById.get(i.collection)?.image || null }))
+  .filter((x: { collection?: unknown }) => x.collection);
+const heroImg = c.hero?.image ? site.media[c.hero.image] : undefined;
+---
+<Hero hero={c.hero ?? {}} image={heroImg} />
+<CategoryArches eyebrow={c.categories?.eyebrow ?? 'Shop by Category'} tiles={tiles} />
+<ProductRail id="arrivals-title" eyebrow={c.newArrivals?.eyebrow ?? 'New Arrivals'} title={c.newArrivals?.title ?? 'Just landed'} products={arrivals.items} viewAll={newArrivalColl ? `/collections/${newArrivalColl.slug}` : '/shop?sort=new'} />
+<Occasions eyebrow={c.occasions?.eyebrow ?? ''} title={c.occasions?.title ?? ''} items={occasions} />
+<Boutique block={c.boutique ?? {}} image={c.boutique?.image ? site.media[c.boutique.image] : undefined} store={site.settings.store} />
+<StyledByYou block={c.styled ?? {}} media={site.media} instagram={site.settings.store.socials.instagram} />

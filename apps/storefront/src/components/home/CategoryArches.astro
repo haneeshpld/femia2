@@ -1,0 +1,44 @@
+---
+import type { Category, MediaRef } from '@femia/contracts';
+import Icon from '../ui/Icon.astro';
+import { srcset } from '../../lib/format.ts';
+import { t } from '@femia/i18n';
+interface Props { eyebrow: string; tiles: { category: Category; image: MediaRef | null }[] }
+const { eyebrow, tiles } = Astro.props;
+---
+<section class="section cats" aria-labelledby="cats-title">
+  <div class="container">
+    <div class="section-head">
+      <h2 id="cats-title" class="eyebrow">{eyebrow}</h2>
+      <a class="link-arrow" href="/shop">{t('common.viewAll')} <Icon name="arrowRight" size={20} /></a>
+    </div>
+    <ul role="list" class="cats__track" data-reveal-group>
+      {tiles.map(({ category: c, image }) => (
+        <li>
+          <a href={`/shop/${c.slug}`} class="cat">
+            <span class="cat__arch arch ph">
+              {image && <img src={image.src['480']} srcset={srcset(image)} sizes="(min-width: 1024px) 18vw, (min-width: 768px) 30vw, 40vw" width={image.width} height={image.height} alt="" loading="lazy" decoding="async" />}
+            </span>
+            <span class="cat__name">{c.name}</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
+</section>
+<style>
+  .cats .section-head { margin-bottom: var(--sp-8); }
+  .cats__track { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--sp-4); }
+  .cat { display: grid; gap: var(--sp-4); justify-items: center; }
+  .cat__arch { display: block; width: 100%; aspect-ratio: 0.77; }
+  .cat__arch img { width: 100%; height: 100%; object-fit: cover; transition: transform 900ms var(--motion-ease-out); }
+  .cat:hover .cat__arch img { transform: scale(1.05); }
+  .cat__name { font-family: var(--font-display); font-size: 1.5rem; font-weight: 500; color: var(--c-ink); transition: color var(--motion-fast) ease; }
+  .cat:hover .cat__name { color: var(--c-maroon); }
+  @media (max-width: 1023px) {
+    .cats__track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; margin-inline: calc(var(--layout-gutter) * -1); padding-inline: var(--layout-gutter); }
+    .cats__track::-webkit-scrollbar { display: none; }
+    .cats__track li { flex: 0 0 clamp(120px, 30vw, 200px); scroll-snap-align: start; }
+    .cat__name { font-size: 1.1875rem; }
+  }
+</style>

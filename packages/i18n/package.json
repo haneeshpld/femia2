@@ -1,0 +1,8 @@
+{
+  "name": "@femia/i18n",
+  "version": "1.0.0-dev",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts", "./en.json": "./src/en.json" },
+  "scripts": { "typecheck": "tsc -p tsconfig.json" }
+}

@@ -1,0 +1,6 @@
+# Copy to .dev.vars for local development
+DEV_ADMIN_EMAIL=owner@femia.local
+# 32 random bytes, base64: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+SECRETS_KEY=
+RESEND_API_KEY=
+TELEGRAM_BOT_TOKEN=

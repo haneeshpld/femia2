@@ -1,0 +1,13 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "femia-storefront",
+  "main": "@astrojs/cloudflare/entrypoints/server",
+  "compatibility_date": "2026-11-01",
+  "assets": { "directory": "./dist", "binding": "ASSETS" },
+  "observability": { "enabled": true },
+  // Same-account service binding: no public hop, no CORS.
+  "services": [{ "binding": "API", "service": "femia-api" }],
+  "vars": {
+    "PUBLIC_SITE_URL": "http://localhost:4321"
+  }
+}

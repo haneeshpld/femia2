@@ -1,0 +1,27 @@
+{
+  "name": "@femia/api",
+  "version": "1.0.0-dev",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8787 --persist-to ../../.wrangler/state",
+    "db:migrate": "wrangler d1 migrations apply DB --local --persist-to ../../.wrangler/state",
+    "db:reset": "rm -rf ../../.wrangler/state/v3/d1 && npm run db:migrate",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@femia/contracts": "*",
+    "@femia/tokens": "*",
+    "hono": "^4.13.18",
+    "jose": "^6.1.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.8.2",
+    "@cloudflare/workers-types": "^5.20261114.1",
+    "vitest": "^5.1.0",
+    "wrangler": "^4.162.0"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "@femia/sdk",
+  "version": "1.0.0-dev",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc -p tsconfig.json" },
+  "dependencies": { "@femia/contracts": "*" }
+}

@@ -1,0 +1,85 @@
+---
+import type { ProductCard } from '@femia/contracts';
+import { formatINR, percentOff, srcset } from '../lib/format.ts';
+import Icon from './ui/Icon.astro';
+import { t } from '@femia/i18n';
+interface Props { product: ProductCard; eager?: boolean; sizes?: string }
+const { product: p, eager = false, sizes = '(min-width: 1024px) 23vw, (min-width: 768px) 31vw, 48vw' } = Astro.props;
+const main = p.images.find((i) => i.role === 'main') ?? p.images[0];
+const byColour: Record<string, string> = {};
+for (const c of p.colours) {
+  const img = p.images.find((i) => i.option2 === c.value && i.role === 'main');
+  if (img) byColour[c.value] = srcset(img)!;
+}
+const pct = percentOff(p.price, p.compareAtPrice);
+const wish = JSON.stringify({ productId: p.id, slug: p.slug, title: p.title, price: p.price, image: main?.src['480'] ?? null });
+---
+<article class="pcard" data-card data-slug={p.slug} data-colour-images={JSON.stringify(byColour)}>
+  <div class="pcard__media">
+    {main && (
+      <img class="is-active" data-card-img src={main.src['480']} srcset={srcset(main)} sizes={sizes} width={main.width} height={main.height}
+        alt={main.alt} loading={eager ? 'eager' : 'lazy'} decoding="async" fetchpriority={eager ? 'high' : undefined}
+        style={main.placeholder ? `background:${main.placeholder}` : undefined} />
+    )}
+    {p.soldOut ? <span class="pcard__tag pcard__tag--soldout">{t('common.soldOut')}</span> : p.isNew ? <span class="pcard__tag">{t('common.new')}</span> : null}
+    <button class="icon-btn pcard__wish" type="button" data-wish={wish} aria-pressed="false" aria-label={t('common.saveToWishlist', { title: p.title })}>
+      <Icon name="heart" size={20} />
+    </button>
+  </div>
+  <div class="pcard__body">
+    <h3 class="pcard__title"><a href={`/products/${p.slug}`}>{p.title}</a></h3>
+    <p class="price">
+      <span>{formatINR(p.price)}</span>
+      {pct > 0 && <><s><span class="sr-only">Was </span>{formatINR(p.compareAtPrice!)}</s><span class="off">{t('common.off', { pct })}</span></>}
+    </p>
+    {p.colours.length > 1 && (
+      <div class="swatches" role="group" aria-label="Colours">
+        {p.colours.map((c, i) => (
+          <button type="button" class="swatch" style={`--sw:${c.swatch ?? '#ccc'}`} data-swatch={c.value} aria-pressed={i === 0 ? 'true' : 'false'} aria-label={c.label} />
+        ))}
+      </div>
+    )}
+    <div class="pcard__cta">
+      <button type="button" class="btn btn--outline btn--sm btn--block" data-quick-add={p.slug} disabled={p.soldOut}>
+        <Icon name="bag" size={18} /> {p.soldOut ? t('common.soldOut') : t('common.addToBag')}
+      </button>
+    </div>
+  </div>
+</article>
+<script>
+  import { $wishlist, toggleWish } from '../lib/stores.ts';
+  import { emit } from '../lib/ui-events.ts';
+
+  // One delegated listener per page for every card.
+  document.addEventListener('click', (e) => {
+    const target = e.target as Element;
+    const sw = target.closest<HTMLButtonElement>('[data-swatch]');
+    if (sw) {
+      const card = sw.closest<HTMLElement>('[data-card]')!;
+      const map = JSON.parse(card.dataset.colourImages || '{}') as Record<string, string>;
+      card.querySelectorAll('[data-swatch]').forEach((b) => b.setAttribute('aria-pressed', String(b === sw)));
+      const img = card.querySelector<HTMLImageElement>('[data-card-img]');
+      const set = map[sw.dataset.swatch!];
+      if (img && set) { img.srcset = set; img.src = set.split(' ')[0]!; }
+      card.dataset.colour = sw.dataset.swatch;
+      return;
+    }
+    const wish = target.closest<HTMLButtonElement>('[data-wish]');
+    if (wish) { toggleWish(JSON.parse(wish.dataset.wish!)); return; }
+    const qa = target.closest<HTMLButtonElement>('[data-quick-add]');
+    if (qa) {
+      const card = qa.closest<HTMLElement>('[data-card]');
+      emit({ type: 'quick-add', slug: qa.dataset.quickAdd!, colour: card?.dataset.colour ?? null, origin: card?.querySelector('[data-card-img]')?.getBoundingClientRect() });
+    }
+  });
+
+  $wishlist.subscribe((list) => {
+    const ids = new Set(list.map((w) => w.productId));
+    document.querySelectorAll<HTMLButtonElement>('[data-wish]').forEach((b) => {
+      const { productId, title } = JSON.parse(b.dataset.wish!);
+      const on = ids.has(productId);
+      b.setAttribute('aria-pressed', String(on));
+      b.setAttribute('aria-label', on ? `Remove ${title} from wishlist` : `Save ${title} to wishlist`);
+    });
+  });
+</script>

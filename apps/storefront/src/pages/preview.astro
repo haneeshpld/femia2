@@ -1,0 +1,23 @@
+---
+import Base from '../layouts/Base.astro';
+import HomeView from '../components/home/HomeView.astro';
+import { api } from '../lib/api.ts';
+import { getCommon } from '../lib/content.ts';
+import type { PublishedContent } from '@femia/sdk';
+
+/** Renders the unpublished homepage draft. Link comes from Admin and expires after 30 minutes. */
+const token = Astro.url.searchParams.get('token') ?? '';
+const { site, categories } = await getCommon();
+const draft = await api().request<PublishedContent>('GET', `/content/preview?token=${encodeURIComponent(token)}`).catch(() => null);
+Astro.response.headers.set('Cache-Control', 'no-store');
+Astro.response.headers.set('X-Robots-Tag', 'noindex');
+if (!draft) Astro.response.status = 410;
+const previewSite = draft ? { ...site, content: draft.data, media: { ...site.media, ...draft.media } } : site;
+---
+<Base site={previewSite} categories={categories} title="Preview" noindex>
+  <div class="preview-bar" role="status">Preview of unpublished changes{!draft && ': this link has expired. Open a new preview from Admin.'}</div>
+  {draft && <HomeView site={previewSite} categories={categories} />}
+</Base>
+<style>
+  .preview-bar { position: sticky; top: var(--layout-header); z-index: 39; background: var(--c-gold); color: var(--c-white); text-align: center; font-weight: 600; padding: var(--sp-2) var(--sp-4); }
+</style>
