@@ -8,6 +8,8 @@ import { Icon } from '../components/Icon.tsx';
 import { MediaPicker } from '../components/MediaPicker.tsx';
 import type { Slot } from '../components/PhotoUpload.tsx';
 import { ErrorBox, Field, Skeleton, useToast } from '../components/ui.tsx';
+import { AddInline } from '../components/AddInline.tsx';
+import { useCatalogMutations } from '../lib/catalog.ts';
 
 type F = { id: string; type: string; label: string; help?: string; required?: boolean; maxLength?: number; slot?: string; options?: { value: string; label: string }[]; itemLabel?: string; min?: number; max?: number; fields?: F[] };
 interface Manifest { sections: { id: string; label: string; page: string; fields: F[] }[]; imageSlots: Slot[] }
@@ -117,7 +119,12 @@ function FieldEditor({ f, value, path, onChange, ctx }: { f: F; value: any; path
       return <Field label={label} error={err}><select className="select" value={value ?? ''} onChange={(e) => onChange(path, e.target.value)}>{f.options?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></Field>;
     case 'category': case 'collection': {
       const opts = f.type === 'category' ? ctx.cats : ctx.colls;
-      return <Field label={label} error={err}><select className="select" value={value ?? ''} onChange={(e) => onChange(path, e.target.value || null)}>{!f.required && <option value="">None</option>}{opts.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</select></Field>;
+      return (
+        <Field label={label} error={err}>
+          <select className="select" value={value ?? ''} onChange={(e) => onChange(path, e.target.value || null)}>{!f.required && <option value="">None</option>}{opts.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</select>
+          <NewRef kind={f.type} onCreated={(id) => onChange(path, id)} />
+        </Field>
+      );
     }
     case 'image': {
       const slot = ctx.slots[f.slot ?? 'page'] ?? { id: 'page', label: 'Photo', aspect: 1.5, minWidth: 1200, mask: 'rect' as const };
@@ -159,4 +166,20 @@ function FieldEditor({ f, value, path, onChange, ctx }: { f: F; value: any; path
     }
     default: return null;
   }
+}
+
+/** Create a category / collection without leaving the homepage editor, and select it. */
+function NewRef({ kind, onCreated }: { kind: 'category' | 'collection'; onCreated: (id: string) => void }) {
+  const m = useCatalogMutations();
+  const toast = useToast();
+  return (
+    <div style={{ marginTop: 6 }}>
+      <AddInline compact label={kind === 'category' ? 'New category' : 'New collection'} placeholder={kind === 'category' ? 'e.g. Kaftans' : 'e.g. Onam Edit'}
+        onAdd={async (name) => {
+          const r = kind === 'category' ? await m.createCategory.mutateAsync({ name }) : await m.createCollection.mutateAsync({ name, kind: 'occasion' });
+          onCreated(r.id);
+          toast({ text: `${name} added. Give it a photo in Catalog setup.` });
+        }} />
+    </div>
+  );
 }

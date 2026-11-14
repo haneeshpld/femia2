@@ -101,7 +101,7 @@ const pageWindow = Array.from({ length: pages }, (_, i) => i + 1).filter((n) => 
       <a class="btn btn--outline" href={filtersActive ? clearHref : '/shop'}>{filtersActive ? t('shop.clear') : 'Shop all'}</a>
     </div>
   ) : (
-    <ul role="list" class="grid-products" data-reveal-group>
+    <ul role="list" class="grid-products" data-cards>
       {list.items.map((p, i) => <li><PCard product={p} eager={i < 4} /></li>)}
     </ul>
   )}

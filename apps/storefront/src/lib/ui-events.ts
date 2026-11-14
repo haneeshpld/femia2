@@ -2,7 +2,7 @@
 export type UiEvent =
   | { type: 'cart:open' }
   | { type: 'search:open' }
-  | { type: 'quick-add'; slug: string; colour?: string | null; origin?: DOMRect }
+  | { type: 'quick-add'; slug: string; colour?: string | null; origin?: DOMRect; imageUrl?: string | null }
   | { type: 'toast'; message: string };
 
 export const emit = (e: UiEvent) => window.dispatchEvent(new CustomEvent('femia:ui', { detail: e }));

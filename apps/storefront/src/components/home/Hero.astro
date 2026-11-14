@@ -3,59 +3,128 @@ import type { MediaRef } from '@femia/contracts';
 import Icon from '../ui/Icon.astro';
 import { srcset } from '../../lib/format.ts';
 import { t } from '@femia/i18n';
-interface Props { hero: Record<string, any>; image?: MediaRef }
-const { hero: h, image } = Astro.props;
+interface Props { hero: Record<string, any>; image?: MediaRef; city?: string }
+const { hero: h, image, city } = Astro.props;
 ---
-<section class="hero" aria-labelledby="hero-title">
+<section class="hero" aria-labelledby="hero-title" data-hero>
   {image && (
-    <div class="hero__art" aria-hidden="true">
-      <img src={image.src['960']} srcset={srcset(image)} sizes="(min-width: 768px) 55vw, 100vw" width={image.width} height={image.height}
-        alt="" fetchpriority="high" decoding="async" data-parallax="10" />
+    <div class="hero__art" aria-hidden="true" data-hero-art>
+      <div class="hero__art-inner" data-parallax="12">
+        <img src={image.src['960']} srcset={srcset(image)} sizes="(min-width: 768px) 58vw, 100vw" width={image.width} height={image.height}
+          alt="" fetchpriority="high" decoding="async" data-hero-img />
+      </div>
     </div>
   )}
   <div class="container hero__inner">
     <div class="hero__copy">
-      {h.eyebrow && <p class="eyebrow hero__eyebrow">{h.eyebrow}</p>}
       <h1 id="hero-title" class="hero__title">
-        <span class="line"><span>{h.title}</span></span>
-        {h.titleAccent && <span class="line"><span class="accent">{h.titleAccent}</span></span>}
+        <span class="split-line"><span class="hero__line" data-hero-line>{h.title}</span></span>
+        {h.titleAccent && (
+          <span class="split-line hero__accent-wrap">
+            <span class="hero__line accent" data-hero-line>{h.titleAccent}</span>
+            <svg class="hero__stitch" viewBox="0 0 420 26" preserveAspectRatio="none" aria-hidden="true">
+              <defs>
+                <mask id="stitch-draw" maskUnits="userSpaceOnUse">
+                  <path d="M4 15 C 90 3, 170 25, 250 13 S 370 5, 416 14" stroke="#fff" stroke-width="6" fill="none" pathLength="1" stroke-dasharray="1" data-stitch-mask />
+                </mask>
+              </defs>
+              <path d="M4 15 C 90 3, 170 25, 250 13 S 370 5, 416 14" mask="url(#stitch-draw)" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="8 6" />
+            </svg>
+          </span>
+        )}
       </h1>
-      {h.body && <p class="hero__body">{h.body}</p>}
-      <div class="hero__ctas">
-        <a class="btn" href={h.ctaLink}>{h.ctaLabel} <Icon name="arrowRight" size={20} class="arrow" /></a>
+      {h.body && <p class="hero__body" data-hero-fade>{h.body}</p>}
+      <div class="hero__ctas" data-hero-fade>
+        <a class="btn" href={h.ctaLink} data-magnetic>{h.ctaLabel} <Icon name="arrowRight" size={18} class="arrow" /></a>
         {h.secondaryLabel && h.secondaryLink && <a class="hero__link" href={h.secondaryLink}>{h.secondaryLabel}</a>}
       </div>
     </div>
   </div>
-  <a href="#after-hero" class="hero__scroll"><span>{t('common.scroll')}</span><i aria-hidden="true"></i></a>
+  <div class="container hero__foot" data-hero-fade>
+    {h.eyebrow && <p class="hero__tag"><i class="lozenge" />{h.eyebrow}{city && <span class="hero__city">· {city}</span>}</p>}
+    <a href="#after-hero" class="hero__scroll"><span>{t('common.scroll')}</span><i aria-hidden="true"></i></a>
+  </div>
 </section>
 <div id="after-hero"></div>
+
 <style>
-  .hero { position: relative; isolation: isolate; overflow: hidden; min-height: clamp(560px, 82vh, 760px); display: grid; align-items: center;
-    background: radial-gradient(120% 90% at 85% 30%, #F8E2D6 0%, transparent 60%), linear-gradient(180deg, #FAEDE4 0%, var(--c-cream) 100%); }
-  .hero__art { position: absolute; z-index: -1; inset: -6% 0 -6% auto; width: 58%;
-    -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 28%); mask-image: linear-gradient(90deg, transparent 0%, #000 28%); }
-  .hero__art img { width: 100%; height: 100%; object-fit: cover; object-position: 30% 50%; }
-  .hero__inner { padding-block: var(--sp-16) var(--sp-24); }
-  .hero__copy { max-width: 600px; }
-  .hero__eyebrow { animation: rise 900ms var(--motion-ease-out) both; }
-  .hero__title { font-size: clamp(2.75rem, 1.6rem + 4.6vw, 5rem); line-height: 1.02; margin-top: var(--sp-5); font-weight: 600; }
-  .hero__title .line { display: block; overflow: hidden; padding-bottom: .08em; }
-  .hero__title .line > span { display: inline-block; animation: line-up 1000ms var(--motion-ease-out) both; }
-  .hero__title .line:nth-child(2) > span { animation-delay: 120ms; }
-  .hero__body { font-size: var(--fs-md); max-width: 34ch; margin-top: var(--sp-5); animation: rise 900ms 250ms var(--motion-ease-out) both; }
-  .hero__ctas { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4) var(--sp-8); margin-top: var(--sp-8); animation: rise 900ms 380ms var(--motion-ease-out) both; }
-  .hero__link { color: var(--c-ink); font-weight: 600; text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 6px; min-height: 44px; display: inline-flex; align-items: center; }
+  .hero { position: relative; isolation: isolate; overflow: hidden; min-height: clamp(600px, 88vh, 820px); display: grid; grid-template-rows: 1fr auto;
+    background: radial-gradient(110% 90% at 82% 28%, #F7DCCD 0%, transparent 58%), radial-gradient(60% 50% at 10% 90%, #F6E4D6 0%, transparent 70%), linear-gradient(180deg, #FAEBE1 0%, var(--c-cream) 100%); }
+  .hero__art { position: absolute; z-index: -1; inset: 0 0 0 auto; width: 60%;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 30%); mask-image: linear-gradient(90deg, transparent 0%, #000 30%); }
+  .hero__art-inner { position: absolute; inset: -8% 0; }
+  .hero__art img { width: 100%; height: 100%; object-fit: cover; object-position: 30% 50%; transform-origin: 70% 40%; }
+  .hero__inner { align-self: center; padding-block: var(--sp-16) var(--sp-10); }
+  .hero__copy { max-width: 640px; }
+  .hero__title { font-size: clamp(2.9rem, 1.5rem + 5.2vw, 5.75rem); line-height: .98; font-weight: 500; letter-spacing: -0.03em; }
+  .hero__line { display: inline-block; }
+  .hero__accent-wrap { position: relative; padding-bottom: .22em; }
+  .hero__title .accent { font-weight: 400; letter-spacing: -0.02em; }
+  .hero__stitch { position: absolute; left: 0; bottom: 0; width: min(100%, 9.5em); height: .3em; color: var(--c-zari-deep); overflow: visible; }
+  .hero__body { font-size: clamp(1.0625rem, 1rem + .3vw, 1.25rem); line-height: 1.6; max-width: 32ch; margin-top: var(--sp-6); color: var(--c-text); }
+  .hero__ctas { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4) var(--sp-8); margin-top: var(--sp-10); }
+  .hero__link { position: relative; display: inline-flex; align-items: center; min-height: 44px; color: var(--c-ink); font-size: .8125rem; font-weight: 500; letter-spacing: .16em; text-transform: uppercase; }
+  .hero__link::after { content: ''; position: absolute; left: 0; right: 0; bottom: 9px; height: 1px; background: var(--c-zari); transform-origin: right; transition: transform 420ms var(--motion-ease-out); }
   .hero__link:hover { color: var(--c-maroon); }
-  .hero__scroll { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); display: grid; justify-items: center; gap: var(--sp-2); font-size: .75rem; letter-spacing: .3em; color: var(--c-ink); text-transform: uppercase; }
-  .hero__scroll i { width: 1px; height: 44px; background: currentColor; transform-origin: top; animation: scroll-line 2.2s var(--motion-ease) infinite; }
+  .hero__link:hover::after { transform: scaleX(.35); }
+  .hero__foot { display: flex; align-items: flex-end; justify-content: space-between; padding-bottom: var(--sp-6); }
+  .hero__tag { display: inline-flex; align-items: center; gap: var(--sp-3); font-size: .72rem; font-weight: 500; letter-spacing: .24em; text-transform: uppercase; color: var(--c-ink); }
+  .hero__city { color: var(--c-muted); }
+  .hero__scroll { display: grid; justify-items: center; gap: var(--sp-2); font-size: .68rem; letter-spacing: .3em; color: var(--c-ink); text-transform: uppercase; }
+  .hero__scroll i { width: 1px; height: 46px; background: linear-gradient(var(--c-ink), var(--c-zari)); transform-origin: top; animation: scroll-line 2.4s var(--motion-ease) infinite; }
   @keyframes scroll-line { 0% { transform: scaleY(0); } 50% { transform: scaleY(1); transform-origin: top; } 51% { transform-origin: bottom; } 100% { transform: scaleY(0); transform-origin: bottom; } }
+
+  /* Held only while GSAP prepares the entrance (removed by script, or after 1.6s by the head guard). */
+  :global(.hero-pending) [data-hero-line] { transform: translateY(105%); }
+  :global(.hero-pending) [data-hero-fade] { opacity: 0; }
+  :global(.hero-pending) [data-hero-art] { opacity: 0; }
+  :global(.hero-pending) [data-stitch-mask] { stroke-dashoffset: 1; }
+
   @media (max-width: 767px) {
-    .hero { min-height: auto; align-items: start; }
-    .hero__art { inset: auto -10% -4% 18%; width: auto; height: 58%; -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 45%), linear-gradient(90deg, transparent, #000 35%); mask-image: linear-gradient(160deg, transparent 20%, #000 60%); }
-    .hero__inner { padding-block: var(--sp-10) 220px; }
-    .hero__body { max-width: 30ch; }
-    .hero__ctas { flex-direction: column; align-items: flex-start; }
+    .hero { min-height: auto; }
+    .hero__art { inset: auto -12% 0 12%; width: auto; height: 52%; -webkit-mask-image: linear-gradient(170deg, transparent 18%, #000 62%); mask-image: linear-gradient(170deg, transparent 18%, #000 62%); }
+    .hero__inner { align-self: start; padding-block: var(--sp-12) 240px; }
+    .hero__ctas { flex-direction: column; align-items: flex-start; gap: var(--sp-3); margin-top: var(--sp-8); }
     .hero__scroll { display: none; }
+    .hero__foot { display: none; }
   }
 </style>
+
+<script>
+  import { gsap } from 'gsap';
+
+  const root = document.querySelector<HTMLElement>('[data-hero]');
+  const html = document.documentElement;
+  if (root && html.classList.contains('motion')) {
+    const art = root.querySelector<HTMLElement>('[data-hero-art]');
+    const img = root.querySelector<HTMLElement>('[data-hero-img]');
+    const lines = root.querySelectorAll('[data-hero-line]');
+    const fades = root.querySelectorAll('[data-hero-fade]');
+    const stitch = root.querySelector('[data-stitch-mask]');
+
+    // Diagonal silk wipe: the reveal edge runs parallel to the ribbon (top-right → bottom-left).
+    const hidden = 'polygon(100% 0%, 100% 0%, 100% 100%, 165% 100%)';
+    const shown = 'polygon(-65% 0%, 100% 0%, 100% 100%, 0% 100%)';
+    // Drop the CSS hold first (same frame, no paint) so GSAP doesn't read it as a starting offset.
+    html.classList.remove('hero-pending');
+    gsap.set(lines, { y: 0, yPercent: 105 });
+    gsap.set(fades, { autoAlpha: 0, y: 18 });
+    if (art) gsap.set(art, { clipPath: hidden, autoAlpha: 1 });
+    if (img) gsap.set(img, { scale: 1.14, filter: 'blur(14px)' });
+    if (stitch) gsap.set(stitch, { strokeDashoffset: 1 });
+
+    const tl = gsap.timeline({ defaults: { ease: 'expo.out' } });
+    if (art) tl.to(art, { clipPath: shown, duration: 1.7, ease: 'power4.inOut' }, 0);
+    if (img) tl.to(img, { scale: 1, filter: 'blur(0px)', duration: 2, ease: 'power3.out', clearProps: 'filter' }, 0.15);
+    tl.to(lines, { yPercent: 0, duration: 1.15, stagger: 0.13 }, 0.2)
+      .to(fades, { autoAlpha: 1, y: 0, duration: 1, stagger: 0.12 }, 0.6);
+    if (stitch) tl.to(stitch, { strokeDashoffset: 0, duration: 1.3, ease: 'power2.inOut' }, 0.75);
+
+    // The ribbon keeps breathing, but only while the hero is on screen.
+    if (img) {
+      const drift = gsap.to(img, { yPercent: -1.8, rotation: 0.5, duration: 6.5, ease: 'sine.inOut', yoyo: true, repeat: -1, paused: true });
+      tl.eventCallback('onComplete', () => drift.play());
+      new IntersectionObserver(([e]) => (e?.isIntersecting && tl.progress() === 1 ? drift.play() : drift.pause())).observe(root);
+    }
+  }
+</script>

@@ -24,7 +24,6 @@ Astro.response.headers.set('Cache-Control', 'no-store');
 ---
 <Base site={site} categories={categories} title={t('track.title')} noindex>
   <section class="container track">
-    <p class="eyebrow">Orders</p>
     <h1 class="h2">{t('track.title')}</h1>
     <form method="post" class="track__form">
       <div class="field"><label for="tn">{t('track.number')}</label><input class="input" id="tn" name="number" required value={number} placeholder="FEM1001" autocapitalize="characters" /></div>

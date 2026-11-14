@@ -11,6 +11,7 @@ import { Dashboard } from './pages/Dashboard.tsx';
 const Products = lazy(() => import('./pages/Products.tsx'));
 const ProductWizard = lazy(() => import('./pages/ProductWizard.tsx'));
 const Stock = lazy(() => import('./pages/Stock.tsx'));
+const Catalog = lazy(() => import('./pages/Catalog.tsx'));
 const Orders = lazy(() => import('./pages/Orders.tsx'));
 const OrderDetail = lazy(() => import('./pages/OrderDetail.tsx'));
 const NewOrder = lazy(() => import('./pages/NewOrder.tsx'));
@@ -47,6 +48,7 @@ export function App() {
     { to: '/orders', label: 'Orders', icon: 'bag', perm: 'orders.read', badge: waiting },
     { to: '/products', label: 'Products', icon: 'box', perm: 'catalog.read' },
     { to: '/stock', label: 'Stock', icon: 'layers', perm: 'stock.write' },
+    { to: '/catalog', label: 'Catalog setup', icon: 'tag', perm: 'catalog.write' },
     { to: '/content', label: 'Homepage', icon: 'edit', perm: 'content.write' },
     { to: '/photos', label: 'Photos', icon: 'image', perm: 'media.write' },
     { to: '/prompt-studio', label: 'Prompt Studio', icon: 'wand', perm: 'media.write' },
@@ -75,6 +77,7 @@ export function App() {
               <Route path="/products/new" element={<ProductWizard />} />
               <Route path="/products/:id" element={<ProductWizard />} />
               <Route path="/stock" element={<Stock />} />
+              <Route path="/catalog" element={<Catalog />} />
               <Route path="/orders" element={<Orders />} />
               <Route path="/orders/new" element={<NewOrder />} />
               <Route path="/orders/:number" element={<OrderDetail />} />

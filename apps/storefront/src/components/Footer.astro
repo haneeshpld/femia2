@@ -1,69 +1,174 @@
 ---
 import Icon from './ui/Icon.astro';
-import Logo from './ui/Logo.astro';
+import ZariBand from './ZariBand.astro';
 import type { PublicSettings, Category } from '@femia/contracts';
+import { boutiqueStatus } from '../lib/hours.ts';
 import { t } from '@femia/i18n';
-interface Props { settings: PublicSettings; categories: Category[] }
-const { settings, categories } = Astro.props;
+
+interface Props { settings: PublicSettings; categories: Category[]; newsletter: { title?: string; body?: string }; minimal?: boolean }
+const { settings, categories, newsletter, minimal = false } = Astro.props;
 const s = settings.store;
 const wa = s.whatsapp ? `https://wa.me/${s.whatsapp.replace(/\D/g, '').replace(/^(\d{10})$/, '91$1')}` : null;
+const tel = s.phone.replace(/[^\d+]/g, '');
+const status = boutiqueStatus(s.hours);
+const place = [s.address.line1, s.address.city].filter(Boolean).join(', ');
+const subscribed = Astro.url.searchParams.get('subscribed') === '1';
+const marquee = categories.map((c) => c.name);
 ---
-<footer class="footer">
-  <div class="container">
-    <div class="footer__grid">
-      <div class="footer__brand">
-        <Logo variant="light" size="lg" />
-        <p class="footer__tagline">{s.tagline}</p>
-        <div class="footer__social">
-          {s.socials.instagram && <a class="icon-btn" href={s.socials.instagram} rel="noopener" target="_blank" aria-label="Femia on Instagram"><Icon name="instagram" /></a>}
-          {wa && <a class="icon-btn" href={wa} rel="noopener" target="_blank" aria-label="Chat with Femia on WhatsApp"><Icon name="whatsapp" /></a>}
-        </div>
+<footer class="ft" data-footer>
+  <ZariBand />
+
+  {marquee.length > 0 && (
+    <div class="ft__marquee" aria-hidden="true" data-marquee>
+      <div class="ft__marquee-track" data-marquee-track>
+        {[0, 1].map(() => (
+          <span class="ft__marquee-set">
+            {marquee.map((name) => <><span>{name}</span><i class="lozenge" /></>)}
+          </span>
+        ))}
       </div>
-      <nav aria-label={t('footer.shop')}>
-        <h2 class="footer__h">{t('footer.shop')}</h2>
-        <ul role="list">{categories.map((c) => <li><a href={`/shop/${c.slug}`}>{c.name}</a></li>)}</ul>
-      </nav>
-      <nav aria-label={t('footer.help')}>
-        <h2 class="footer__h">{t('footer.help')}</h2>
-        <ul role="list">
-          <li><a href="/policies/shipping">Shipping</a></li>
-          <li><a href="/policies/returns">Returns</a></li>
-          <li><a href="/size-guide">Size Guide</a></li>
-          <li><a href="/track">Track Order</a></li>
-          <li><a href="/policies/contact">Contact</a></li>
-        </ul>
-      </nav>
-      <nav aria-label={t('footer.visit')}>
-        <h2 class="footer__h">{t('footer.visit')}</h2>
-        <ul role="list">
-          <li><a href="/visit">Our Boutique</a></li>
-          <li><a href="/visit#hours">Store Hours</a></li>
-          {s.mapUrl && <li><a href={s.mapUrl} target="_blank" rel="noopener">Directions</a></li>}
-          <li><a href="/about">About Femia</a></li>
-        </ul>
-      </nav>
     </div>
-    <div class="footer__bottom">
-      <p>{t('footer.rights', { year: new Date().getFullYear(), name: s.name })}</p>
-      <p><a href="/policies/privacy">Privacy</a><span aria-hidden="true"> · </span><a href="/policies/terms">Terms</a></p>
+  )}
+
+  <div class="container ft__main">
+    <div class="ft__statement">
+      <p class="ft__tagline">{s.tagline}</p>
+      <div class="ft__social">
+        {s.socials.instagram && <a class="ft__chip" href={s.socials.instagram} rel="noopener" target="_blank"><Icon name="instagram" size={20} /> Instagram</a>}
+        {wa && <a class="ft__chip" href={wa} rel="noopener" target="_blank"><Icon name="whatsapp" size={20} /> WhatsApp</a>}
+      </div>
     </div>
+
+    <section class="ft__boutique" aria-labelledby="ft-visit">
+      <h2 id="ft-visit" class="ft__h">The boutique</h2>
+      {status ? (
+        <p class:list={['ft__status', { 'is-open': status.open }]} data-hours={JSON.stringify(s.hours)}><span class="ft__dot" aria-hidden="true"></span><span data-status-text>{status.text}</span></p>
+      ) : s.hoursSummary && <p class="ft__status">{s.hoursSummary}</p>}
+      {place && <p class="ft__addr">{place}</p>}
+      <div class="ft__visit-links">
+        {s.mapUrl && <a href={s.mapUrl} target="_blank" rel="noopener" class="link-arrow link-arrow--light">Directions <Icon name="arrowRight" size={16} /></a>}
+        {tel && <a href={`tel:${tel}`} class="link-arrow link-arrow--light">Call <Icon name="arrowRight" size={16} /></a>}
+      </div>
+    </section>
+
+    {!minimal && (
+      <section class="ft__letters" aria-labelledby="nl-title">
+        <h2 id="nl-title" class="ft__h">{newsletter.title || 'Get Style Updates'}</h2>
+        {newsletter.body && <p class="ft__nl-body">{newsletter.body}</p>}
+        <form class="ft__form" method="post" action="/newsletter" data-newsletter novalidate>
+          <label for="nl-email" class="sr-only">Email address</label>
+          <input id="nl-email" name="email" type="email" autocomplete="email" inputmode="email" required placeholder={t('home.newsletter.placeholder')} />
+          <button type="submit" class="btn btn--light btn--sm">{t('home.newsletter.cta')}</button>
+        </form>
+        <p class="ft__msg" role="status" aria-live="polite" data-msg>{subscribed ? t('home.newsletter.thanks') : ''}</p>
+      </section>
+    )}
+  </div>
+
+  <nav class="container ft__links" aria-label="Footer">
+    <div><h2 class="ft__h">{t('footer.shop')}</h2><ul role="list">{categories.map((c) => <li><a href={`/shop/${c.slug}`}>{c.name}</a></li>)}<li><a href="/collections">Collections</a></li></ul></div>
+    <div><h2 class="ft__h">{t('footer.help')}</h2><ul role="list"><li><a href="/track">Track your order</a></li><li><a href="/policies/shipping">Shipping</a></li><li><a href="/policies/returns">Returns</a></li><li><a href="/size-guide">Size guide</a></li><li><a href="/policies/contact">Contact</a></li></ul></div>
+    <div><h2 class="ft__h">Femia</h2><ul role="list"><li><a href="/about">Our story</a></li><li><a href="/visit">Visit the boutique</a></li><li><a href="/wishlist">Wishlist</a></li></ul></div>
+  </nav>
+
+  <div class="container ft__base">
+    <p>{t('footer.rights', { year: new Date().getFullYear(), name: s.name })} · {s.address.city || 'Kochi'}, Kerala</p>
+    <p><a href="/policies/privacy">Privacy</a><span aria-hidden="true"> · </span><a href="/policies/terms">Terms</a></p>
   </div>
 </footer>
+
 <style>
-  .footer { background: var(--c-maroon-800); color: var(--c-cream); padding-top: var(--sp-12); }
-  .footer__grid { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); gap: var(--sp-10); padding-bottom: var(--sp-10); }
-  .footer__brand { padding-right: var(--sp-10); border-right: 1px solid rgba(251, 241, 233, .25); }
-  .footer__tagline { font-family: var(--font-display); font-style: italic; font-size: 1.375rem; margin-top: var(--sp-3); }
-  .footer__social { display: flex; gap: var(--sp-2); margin-top: var(--sp-4); margin-left: -10px; }
-  .footer__social .icon-btn { color: var(--c-cream); }
-  .footer__social .icon-btn:hover { background: rgba(251, 241, 233, .12); }
-  .footer__h { font-family: var(--font-body); font-size: .8125rem; letter-spacing: .26em; text-transform: uppercase; color: var(--c-white); font-weight: 600; margin-bottom: var(--sp-3); }
-  .footer ul a { display: inline-flex; min-height: 32px; align-items: center; opacity: .88; transition: opacity var(--motion-fast) ease; }
-  .footer a:hover { opacity: 1; text-decoration: underline; text-underline-offset: 3px; }
-  .footer__bottom { display: flex; justify-content: space-between; gap: var(--sp-4); padding-block: var(--sp-5); border-top: 1px solid rgba(251, 241, 233, .2); font-size: .875rem; background: transparent; }
-  @media (max-width: 899px) {
-    .footer__grid { grid-template-columns: 1fr 1fr; }
-    .footer__brand { grid-column: 1 / -1; border-right: 0; padding-right: 0; }
+  .ft { position: relative; background: radial-gradient(120% 80% at 50% 0%, #5E1420 0%, var(--c-maroon-900) 60%, #3D0B13 100%); color: var(--c-cream); overflow: hidden; margin-top: clamp(var(--sp-12), 6vw, var(--sp-20)); }
+  .ft__marquee { overflow: hidden; border-bottom: 1px solid rgba(199, 154, 62, .25); padding-block: clamp(var(--sp-5), 3vw, var(--sp-8)); }
+  .ft__marquee-track { display: flex; width: max-content; will-change: transform; animation: marquee 48s linear infinite; }
+  .ft__marquee-set { display: flex; align-items: center; gap: clamp(var(--sp-6), 4vw, var(--sp-12)); padding-right: clamp(var(--sp-6), 4vw, var(--sp-12)); }
+  .ft__marquee-set span { font-family: var(--font-display); font-style: italic; font-weight: 400; font-size: clamp(2.25rem, 1.5rem + 3.6vw, 5rem); line-height: 1; color: #F6E6D3; white-space: nowrap; letter-spacing: -0.01em; }
+  .ft__marquee-set span:nth-of-type(even) { color: transparent; -webkit-text-stroke: 1px rgba(235, 203, 130, .75); }
+  .ft__marquee .lozenge { width: 10px; height: 10px; }
+  .js .ft__marquee-track.is-gsap { animation: none; }
+  @keyframes marquee { to { transform: translateX(-50%); } }
+
+  .ft__main { display: grid; grid-template-columns: 1.3fr 1fr 1.1fr; gap: clamp(var(--sp-8), 5vw, var(--sp-16)); padding-block: clamp(var(--sp-10), 6vw, var(--sp-16)); }
+  .ft__tagline { font-family: var(--font-display); font-size: clamp(1.75rem, 1.3rem + 1.6vw, 2.75rem); line-height: 1.12; font-style: italic; font-weight: 400; color: var(--c-white); max-width: 14ch; text-wrap: balance; }
+  .ft__social { display: flex; flex-wrap: wrap; gap: var(--sp-3); margin-top: var(--sp-6); }
+  .ft__chip { display: inline-flex; align-items: center; gap: var(--sp-2); min-height: 44px; padding: 0 var(--sp-4); border-radius: var(--r-pill); border: 1px solid rgba(235, 203, 130, .4); font-size: .8125rem; letter-spacing: .12em; text-transform: uppercase; transition: background var(--motion-base) ease, border-color var(--motion-base) ease; }
+  .ft__chip:hover { background: rgba(235, 203, 130, .1); border-color: var(--c-zari-light); }
+  .ft__h { font-family: var(--font-body); font-size: .75rem; font-weight: 500; letter-spacing: .24em; text-transform: uppercase; color: var(--c-zari-light); margin-bottom: var(--sp-4); }
+  .ft__boutique, .ft__letters { padding-left: clamp(var(--sp-5), 3vw, var(--sp-10)); border-left: 1px solid rgba(199, 154, 62, .28); }
+  .ft__status { display: flex; align-items: center; gap: var(--sp-3); font-family: var(--font-display); font-size: 1.5rem; line-height: 1.2; color: var(--c-white); }
+  .ft__dot { width: 9px; height: 9px; border-radius: 50%; background: #B9A79B; flex: none; }
+  .ft__status.is-open .ft__dot { background: #8FD19E; box-shadow: 0 0 0 0 rgba(143, 209, 158, .6); animation: breathe 2.4s ease-out infinite; }
+  @keyframes breathe { 70% { box-shadow: 0 0 0 9px rgba(143, 209, 158, 0); } 100% { box-shadow: 0 0 0 0 rgba(143, 209, 158, 0); } }
+  .ft__addr { margin-top: var(--sp-2); color: rgba(251, 241, 233, .82); }
+  .ft__visit-links { display: flex; gap: var(--sp-6); margin-top: var(--sp-3); }
+  .link-arrow--light { color: var(--c-cream); }
+  .link-arrow--light::after { background: var(--c-zari); }
+  .link-arrow--light:hover::after { background: var(--c-cream); }
+  .ft__nl-body { color: rgba(251, 241, 233, .82); max-width: 34ch; }
+  .ft__form { display: flex; align-items: center; margin-top: var(--sp-4); border-bottom: 1px solid rgba(235, 203, 130, .55); padding-bottom: 6px; transition: border-color var(--motion-base) ease; }
+  .ft__form:focus-within { border-color: var(--c-zari-light); }
+  .ft__form input { flex: 1; min-width: 0; min-height: 46px; background: transparent; border: 0; color: var(--c-white); font-size: 16px; caret-color: var(--c-zari-light); }
+  .ft__form input::placeholder { color: rgba(251, 241, 233, .66); }
+  .ft__form input:focus { outline: none; }
+  .ft__msg { min-height: 1.5em; margin-top: var(--sp-2); font-size: .875rem; color: var(--c-zari-light); }
+
+  .ft__links { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-8); padding-block: var(--sp-10); border-top: 1px solid rgba(199, 154, 62, .22); }
+  .ft__links ul { display: grid; gap: 2px; }
+  .ft__links a { display: inline-flex; min-height: 36px; align-items: center; color: rgba(251, 241, 233, .86); transition: color var(--motion-fast) ease; }
+  .ft__links a:hover { color: var(--c-white); text-decoration: underline; text-decoration-color: var(--c-zari); text-underline-offset: 5px; }
+
+  .ft__base { position: relative; display: flex; justify-content: space-between; gap: var(--sp-4); padding-block: var(--sp-5); font-size: .8125rem; letter-spacing: .04em; color: rgba(251, 241, 233, .75); border-top: 1px solid rgba(199, 154, 62, .22); }
+  .ft__base a:hover { color: var(--c-white); }
+
+  @media (max-width: 960px) {
+    .ft__main { grid-template-columns: 1fr 1fr; }
+    .ft__statement { grid-column: 1 / -1; }
+    .ft__boutique { padding-left: 0; border-left: 0; }
   }
-  @media (max-width: 767px) { .footer { padding-bottom: calc(64px + env(safe-area-inset-bottom)); } .footer__bottom { flex-direction: column; } }
+  @media (max-width: 640px) {
+    .ft__main { grid-template-columns: 1fr; }
+    .ft__letters { padding-left: 0; border-left: 0; padding-top: var(--sp-8); border-top: 1px solid rgba(199, 154, 62, .28); }
+    .ft__links { grid-template-columns: 1fr 1fr; }
+    .ft__base { flex-direction: column; padding-bottom: calc(var(--sp-5) + 64px + env(safe-area-inset-bottom)); }
+  }
+  @media (prefers-reduced-motion: reduce) { .ft__marquee-track { animation: none; } }
 </style>
+
+<script>
+  import { t } from '@femia/i18n';
+  import { track } from '../lib/analytics.ts';
+  import { boutiqueStatus, type DayHours } from '../lib/hours.ts';
+
+  // Live open/closed (the page itself may be cached).
+  const st = document.querySelector<HTMLElement>('[data-hours]');
+  if (st) {
+    const update = () => {
+      const s = boutiqueStatus(JSON.parse(st.dataset.hours || 'null') as DayHours[] | null);
+      if (!s) return;
+      st.classList.toggle('is-open', s.open);
+      st.querySelector('[data-status-text]')!.textContent = s.text;
+    };
+    update(); setInterval(update, 60_000);
+  }
+
+  // Pause the zari glint when the band is off screen.
+  const io = new IntersectionObserver((es) => es.forEach((e) => e.target.classList.toggle('is-visible', e.isIntersecting)));
+  document.querySelectorAll('[data-zari]').forEach((el) => io.observe(el));
+
+  document.querySelectorAll<HTMLFormElement>('[data-newsletter]').forEach((form) => {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = form.parentElement!.querySelector<HTMLElement>('[data-msg]')!;
+      const input = form.querySelector('input')!;
+      if (!input.checkValidity()) { msg.textContent = t('home.newsletter.error'); input.focus(); return; }
+      const btn = form.querySelector('button')!;
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/newsletter', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: input.value, source: 'footer' }) });
+        if (!res.ok) throw new Error();
+        msg.textContent = t('home.newsletter.thanks'); form.reset(); track('newsletter_signup');
+      } catch { msg.textContent = t('home.newsletter.error'); }
+      btn.disabled = false;
+    });
+  });
+</script>

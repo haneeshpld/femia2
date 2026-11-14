@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import {
   AdminOrderListQuery, AdminProductListQuery, ContentDraftInput, GatewayKeysInput, ManualOrderInput, MediaPatch, OrderNoteInput,
-  OrderTransitionInput, ProductStatusInput, Settings, StockAdjustInput, UserInput, PERMISSIONS, CheckoutRequest,
+  OrderTransitionInput, ProductStatusInput, Settings, StockAdjustInput, UserInput, PERMISSIONS, CheckoutRequest, CategoryInput, CollectionInput, CatalogPresets,
 } from '@femia/contracts';
 import { z } from 'zod';
 import type { AppEnv } from '../env.ts';
@@ -58,6 +58,75 @@ adminRoutes.get('/categories', can('catalog.read'), async (c) =>
   c.json(await all(c.env.DB, 'SELECT id, slug, name, sort, image_id AS imageId FROM categories ORDER BY sort, name')));
 adminRoutes.get('/collections', can('catalog.read'), async (c) =>
   c.json(await all(c.env.DB, 'SELECT id, slug, name, kind, description, sort, image_id AS imageId, active FROM collections ORDER BY kind, sort, name')));
+const slugOf = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 70) || 'item';
+async function freeSlug(db: D1Database, table: 'categories' | 'collections', base: string, exceptId = '') {
+  let slug = base, n = 2;
+  while (await first(db, `SELECT 1 FROM ${table} WHERE slug = ? AND id != ?`, slug, exceptId)) slug = `${base}-${n++}`;
+  return slug;
+}
+
+adminRoutes.post('/categories', can('catalog.write'), async (c) => {
+  const b = await readJson(c, CategoryInput);
+  const dup = await first<{ id: string }>(c.env.DB, 'SELECT id FROM categories WHERE lower(name) = lower(?)', b.name);
+  if (dup) throw conflict('exists', `A category called "${b.name}" already exists`, { id: dup.id });
+  const id = newId('cat');
+  const slug = await freeSlug(c.env.DB, 'categories', b.slug ?? slugOf(b.name));
+  const sort = b.sort ?? ((await first<{ n: number }>(c.env.DB, 'SELECT COALESCE(MAX(sort), -1) + 1 AS n FROM categories'))?.n ?? 0);
+  await c.env.DB.batch([
+    c.env.DB.prepare('INSERT INTO categories (id, slug, name, sort, image_id) VALUES (?,?,?,?,?)').bind(id, slug, b.name, sort, b.imageId ?? null),
+    audit(c.env.DB, actorOf(c), 'category.create', 'category', id, b.name),
+  ]);
+  return c.json({ id, slug, name: b.name, sort, imageId: b.imageId ?? null }, 201);
+});
+adminRoutes.patch('/categories/:id', can('catalog.write'), async (c) => {
+  const b = await readJson(c, CategoryInput.partial());
+  const cur = await first<{ id: string; name: string }>(c.env.DB, 'SELECT id, name FROM categories WHERE id = ?', c.req.param('id'));
+  if (!cur) throw notFound('Category not found');
+  const slug = b.slug ? await freeSlug(c.env.DB, 'categories', b.slug, cur.id) : null;
+  await c.env.DB.batch([
+    c.env.DB.prepare('UPDATE categories SET name = COALESCE(?, name), slug = COALESCE(?, slug), sort = COALESCE(?, sort), image_id = CASE WHEN ? THEN ? ELSE image_id END WHERE id = ?')
+      .bind(b.name ?? null, slug, b.sort ?? null, b.imageId !== undefined ? 1 : 0, b.imageId ?? null, cur.id),
+    audit(c.env.DB, actorOf(c), 'category.update', 'category', cur.id, b.name ?? cur.name),
+  ]);
+  return c.json(await first(c.env.DB, 'SELECT id, slug, name, sort, image_id AS imageId FROM categories WHERE id = ?', cur.id));
+});
+
+adminRoutes.post('/collections', can('catalog.write'), async (c) => {
+  const b = await readJson(c, CollectionInput);
+  const dup = await first<{ id: string }>(c.env.DB, 'SELECT id FROM collections WHERE lower(name) = lower(?)', b.name);
+  if (dup) throw conflict('exists', `A collection called "${b.name}" already exists`, { id: dup.id });
+  const id = newId('col');
+  const slug = await freeSlug(c.env.DB, 'collections', b.slug ?? slugOf(b.name));
+  const sort = b.sort ?? ((await first<{ n: number }>(c.env.DB, 'SELECT COALESCE(MAX(sort), -1) + 1 AS n FROM collections'))?.n ?? 0);
+  await c.env.DB.batch([
+    c.env.DB.prepare('INSERT INTO collections (id, slug, name, kind, description, sort, image_id, active) VALUES (?,?,?,?,?,?,?,?)')
+      .bind(id, slug, b.name, b.kind, b.description, sort, b.imageId ?? null, b.active ? 1 : 0),
+    audit(c.env.DB, actorOf(c), 'collection.create', 'collection', id, b.name),
+  ]);
+  return c.json({ id, slug, name: b.name, kind: b.kind, description: b.description, sort, imageId: b.imageId ?? null, active: b.active ? 1 : 0 }, 201);
+});
+adminRoutes.patch('/collections/:id', can('catalog.write'), async (c) => {
+  const b = await readJson(c, CollectionInput.partial());
+  const cur = await first<{ id: string; name: string }>(c.env.DB, 'SELECT id, name FROM collections WHERE id = ?', c.req.param('id'));
+  if (!cur) throw notFound('Collection not found');
+  const slug = b.slug ? await freeSlug(c.env.DB, 'collections', b.slug, cur.id) : null;
+  await c.env.DB.batch([
+    c.env.DB.prepare(`UPDATE collections SET name = COALESCE(?, name), slug = COALESCE(?, slug), kind = COALESCE(?, kind), description = COALESCE(?, description),
+      sort = COALESCE(?, sort), active = COALESCE(?, active), image_id = CASE WHEN ? THEN ? ELSE image_id END WHERE id = ?`)
+      .bind(b.name ?? null, slug, b.kind ?? null, b.description ?? null, b.sort ?? null, b.active === undefined ? null : b.active ? 1 : 0, b.imageId !== undefined ? 1 : 0, b.imageId ?? null, cur.id),
+    audit(c.env.DB, actorOf(c), 'collection.update', 'collection', cur.id, b.name ?? cur.name),
+  ]);
+  return c.json(await first(c.env.DB, 'SELECT id, slug, name, kind, description, sort, image_id AS imageId, active FROM collections WHERE id = ?', cur.id));
+});
+
+/** Colour, size and fabric lists for the product wizard. Staff can extend them (catalog.write), unlike money settings. */
+adminRoutes.get('/catalog/presets', can('catalog.read'), async (c) => c.json((await getSettings(c.env.DB)).catalog));
+adminRoutes.put('/catalog/presets', can('catalog.write'), async (c) => {
+  const v = await readJson(c, CatalogPresets);
+  await c.env.DB.batch([putSettingStatement(c.env.DB, 'catalog', v, actorOf(c)), audit(c.env.DB, actorOf(c), 'catalog.presets', 'settings', 'catalog', 'Updated colour / size / fabric lists')]);
+  return c.json(v);
+});
+
 adminRoutes.get('/storefront/categories', can('catalog.read'), async (c) => c.json(await listCategories(c.env.DB)));
 adminRoutes.get('/storefront/collections', can('catalog.read'), async (c) => c.json(await listCollections(c.env.DB)));
 
@@ -218,7 +287,7 @@ adminRoutes.get('/settings', can('settings.read'), async (c) => {
 adminRoutes.put('/settings/:section', can('settings.write'), async (c) => {
   const section = c.req.param('section') as keyof Settings;
   const shape = Settings.shape[section];
-  if (!shape) throw notFound('Unknown settings section');
+  if (!shape || section === 'catalog') throw notFound('Unknown settings section');
   const value = parse(shape, await c.req.json());
   if (section === 'payments' && value && (value as Settings['payments']).gateway.enabled) {
     const p = (value as Settings['payments']).gateway.provider;

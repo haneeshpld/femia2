@@ -4,20 +4,25 @@ import type { ProductDetail } from '@femia/contracts';
 import { formatINR, percentOff } from '@femia/contracts/money';
 import { t } from '@femia/i18n';
 import { addToCart } from '../../lib/stores.ts';
-import { flyToBag } from '../../lib/fly.ts';
+import { flyToBag, morphFrom } from '../../lib/fly.ts';
 import { track } from '../../lib/analytics.ts';
 import { Icon } from './Icon.tsx';
 import { Sheet } from './Sheet.tsx';
 
 /** Size sheet: pick colour + size without leaving the grid. */
-export function QuickAdd({ slug, colour, origin, onClose, onAdded, sizeGuide }: {
-  slug: string | null; colour?: string | null; origin?: DOMRect; onClose: () => void; onAdded: (msg: string) => void; sizeGuide: string;
+export function QuickAdd({ slug, colour, origin, imageUrl, onClose, onAdded, sizeGuide }: {
+  slug: string | null; colour?: string | null; origin?: DOMRect; imageUrl?: string | null; onClose: () => void; onAdded: (msg: string) => void; sizeGuide: string;
 }) {
   const [p, setP] = useState<ProductDetail | null>(null);
   const [error, setError] = useState(false);
   const [c2, setC2] = useState<string | null>(null);
   const [size, setSize] = useState<string | null>(null);
   const [showGuide, setShowGuide] = useState(false);
+
+  // The card's photo grows into the sheet's photo.
+  useEffect(() => {
+    if (slug) void morphFrom(origin, imageUrl, () => document.querySelector('.sheet.is-open .qa__img'));
+  }, [slug]);
 
   useEffect(() => {
     if (!slug) return;
@@ -44,7 +49,7 @@ export function QuickAdd({ slug, colour, origin, onClose, onAdded, sizeGuide }: 
       price: chosen.price, compareAtPrice: chosen.compareAtPrice, image: image?.src['480'] ?? null,
     });
     track('add_to_bag', { productId: p.id, variantId: chosen.id, value: chosen.price });
-    flyToBag(origin ?? document.querySelector('.qa__img'), image?.src['480']);
+    flyToBag(document.querySelector('.sheet.is-open .qa__img')?.getBoundingClientRect() ?? origin, image?.src['480']);
     onAdded(`${p.title} · ${size} ${t('common.added').toLowerCase()} to your bag`);
     onClose();
   };

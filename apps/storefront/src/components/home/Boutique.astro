@@ -1,7 +1,7 @@
 ---
 import type { MediaRef, PublicSettings } from '@femia/contracts';
 import Icon from '../ui/Icon.astro';
-import { srcset } from '../../lib/format.ts';
+import { emph, srcset } from '../../lib/format.ts';
 import { t } from '@femia/i18n';
 interface Props { block: Record<string, any>; image?: MediaRef; store: PublicSettings['store']; headingLevel?: 'h1' | 'h2' }
 const { block: b, image, store, headingLevel = 'h2' } = Astro.props;
@@ -11,31 +11,33 @@ const place = [store.address.line1, store.address.city].filter(Boolean).join(', 
 ---
 <section class="boutique" aria-labelledby="boutique-title">
   <div class="container boutique__inner">
-    <div class="boutique__media arch ph" data-reveal>
-      {image && <img src={image.src['960']} srcset={srcset(image)} sizes="(min-width: 768px) 42vw, 92vw" width={image.width} height={image.height} alt={image.alt} loading="lazy" decoding="async" />}
+    <div class="boutique__media arch ph" data-doorway>
+      {image && <img data-doorway-img src={image.src['960']} srcset={srcset(image)} sizes="(min-width: 768px) 42vw, 92vw" width={image.width} height={image.height} alt={image.alt} loading="lazy" decoding="async" />}
     </div>
     <div class="boutique__copy" data-reveal style="--delay:120ms">
-      <p class="eyebrow">{b.eyebrow}</p>
-      <H id="boutique-title" class="h2">{b.title}</H>
+      <H id="boutique-title" class="h2" set:html={emph(b.title)} />
       <p>{b.body}</p>
       <ul role="list" class="boutique__facts">
         {place && <li><Icon name="pin" /> <strong>{place}</strong></li>}
         {store.hoursSummary && <li><Icon name="clock" /> <span>{store.hoursSummary}</span></li>}
       </ul>
       <div class="boutique__ctas">
-        {store.mapUrl && <a class="btn btn--outline" href={store.mapUrl} target="_blank" rel="noopener"><Icon name="navigate" size={20} /> {t('home.boutique.directions')}</a>}
+        {store.mapUrl && <a class="btn" data-magnetic href={store.mapUrl} target="_blank" rel="noopener"><Icon name="navigate" size={20} /> {t('home.boutique.directions')}</a>}
         {wa && <a class="btn btn--outline" href={wa} target="_blank" rel="noopener"><Icon name="whatsapp" size={20} /> {t('home.boutique.whatsapp')}</a>}
       </div>
     </div>
   </div>
 </section>
 <style>
-  .boutique { background: var(--c-blush); padding-block: clamp(var(--sp-10), 5vw, var(--sp-16)); }
+  .boutique { position: relative; background: radial-gradient(80% 120% at 0% 50%, #F9E8DF 0%, var(--c-blush) 60%); padding-block: clamp(var(--sp-12), 7vw, var(--sp-20)); }
+  .boutique::before, .boutique::after { content: ''; position: absolute; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--c-zari), transparent); opacity: .5; }
+  .boutique::before { top: 10px; } .boutique::after { bottom: 10px; }
   .boutique__inner { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr); gap: clamp(var(--sp-8), 6vw, var(--sp-20)); align-items: center; }
-  .boutique__media { aspect-ratio: 1.4; }
+  .boutique__media { aspect-ratio: 1.4; box-shadow: var(--shadow-card-hover); }
   .boutique__media img { width: 100%; height: 100%; object-fit: cover; }
   .boutique__copy { display: grid; gap: var(--sp-4); justify-items: start; }
-  .boutique__copy > p:not(.eyebrow) { font-size: var(--fs-md); max-width: 46ch; }
+  .boutique__copy h2 :global(em), .boutique__copy h1 :global(em) { font-style: italic; color: var(--c-maroon); font-weight: 400; }
+  .boutique__copy > p { font-size: var(--fs-md); max-width: 46ch; }
   .boutique__facts { display: flex; flex-wrap: wrap; gap: var(--sp-3) var(--sp-10); }
   .boutique__facts li { display: flex; align-items: center; gap: var(--sp-2); color: var(--c-ink); }
   .boutique__facts :global(svg) { color: var(--c-maroon); }

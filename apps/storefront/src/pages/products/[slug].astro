@@ -64,7 +64,8 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
         {gallery.map((img, i) => (
           <button type="button" class="gallery__slide" data-zoom={i} aria-label={`${t('product.zoom')} ${i + 1} of ${gallery.length}`}>
             <img src={img.src['960']} srcset={srcset(img)} sizes="(min-width: 1024px) 46vw, 100vw" width={img.width} height={img.height} alt={img.alt}
-              loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : undefined} decoding="async" style={img.placeholder ? `background:${img.placeholder}` : undefined} />
+              loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : undefined} decoding="async"
+              style={[img.placeholder ? `background:${img.placeholder}` : '', i === 0 ? `view-transition-name:p-${p.slug}` : ''].filter(Boolean).join(';') || undefined} />
           </button>
         ))}
       </div>
@@ -79,7 +80,6 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
     </section>
 
     <section class="info" aria-labelledby="p-title">
-      <p class="eyebrow info__cat"><a href={`/shop/${p.category.slug}`}>{p.category.name}</a></p>
       <h1 id="p-title" class="info__title">{p.title}</h1>
       <p class="price info__price" data-price>
         <span data-price-now>{formatINR(p.price)}</span>
@@ -132,15 +132,15 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
   {p.related.length > 0 && (
     <section class="section" aria-labelledby="rel-title">
       <div class="container">
-        <div class="section-head"><div><p class="eyebrow">Complete the look</p><h2 id="rel-title">{t('product.related')}</h2></div></div>
-        <ul role="list" class="grid-products" data-reveal-group>{p.related.map((r) => <li><PCard product={r} /></li>)}</ul>
+        <div class="section-head"><h2 id="rel-title" data-split>{t('product.related')}</h2><span class="thread-rule" aria-hidden="true"></span></div>
+        <ul role="list" class="grid-products" data-cards>{p.related.map((r) => <li><PCard product={r} /></li>)}</ul>
       </div>
     </section>
   )}
 
   <dialog class="zoom" data-zoom-dialog aria-label="Zoomed photo">
     <button type="button" class="icon-btn zoom__close" data-close aria-label="Close"><Icon name="close" /></button>
-    <img data-zoom-img alt="" />
+    <img data-zoom-img src={gallery[0]?.src['1600']} alt={gallery[0]?.alt ?? ''} loading="lazy" decoding="async" />
   </dialog>
   {chart && (
     <dialog class="chart" data-chart-dialog aria-labelledby="chart-title">
@@ -158,7 +158,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
   .crumbs [aria-current] { color: var(--c-ink); }
   .pdp { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: clamp(var(--sp-8), 5vw, var(--sp-16)); align-items: start; padding-bottom: var(--sp-12); }
   .gallery { position: sticky; top: calc(var(--layout-header) + var(--sp-4)); display: grid; grid-template-columns: 80px 1fr; gap: var(--sp-4); }
-  .gallery__track { grid-column: 2; grid-row: 1; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; border-radius: var(--r-md); background: var(--c-sand); }
+  .gallery__track { grid-column: 2; grid-row: 1; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; border-radius: var(--r-card); background: var(--c-sand); box-shadow: var(--shadow-card-hover); }
   .gallery__track::-webkit-scrollbar { display: none; }
   .gallery__slide { flex: 0 0 100%; scroll-snap-align: center; aspect-ratio: 3 / 4; cursor: zoom-in; }
   .gallery__slide img { width: 100%; height: 100%; object-fit: cover; }
@@ -171,7 +171,8 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
   .gallery:not(:has(.gallery__thumbs)) .gallery__track { grid-column: 1; }
   .info { display: grid; gap: var(--sp-5); }
   .info__cat a:hover { color: var(--c-maroon); }
-  .info__title { font-size: clamp(2.25rem, 1.8rem + 2vw, 3.25rem); }
+  .info__title { font-size: clamp(2.4rem, 1.8rem + 2.4vw, 3.75rem); letter-spacing: -0.03em; }
+  .info__title + .info__price { margin-top: var(--sp-1); }
   .info__price { font-size: 1.375rem; margin-top: calc(var(--sp-2) * -1); }
   .info__tax { font-size: .875rem; margin-top: calc(var(--sp-4) * -1); }
   .opt { border: 0; padding: 0; display: grid; gap: var(--sp-3); }
@@ -187,7 +188,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
   .size:disabled { color: var(--c-muted); text-decoration: line-through; background: repeating-linear-gradient(135deg, transparent 0 6px, rgba(58, 31, 20, .06) 6px 7px), var(--c-surface); cursor: not-allowed; }
   .low { color: var(--c-warning); font-weight: 600; font-size: .9375rem; min-height: 1.4em; }
   .info__buy { display: flex; gap: var(--sp-3); align-items: center; }
-  .info__add { min-height: 56px; font-size: 1.0625rem; }
+  .info__add { min-height: 58px; font-size: .875rem; }
   .info__wish { position: static; flex: none; width: 56px; height: 56px; border: 1.5px solid var(--c-line); box-shadow: none; background: var(--c-surface); }
   .info__wa { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--c-ink); font-weight: 500; text-decoration: underline; text-underline-offset: 4px; min-height: 44px; }
   .acc { border-top: 1px solid var(--c-line); }
@@ -321,7 +322,8 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
         const imgs = d.galleries[colour ?? ''] ?? Object.values(d.galleries)[0] ?? [];
         const colourLabel = d.option2Values.find((o) => o.value === colour)?.label;
         addToCart({ variantId: v.id, productId: d.id, slug: d.slug, title: d.title, optionLabel: [size, colourLabel].filter(Boolean).join(' / '), price: v.price, compareAtPrice: v.cap, image: imgs[0]?.src['480'] ?? null });
-        flyToBag(track_, imgs[0]?.src['480']);
+        const visible = track_.children[Math.round(track_.scrollLeft / Math.max(1, track_.clientWidth))] ?? track_;
+        flyToBag(visible, imgs[Math.round(track_.scrollLeft / Math.max(1, track_.clientWidth))]?.src['480'] ?? imgs[0]?.src['480']);
         track('add_to_bag', { productId: d.id, variantId: v.id, value: v.price });
         emit({ type: 'toast', message: `${d.title} · ${[size, colourLabel].filter(Boolean).join(' / ')} added to your bag` });
       }

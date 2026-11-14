@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError, get, post, put } from '../lib/api.ts';
 import { formatINR, paiseToRupees, percentOff, rupeesToPaise } from '../lib/format.ts';
@@ -8,14 +8,9 @@ import { useCan } from '../lib/me.ts';
 import { Icon } from '../components/Icon.tsx';
 import { PhotoUpload, PRODUCT_SLOT } from '../components/PhotoUpload.tsx';
 import { ErrorBox, Field, Skeleton, StatusBadge, useToast } from '../components/ui.tsx';
+import { AddColour, AddInline } from '../components/AddInline.tsx';
+import { slugValue, useCatalogMutations, useCategories, useCollections, usePresets } from '../lib/catalog.ts';
 
-const SIZE_PRESETS = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', 'Free Size'];
-const COLOUR_PRESETS: [string, string][] = [
-  ['Maroon', '#7A1F2B'], ['Red', '#B3261E'], ['Pink', '#E58FA6'], ['Rose', '#D98A86'], ['Peach', '#F3D9C4'], ['Mustard', '#D9A21B'], ['Yellow', '#EFCB4A'],
-  ['Olive', '#6E6B33'], ['Green', '#2F6B3F'], ['Teal', '#1F6E6B'], ['Blue', '#2F5DA8'], ['Navy', '#1F2A4D'], ['Lavender', '#B9A0D8'], ['Purple', '#5E3A87'],
-  ['Cream', '#F2E2CC'], ['White', '#FAFAF7'], ['Beige', '#D9C3A5'], ['Brown', '#6B4330'], ['Grey', '#8B8B8B'], ['Black', '#1C1C1C'],
-];
-const FABRICS = ['Cotton', 'Rayon', 'Georgette', 'Silk', 'Linen', 'Chiffon', 'Crepe', 'Muslin', 'Chanderi', 'Organza'];
 const CARE: Record<string, string> = {
   default: 'Gentle hand wash in cold water. Wash dark colours separately. Dry in shade. Warm iron on the reverse.',
   Silk: 'Dry clean only. Store folded in a muslin cloth. Iron on low heat on the reverse.',
@@ -23,7 +18,6 @@ const CARE: Record<string, string> = {
   Organza: 'Dry clean only. Iron on low heat with a cloth in between.',
 };
 const STEPS = ['Photos', 'Details', 'Sizes & Colours', 'Price', 'Preview'] as const;
-const slugValue = (s: string) => s.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 interface Img { mediaId: string; role: 'main' | 'alt' | 'detail'; option2: string | null; media: MediaRef }
 interface V { id?: string; option1: string | null; option2: string | null; sku?: string; price: number | null; onHand: number; reserved?: number; available?: number; lowStockThreshold: number | null; active: boolean }
@@ -36,17 +30,28 @@ const EMPTY: State = { title: '', description: '', categoryId: '', fabric: '', c
 
 export default function ProductWizard() {
   const { id } = useParams();
+  const [sp] = useSearchParams();
+  const back = sp.get('return');
   const nav = useNavigate();
   const qc = useQueryClient();
   const toast = useToast();
   const can = useCan();
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(() => Math.min(4, Math.max(0, Number(sp.get('step') ?? 0) || 0)));
   const [s, setS] = useState<State>(EMPTY);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [bulk, setBulk] = useState('');
 
-  const cats = useQuery({ queryKey: ['categories'], queryFn: () => get<{ id: string; name: string }[]>('/admin/categories') });
-  const colls = useQuery({ queryKey: ['collections'], queryFn: () => get<{ id: string; name: string; kind: string }[]>('/admin/collections') });
+  const cats = useCategories();
+  const colls = useCollections();
+  const presets = usePresets();
+  const m = useCatalogMutations();
+  const SIZE_PRESETS = presets.data?.sizes ?? ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+  const FABRICS = presets.data?.fabrics ?? [];
+  const COLOUR_PRESETS: [string, string][] = (presets.data?.colours ?? []).map((c) => [c.label, c.hex]);
+  /** Remember a new size / fabric / colour in the store's lists (best effort: the product still gets it if this fails). */
+  const remember = (patch: Partial<NonNullable<typeof presets.data>>) => {
+    if (presets.data) m.savePresets.mutate({ ...presets.data, ...patch });
+  };
   const existing = useQuery({ queryKey: ['product', id], queryFn: () => get(`/admin/products/${id}`), enabled: !!id });
 
   useEffect(() => {
@@ -57,7 +62,7 @@ export default function ProductWizard() {
       price: p.price, compareAtPrice: p.compareAtPrice, sizes: p.option1Values.map((o: { value: string }) => o.value), colours: p.option2Values,
       variants: p.variants.filter((v: V) => v.active), images: p.images, collectionIds: p.collectionIds, seoTitle: p.seoTitle, seoDescription: p.seoDescription,
     });
-    setStep(4);
+    if (!sp.get('step')) setStep(4);
   }, [existing.data]);
   useEffect(() => { if (!s.categoryId && cats.data?.[0]) setS((x) => ({ ...x, categoryId: cats.data![0]!.id })); }, [cats.data]);
 
@@ -90,8 +95,9 @@ export default function ProductWizard() {
     },
     onSuccess: (p, publish) => {
       qc.invalidateQueries({ queryKey: ['products'] }); qc.invalidateQueries({ queryKey: ['dashboard'] }); qc.setQueryData(['product', p.id], p);
-      toast({ text: publish ? `${p.title} is live on the website` : 'Saved' });
-      if (!s.id) nav(`/products/${p.id}`, { replace: true });
+      const backTo = back ? `${back}${back.includes('?') ? '&' : '?'}product=${p.id}` : null;
+      toast({ text: publish ? `${p.title} is live on the website` : 'Saved', ...(backTo ? { action: { label: back!.startsWith('/prompt') ? 'Back to Prompt Studio' : 'Back', run: () => nav(backTo) } } : {}) });
+      if (!s.id) nav(`/products/${p.id}${back ? `?return=${encodeURIComponent(back)}` : ''}`, { replace: true });
       setS((x) => ({ ...x, id: p.id, status: p.status, slug: p.slug, variants: p.variants.filter((v: V) => v.active) }));
       setErrors({});
     },
@@ -169,12 +175,16 @@ export default function ProductWizard() {
               <div className="seg" style={{ flexWrap: 'wrap' }}>
                 {cats.data?.map((c) => <button type="button" key={c.id} className={s.categoryId === c.id ? 'on' : ''} onClick={() => setS({ ...s, categoryId: c.id })}>{c.name}</button>)}
               </div>
+              <div style={{ marginTop: 8 }}>
+                <AddInline label="New category" placeholder="e.g. Kaftans" onAdd={async (name) => { const c = await m.createCategory.mutateAsync({ name }); setS((x) => ({ ...x, categoryId: c.id })); toast({ text: `Category "${c.name}" added` }); }} />
+              </div>
             </Field>
             <Field label="Fabric">
               <div className="row" style={{ gap: 6 }}>
                 {FABRICS.map((f) => <button type="button" key={f} className={`badge ${s.fabric === f ? 'badge--maroon' : ''}`} style={{ minHeight: 36, padding: '0 14px', fontSize: '.875rem' }}
                   onClick={() => setS({ ...s, fabric: f, care: s.care === CARE[s.fabric] || s.care === CARE.default || !s.care ? CARE[f] ?? CARE.default! : s.care })}>{f}</button>)}
-                <input className="input" style={{ maxWidth: 180, minHeight: 36 }} placeholder="Other…" value={FABRICS.includes(s.fabric) ? '' : s.fabric} onChange={(e) => setS({ ...s, fabric: e.target.value })} aria-label="Other fabric" />
+                {s.fabric && !FABRICS.includes(s.fabric) && <span className="badge badge--maroon" style={{ minHeight: 36, padding: '0 14px', fontSize: '.875rem' }}>{s.fabric}</span>}
+                <AddInline compact label="Add fabric" placeholder="e.g. Modal silk" onAdd={(f) => { setS((x) => ({ ...x, fabric: f, care: x.care || CARE.default! })); if (!FABRICS.some((x) => x.toLowerCase() === f.toLowerCase())) remember({ fabrics: [...FABRICS, f] }); }} />
               </div>
             </Field>
             <Field label="Description" hint="2–3 sentences: the cut, the details, when to wear it." error={errors.description}>
@@ -188,6 +198,7 @@ export default function ProductWizard() {
                   return <button type="button" key={c.id} className={`badge ${on ? 'badge--maroon' : ''}`} style={{ minHeight: 36, padding: '0 14px', fontSize: '.875rem' }}
                     onClick={() => setS({ ...s, collectionIds: on ? s.collectionIds.filter((x) => x !== c.id) : [...s.collectionIds, c.id] })}>{c.name}</button>;
                 })}
+                <AddInline compact label="New collection" placeholder="e.g. Onam Edit" onAdd={async (name) => { const c = await m.createCollection.mutateAsync({ name }); setS((x) => ({ ...x, collectionIds: [...x.collectionIds, c.id] })); toast({ text: `Collection "${c.name}" added. Add a photo in Catalog setup.` }); }} />
               </div>
             </Field>
           </div>
@@ -198,12 +209,17 @@ export default function ProductWizard() {
             <div className="card stack">
               <h2>Sizes</h2>
               <div className="row" style={{ gap: 6 }}>
-                {SIZE_PRESETS.map((z) => {
+                {[...SIZE_PRESETS, ...s.sizes.filter((z) => !SIZE_PRESETS.includes(z))].map((z) => {
                   const on = s.sizes.includes(z);
                   return <button type="button" key={z} className={`btn ${on ? '' : 'btn--quiet'}`} style={{ minWidth: 56, padding: '0 12px' }} aria-pressed={on}
                     onClick={() => setS({ ...s, sizes: on ? s.sizes.filter((x) => x !== z) : SIZE_PRESETS.filter((p) => p === z || s.sizes.includes(p)).concat(s.sizes.filter((x) => !SIZE_PRESETS.includes(x))) })}>{z}</button>;
                 })}
               </div>
+              <AddInline label="Add size" placeholder="e.g. 4XL, 28, Free Size" maxLength={20} onAdd={(z) => {
+                const v = z.trim();
+                setS((x) => (x.sizes.includes(v) ? x : { ...x, sizes: [...x.sizes, v] }));
+                if (!SIZE_PRESETS.includes(v)) remember({ sizes: [...SIZE_PRESETS, v] });
+              }} />
               <div className="row"><button type="button" className="btn btn--ghost" onClick={() => setS({ ...s, sizes: ['S', 'M', 'L', 'XL'] })}>S–XL</button><button type="button" className="btn btn--ghost" onClick={() => setS({ ...s, sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL'] })}>XS–XXL</button><button type="button" className="btn btn--ghost" onClick={() => setS({ ...s, sizes: [] })}>No sizes</button></div>
             </div>
 
@@ -222,6 +238,19 @@ export default function ProductWizard() {
                   );
                 })}
               </div>
+              {s.colours.filter((c) => !COLOUR_PRESETS.some(([l]) => slugValue(l) === c.value)).length > 0 && (
+                <div className="row" style={{ gap: 8 }}>
+                  {s.colours.filter((c) => !COLOUR_PRESETS.some(([l]) => slugValue(l) === c.value)).map((c) => (
+                    <span key={c.value} className="chip-x"><span style={{ width: 18, height: 18, borderRadius: '50%', background: c.swatch ?? '#ccc', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.15)' }} />{c.label}
+                      <button type="button" aria-label={`Remove ${c.label}`} onClick={() => setS((x) => ({ ...x, colours: x.colours.filter((y) => y.value !== c.value) }))}><Icon name="close" size={14} /></button></span>
+                  ))}
+                </div>
+              )}
+              <AddColour onAdd={({ label, hex }) => {
+                const value = slugValue(label);
+                setS((x) => (x.colours.some((c) => c.value === value) ? x : { ...x, colours: [...x.colours, { value, label, swatch: hex }] }));
+                if (presets.data && !presets.data.colours.some((c) => slugValue(c.label) === value)) remember({ colours: [...presets.data.colours, { label, hex }] });
+              }} />
               {s.colours.length > 0 && <p className="small"><strong>Selected:</strong> {s.colours.map((c) => c.label).join(', ')}</p>}
             </div>
 

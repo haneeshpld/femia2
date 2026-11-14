@@ -7,7 +7,7 @@ Plan and decisions: [docs/PLAN.md](docs/PLAN.md) · Release runbook: [docs/RELEA
 
 ```sh
 npm install
-npm run seed          # local D1 + R2 with the DEV catalogue (placeholder photos cropped from the mockups)
+npm run seed          # (stop dev:api first) local D1 + R2 with the DEV catalogue (placeholder photos cropped from the mockups)
 npm run dev:api       # Core API      http://localhost:8787
 npm run dev:store     # Storefront    http://localhost:4321
 npm run dev:admin     # Admin Studio  http://localhost:5173  (signed in as owner@femia.local)

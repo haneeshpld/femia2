@@ -26,3 +26,10 @@ export function richText(md: string): string {
     return `<p>${lines.map(inline).join('<br>')}</p>`;
   }).join('\n');
 }
+
+/** Owner headings may mark one italic accent with *asterisks*: "Just *landed*" → Just <em>landed</em>. */
+export function emph(text: string | null | undefined): string {
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return esc(text ?? '').replace(/\*(.+?)\*/g, '<em>$1</em>');
+}
+export const plain = (text: string | null | undefined) => (text ?? '').replace(/\*/g, '');

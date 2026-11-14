@@ -37,6 +37,7 @@ async function brand() {
     const trimmed = await mk(rgb).png().toBuffer().then((b) => sharp(b).trim({ threshold: 1 }).toBuffer());
     await sharp(trimmed).resize({ height: 144 }).webp({ quality: 92, alphaQuality: 100 }).toFile(join(BRAND, `${name}.webp`));
     await sharp(trimmed).resize({ height: 144 }).png({ compressionLevel: 9 }).toFile(join(BRAND, `${name}.png`));
+    if (name === 'wordmark-light') await sharp(trimmed).resize({ width: 1600 }).webp({ quality: 90, alphaQuality: 100 }).toFile(join(BRAND, `${name}-xl.webp`));
   }
   const emblem = await sharp(join(REF, 'logo-emblem.png')).trim({ threshold: 1 }).toBuffer();
   await sharp(emblem).resize(160, 160, { fit: 'contain', background: '#0000' }).webp({ quality: 92 }).toFile(join(BRAND, 'emblem.webp'));
@@ -206,7 +207,7 @@ async function main() {
     store: {
       name: 'Femia', tagline: 'Elegant Ethnicwear for Every Occasion', email: 'hello@femia.example', phone: '+91 98470 00000', whatsapp: '9847000000',
       address: { line1: 'MG Road', line2: '', city: 'Kochi', state: 'Kerala', pincode: '682035' },
-      mapUrl: 'https://maps.google.com/?q=MG+Road+Kochi', geo: { lat: 9.9706, lng: 76.2856 }, hoursSummary: 'Open daily · 10 AM – 9 PM', hours: null,
+      mapUrl: 'https://maps.google.com/?q=MG+Road+Kochi', geo: { lat: 9.9706, lng: 76.2856 }, hoursSummary: 'Open daily · 10 AM – 9 PM', hours: Array.from({ length: 7 }, () => ({ open: '10:00', close: '21:00', closed: false })),
       socials: { instagram: 'https://instagram.com/femia', facebook: '', youtube: '' },
     },
     shipping: { freeShippingThreshold: 99900, flatFee: 7900, shipToStates: ['KL'], cod: { enabled: true, maxOrderValue: 500000 } },
@@ -223,13 +224,13 @@ async function main() {
       body: 'Kurtas, co-ord sets and dresses, thoughtfully curated for your everyday story.',
       ctaLabel: 'Shop New Arrivals', ctaLink: '/shop?sort=new', secondaryLabel: 'Visit our boutique', secondaryLink: '/visit', image: hero,
     },
-    categories: { eyebrow: 'Shop by Category', items: cats.map(([id, , , img]) => ({ category: id, image: img })) },
-    newArrivals: { eyebrow: 'New Arrivals', title: 'Just landed', collection: null, count: 8 },
-    occasions: { eyebrow: 'Shop by Occasion', title: 'Dressed for every moment', items: [
+    categories: { eyebrow: 'Shop by *category*', items: cats.map(([id, , , img]) => ({ category: id, image: img })) },
+    newArrivals: { eyebrow: 'All new arrivals', title: 'Just *landed*', collection: null, count: 8 },
+    occasions: { title: 'Dressed for every *moment*', items: [
       { collection: 'col_everyday', title: 'Everyday Edit', image: occ[0] }, { collection: 'col_festive', title: 'Festive Edit', image: occ[1] }, { collection: 'col_work', title: 'Work Edit', image: occ[2] },
     ] },
-    boutique: { eyebrow: 'Visit Our Boutique', title: 'Try it on in person', body: 'Step into our boutique to explore the full collection, feel the fabrics and find your perfect fit with our stylists.', image: boutique },
-    styled: { enabled: true, eyebrow: 'Styled by You', handle: '@femia', images: social.map((image) => ({ image, link: '' })) },
+    boutique: { title: 'Try it on *in person*', body: 'Step into our boutique to explore the full collection, feel the fabrics and find your perfect fit with our stylists.', image: boutique },
+    styled: { enabled: true, eyebrow: 'Styled *by you*', handle: '@femia', images: social.map((image) => ({ image, link: '' })) },
     trust: { items: [
       { icon: 'truck', title: 'Free Shipping', body: 'Above ₹999' }, { icon: 'returns', title: 'Easy Returns', body: 'Within 7 days' },
       { icon: 'shield', title: 'Secure Payments', body: 'UPI, Cards & more' }, { icon: 'chat', title: 'Need Help?', body: 'Chat on WhatsApp' },

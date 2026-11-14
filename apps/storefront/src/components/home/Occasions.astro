@@ -1,17 +1,18 @@
 ---
 import type { Collection, MediaRef } from '@femia/contracts';
 import Icon from '../ui/Icon.astro';
-import { srcset } from '../../lib/format.ts';
+import { emph, srcset } from '../../lib/format.ts';
 import { t } from '@femia/i18n';
-interface Props { eyebrow: string; title: string; items: { collection: Collection; title: string; image: MediaRef | null }[] }
-const { eyebrow, title, items } = Astro.props;
+interface Props { title: string; items: { collection: Collection; title: string; image: MediaRef | null }[] }
+const { title, items } = Astro.props;
 const pad = (n: number) => String(n).padStart(2, '0');
 ---
 {items.length > 0 && (
   <section class="section occ" aria-labelledby="occ-title" data-carousel>
     <div class="container">
       <div class="section-head">
-        <div><p class="eyebrow">{eyebrow}</p><h2 id="occ-title">{title}</h2></div>
+        <h2 id="occ-title" data-split set:html={emph(title)} />
+        <span class="thread-rule" aria-hidden="true"></span>
         <div class="occ__ctrl">
           <p class="occ__count" aria-hidden="true"><span data-current>01</span> / {pad(items.length)}</p>
           <button type="button" class="occ__btn" data-prev aria-label={t('common.prev')}><Icon name="chevronLeft" size={20} /></button>
@@ -23,7 +24,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
       {items.map((it) => (
         <li class="occ__item">
           <a href={`/collections/${it.collection.slug}`} class="occ__card">
-            {it.image && <img src={it.image.src['960']} srcset={srcset(it.image)} sizes="(min-width: 1024px) 36vw, 82vw" width={it.image.width} height={it.image.height} alt={it.image.alt} loading="lazy" decoding="async" />}
+            {it.image && <img data-drift src={it.image.src['960']} srcset={srcset(it.image)} sizes="(min-width: 1024px) 36vw, 82vw" width={it.image.width} height={it.image.height} alt={it.image.alt} loading="lazy" decoding="async" />}
             <span class="occ__label"><span class="occ__name">{it.title}</span><span class="occ__cta">{t('common.explore')} <Icon name="arrowRight" size={18} /></span></span>
           </a>
         </li>
@@ -34,19 +35,24 @@ const pad = (n: number) => String(n).padStart(2, '0');
 <style>
   .occ__ctrl { display: flex; align-items: center; gap: var(--sp-3); }
   .occ__count { font-size: .9375rem; color: var(--c-ink); margin-right: var(--sp-3); font-variant-numeric: tabular-nums; }
-  .occ__btn { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid var(--c-maroon); color: var(--c-maroon); transition: background var(--motion-fast) ease, color var(--motion-fast) ease; }
+  .occ__btn { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; border: 1px solid var(--c-maroon); color: var(--c-maroon); box-shadow: inset 0 0 0 3px var(--c-cream), inset 0 0 0 4px rgba(199, 154, 62, .5); transition: background var(--motion-fast) ease, color var(--motion-fast) ease; }
   .occ__btn:hover { background: var(--c-maroon); color: var(--c-white); }
   .occ__btn:disabled { opacity: .35; pointer-events: none; }
   .occ__track { display: flex; gap: var(--sp-4); overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; scroll-padding-inline: var(--layout-gutter); }
   .occ__track::-webkit-scrollbar { display: none; }
   .occ__item { flex: 0 0 clamp(260px, 37%, 460px); scroll-snap-align: start; }
   .occ__card { position: relative; display: block; aspect-ratio: 1.2; border-radius: var(--r-md); overflow: hidden; background: var(--c-sand); }
-  .occ__card img { width: 100%; height: 100%; object-fit: cover; transition: transform 1100ms var(--motion-ease-out); }
-  .occ__card:hover img { transform: scale(1.05); }
+  .occ__card { box-shadow: var(--shadow-card); }
+  .occ__card img { position: absolute; inset: 0 -8%; width: 116%; height: 100%; object-fit: cover; transform: translateX(var(--drift, 0%)); transition: transform 900ms var(--motion-ease-out), scale 900ms var(--motion-ease-out); will-change: transform; }
+  .occ__card:hover img { scale: 1.04; }
+  .occ__card::before { content: ''; position: absolute; inset: 8px; z-index: 2; border-radius: calc(var(--r-md) - 4px); border: 1px solid rgba(255, 238, 205, 0); transition: border-color 500ms ease; pointer-events: none; }
+  .occ__card:hover::before { border-color: rgba(255, 238, 205, .7); }
   .occ__card::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, rgba(58, 18, 12, .62) 100%); }
   .occ__label { position: absolute; left: var(--sp-6); bottom: var(--sp-5); z-index: 1; display: grid; gap: var(--sp-1); color: var(--c-white); }
-  .occ__name { font-family: var(--font-display); font-size: clamp(1.75rem, 1.3rem + 1.4vw, 2.5rem); font-weight: 500; line-height: 1.1; }
-  .occ__cta { display: inline-flex; align-items: center; gap: var(--sp-2); font-weight: 600; }
+  .occ__name { font-family: var(--font-display); font-size: clamp(1.9rem, 1.3rem + 1.8vw, 2.9rem); font-weight: 400; font-style: italic; line-height: 1.05; letter-spacing: -0.01em; }
+  .occ__cta { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: .75rem; font-weight: 500; letter-spacing: .2em; text-transform: uppercase; }
+  .occ__cta :global(svg) { transition: transform 320ms var(--motion-ease-out); }
+  .occ__card:hover .occ__cta :global(svg) { transform: translateX(5px); }
   @media (max-width: 767px) {
     .occ__ctrl { display: none; }
     .occ__item { flex-basis: 84%; }
@@ -76,7 +82,17 @@ const pad = (n: number) => String(n).padStart(2, '0');
     };
     prev?.addEventListener('click', () => go(-1));
     next?.addEventListener('click', () => go(1));
-    track.addEventListener('scroll', () => requestAnimationFrame(update), { passive: true });
-    update();
+    const drift = () => {
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      const mid = track.getBoundingClientRect().left + track.clientWidth / 2;
+      items.forEach((it) => {
+        const r = it.getBoundingClientRect();
+        const d = Math.max(-1, Math.min(1, (r.left + r.width / 2 - mid) / track.clientWidth));
+        it.querySelector<HTMLElement>('[data-drift]')?.style.setProperty('--drift', `${(-d * 6).toFixed(2)}%`);
+      });
+    };
+    track.addEventListener('scroll', () => requestAnimationFrame(() => { update(); drift(); }), { passive: true });
+    addEventListener('resize', () => requestAnimationFrame(drift));
+    update(); drift();
   });
 </script>

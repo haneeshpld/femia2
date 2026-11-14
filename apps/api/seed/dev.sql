@@ -33,7 +33,7 @@ INSERT INTO collections (id, slug, name, kind, description, sort, image_id) VALU
 INSERT INTO collections (id, slug, name, kind, description, sort, image_id) VALUES ('col_work', 'work-edit', 'Work Edit', 'occasion', 'Polished, comfortable pieces for the workday.', 2, 'med_seed08');
 INSERT INTO collections (id, slug, name, kind, description, sort, image_id) VALUES ('col_cotton', 'cotton-comfort', 'Cotton Comfort', 'collection', 'Breathable cottons made for Kerala weather.', 3, NULL);
 INSERT INTO collections (id, slug, name, kind, description, sort, image_id) VALUES ('col_embroidery', 'signature-embroidery', 'Signature Embroidery', 'collection', 'Hand-finished embroidery on our favourite silhouettes.', 4, NULL);
-INSERT INTO products (id, slug, title, description, category_id, fabric, care, status, price, compare_at_price, popularity, published_at, created_at, updated_at) VALUES ('prd_seed1', 'embroidered-kurta', 'Embroidered Kurta', 'A straight-cut cotton kurta with tonal thread embroidery on the yoke and sleeves. Breathable for long Kerala days, polished enough for evenings out.', 'cat_kurtas', 'Cotton', 'Gentle hand wash in cold water. Wash dark colours separately. Dry in shade. Warm iron on the reverse.', 'active', 129900, 179900, 90, '2026-11-13T20:52:20.885Z', '2026-11-13T20:52:20.885Z', '2026-11-13T20:52:20.885Z');
+INSERT INTO products (id, slug, title, description, category_id, fabric, care, status, price, compare_at_price, popularity, published_at, created_at, updated_at) VALUES ('prd_seed1', 'embroidered-kurta', 'Embroidered Kurta', 'A straight-cut cotton kurta with tonal thread embroidery on the yoke and sleeves. Breathable for long Kerala days, polished enough for evenings out.', 'cat_kurtas', 'Cotton', 'Gentle hand wash in cold water. Wash dark colours separately. Dry in shade. Warm iron on the reverse.', 'active', 129900, 179900, 90, '2026-11-13T22:37:33.008Z', '2026-11-13T22:37:33.008Z', '2026-11-13T22:37:33.008Z');
 INSERT INTO product_options (product_id, option, value, label, swatch, sort) VALUES ('prd_seed1', 1, 'XS', 'XS', NULL, 0);
 INSERT INTO product_options (product_id, option, value, label, swatch, sort) VALUES ('prd_seed1', 1, 'S', 'S', NULL, 1);
 INSERT INTO product_options (product_id, option, value, label, swatch, sort) VALUES ('prd_seed1', 1, 'M', 'M', NULL, 2);
@@ -80,7 +80,7 @@ INSERT INTO product_media (product_id, media_id, role, option2, sort) VALUES ('p
 INSERT INTO product_collections (product_id, collection_id, sort) VALUES ('prd_seed1', 'col_everyday', 0);
 INSERT INTO product_collections (product_id, collection_id, sort) VALUES ('prd_seed1', 'col_embroidery', 1);
 INSERT INTO product_collections (product_id, collection_id, sort) VALUES ('prd_seed1', 'col_cotton', 2);
-INSERT INTO products (id, slug, title, description, category_id, fabric, care, status, price, compare_at_price, popularity, published_at, created_at, updated_at) VALUES ('prd_seed2', 'floral-co-ord-set', 'Floral Co-ord Set', 'A relaxed shirt-style top with matching straight pants in a soft floral print. Wear together or style separately.', 'cat_coords', 'Cotton', 'Gentle hand wash in cold water. Wash dark colours separately. Dry in shade. Warm iron on the reverse.', 'active', 189900, 249900, 80, '2026-11-10T20:52:20.886Z', '2026-11-10T20:52:20.886Z', '2026-11-10T20:52:20.886Z');
+INSERT INTO products (id, slug, title, description, category_id, fabric, care, status, price, compare_at_price, popularity, published_at, created_at, updated_at) VALUES ('prd_seed2', 'floral-co-ord-set', 'Floral Co-ord Set', 'A relaxed shirt-style top with matching straight pants in a soft floral print. Wear together or style separately.', 'cat_coords', 'Cotton', 'Gentle hand wash in cold water. Wash dark colours separately. Dry in shade. Warm iron on the reverse.', 'active', 189900, 249900, 80, '2026-11-10T22:37:33.009Z', '2026-11-10T22:37:33.009Z', '2026-11-10T22:37:33.009Z');
 INSERT INTO product_options (product_id, option, value, label, swatch, sort) VALUES ('prd_seed2', 1, 'S', 'S', NULL, 0);
 INSERT INTO product_options (product_id, option, value, label, swatch, sort) VALUES ('prd_seed2', 1, 'M', 'M', NULL, 1);
 INSERT INTO product_options (product_id, option, value, label, swatch, sort) VALUES ('prd_seed2', 1, 'L', 'L', NULL, 2);
@@ -106,7 +106,7 @@ INSERT INTO stock_ledger (variant_id, delta, reason, note, actor) VALUES ('var_s
 INSERT INTO product_media (product_id, media_id, role, option2, sort) VALUES ('prd_seed2', 'med_seed18', 'main', 'peach', 0);
 INSERT INTO product_collections (product_id, collection_id, sort) VALUES ('prd_seed2', 'col_everyday', 0);
 INSERT INTO product_collections (product_id, collection_id, sort) VALUES ('prd_seed2', 'col_cotton', 1);
-INSERT INTO products (id, slug, title, description, category_id, fabric, care, status, price, compare_at_price, popularity, published_at, created_at, updated_at) VALUES ('prd_seed3', 'printed-kurta', 'Printed Kurta', 'A flowing A-line kurta with a delicate all-over print and gathered yoke. Light, easy and made for movement.', 'cat_kurtas', 'Rayon', 'Gentle hand wash in cold water. Wash dark colours separately. Dry in shade. Warm iron on the reverse.', 'active', 139900, 189900, 70, '2026-11-07T20:52:20.886Z', '2026-11-07T20:52:20.886Z', '2026-11-07T20:52:20.886Z');
+INSERT INTO products (id, slug, title, description, category_id, fabric, care, status, price, compare_at_price, popularity, published_at, created_at, updated_at) VALUES ('prd_seed3', 'printed-kurta', 'Printed Kurta', 'A flowing A-line kurta with a delicate all-over print and gathered yoke. Light, easy and made for movement.', 'cat_kurtas', 'Rayon', 'Gentle hand wash in cold water. Wash dark colours separately. Dry in shade. Warm iron on the reverse.', 'active', 139900, 189900, 70, '2026-11-07T22:37:33.009Z', '2026-11-07T22:37:33.009Z', '2026-11-07T22:37:33.009Z');
 INSERT INTO product_options (product_id, option, value, label, swatch, sort) VALUES ('prd_seed3', 1, 'XS', 'XS', NULL, 0);
 INSERT INTO product_options (product_id, option, value, label, swatch, sort) VALUES ('prd_seed3', 1, 'S', 'S', NULL, 1);
 INSERT INTO product_options (product_id, option, value, label, swatch, sort) VALUES ('prd_seed3', 1, 'M', 'M', NULL, 2);
@@ -141,7 +141,7 @@ INSERT INTO stock_ledger (variant_id, delta, reason, note, actor) VALUES ('var_s
 INSERT INTO product_media (product_id, media_id, role, option2, sort) VALUES ('prd_seed3', 'med_seed19', 'main', 'olive', 0);
 INSERT INTO product_collections (product_id, collection_id, sort) VALUES ('prd_seed3', 'col_work', 0);
 INSERT INTO product_collections (product_id, collection_id, sort) VALUES ('prd_seed3', 'col_everyday', 1);
-INSERT INTO products (id, slug, title, description, category_id, fabric, care, status, price, compare_at_price, popularity, published_at, created_at, updated_at) VALUES ('prd_seed4', 'chikankari-kurta', 'Chikankari Kurta', 'Fine chikankari-inspired embroidery on soft georgette, with a gathered waist and three-quarter sleeves.', 'cat_kurtas', 'Georgette', 'Gentle hand wash in cold water. Wash dark colours separately. Dry in shade. Warm iron on the reverse.', 'active', 179900, 229900, 85, '2026-11-04T20:52:20.886Z', '2026-11-04T20:52:20.886Z', '2026-11-04T20:52:20.886Z');
+INSERT INTO products (id, slug, title, description, category_id, fabric, care, status, price, compare_at_price, popularity, published_at, created_at, updated_at) VALUES ('prd_seed4', 'chikankari-kurta', 'Chikankari Kurta', 'Fine chikankari-inspired embroidery on soft georgette, with a gathered waist and three-quarter sleeves.', 'cat_kurtas', 'Georgette', 'Gentle hand wash in cold water. Wash dark colours separately. Dry in shade. Warm iron on the reverse.', 'active', 179900, 229900, 85, '2026-11-04T22:37:33.009Z', '2026-11-04T22:37:33.009Z', '2026-11-04T22:37:33.009Z');
 INSERT INTO product_options (product_id, option, value, label, swatch, sort) VALUES ('prd_seed4', 1, 'XS', 'XS', NULL, 0);
 INSERT INTO product_options (product_id, option, value, label, swatch, sort) VALUES ('prd_seed4', 1, 'S', 'S', NULL, 1);
 INSERT INTO product_options (product_id, option, value, label, swatch, sort) VALUES ('prd_seed4', 1, 'M', 'M', NULL, 2);
@@ -177,7 +177,7 @@ INSERT INTO stock_ledger (variant_id, delta, reason, note, actor) VALUES ('var_s
 INSERT INTO product_media (product_id, media_id, role, option2, sort) VALUES ('prd_seed4', 'med_seed20', 'main', 'lavender', 0);
 INSERT INTO product_collections (product_id, collection_id, sort) VALUES ('prd_seed4', 'col_festive', 0);
 INSERT INTO product_collections (product_id, collection_id, sort) VALUES ('prd_seed4', 'col_embroidery', 1);
-INSERT INTO products (id, slug, title, description, category_id, fabric, care, status, price, compare_at_price, popularity, published_at, created_at, updated_at) VALUES ('prd_seed5', 'tiered-dress', 'Tiered Dress', 'A sunny tiered midi dress with a printed body and embroidered neckline. Pockets included.', 'cat_dresses', 'Cotton', 'Gentle hand wash in cold water. Wash dark colours separately. Dry in shade. Warm iron on the reverse.', 'active', 169900, NULL, 60, '2026-11-01T20:52:20.886Z', '2026-11-01T20:52:20.886Z', '2026-11-01T20:52:20.886Z');
+INSERT INTO products (id, slug, title, description, category_id, fabric, care, status, price, compare_at_price, popularity, published_at, created_at, updated_at) VALUES ('prd_seed5', 'tiered-dress', 'Tiered Dress', 'A sunny tiered midi dress with a printed body and embroidered neckline. Pockets included.', 'cat_dresses', 'Cotton', 'Gentle hand wash in cold water. Wash dark colours separately. Dry in shade. Warm iron on the reverse.', 'active', 169900, NULL, 60, '2026-11-01T22:37:33.009Z', '2026-11-01T22:37:33.009Z', '2026-11-01T22:37:33.009Z');
 INSERT INTO product_options (product_id, option, value, label, swatch, sort) VALUES ('prd_seed5', 1, 'S', 'S', NULL, 0);
 INSERT INTO product_options (product_id, option, value, label, swatch, sort) VALUES ('prd_seed5', 1, 'M', 'M', NULL, 1);
 INSERT INTO product_options (product_id, option, value, label, swatch, sort) VALUES ('prd_seed5', 1, 'L', 'L', NULL, 2);
@@ -203,7 +203,7 @@ INSERT INTO stock_ledger (variant_id, delta, reason, note, actor) VALUES ('var_s
 INSERT INTO product_media (product_id, media_id, role, option2, sort) VALUES ('prd_seed5', 'med_seed21', 'main', 'mustard', 0);
 INSERT INTO product_collections (product_id, collection_id, sort) VALUES ('prd_seed5', 'col_everyday', 0);
 INSERT INTO product_collections (product_id, collection_id, sort) VALUES ('prd_seed5', 'col_cotton', 1);
-INSERT INTO products (id, slug, title, description, category_id, fabric, care, status, price, compare_at_price, popularity, published_at, created_at, updated_at) VALUES ('prd_seed6', 'cotton-co-ord-set', 'Cotton Co-ord Set', 'A block-printed cotton co-ord with a mandarin-collar shirt and straight pants.', 'cat_coords', 'Cotton', 'Gentle hand wash in cold water. Wash dark colours separately. Dry in shade. Warm iron on the reverse.', 'active', 189900, NULL, 55, '2026-10-29T20:52:20.886Z', '2026-10-29T20:52:20.886Z', '2026-10-29T20:52:20.886Z');
+INSERT INTO products (id, slug, title, description, category_id, fabric, care, status, price, compare_at_price, popularity, published_at, created_at, updated_at) VALUES ('prd_seed6', 'cotton-co-ord-set', 'Cotton Co-ord Set', 'A block-printed cotton co-ord with a mandarin-collar shirt and straight pants.', 'cat_coords', 'Cotton', 'Gentle hand wash in cold water. Wash dark colours separately. Dry in shade. Warm iron on the reverse.', 'active', 189900, NULL, 55, '2026-10-29T22:37:33.009Z', '2026-10-29T22:37:33.009Z', '2026-10-29T22:37:33.009Z');
 INSERT INTO product_options (product_id, option, value, label, swatch, sort) VALUES ('prd_seed6', 1, 'S', 'S', NULL, 0);
 INSERT INTO product_options (product_id, option, value, label, swatch, sort) VALUES ('prd_seed6', 1, 'M', 'M', NULL, 1);
 INSERT INTO product_options (product_id, option, value, label, swatch, sort) VALUES ('prd_seed6', 1, 'L', 'L', NULL, 2);
@@ -229,7 +229,7 @@ INSERT INTO stock_ledger (variant_id, delta, reason, note, actor) VALUES ('var_s
 INSERT INTO product_media (product_id, media_id, role, option2, sort) VALUES ('prd_seed6', 'med_seed22', 'main', 'cream', 0);
 INSERT INTO product_collections (product_id, collection_id, sort) VALUES ('prd_seed6', 'col_work', 0);
 INSERT INTO product_collections (product_id, collection_id, sort) VALUES ('prd_seed6', 'col_cotton', 1);
-INSERT INTO products (id, slug, title, description, category_id, fabric, care, status, price, compare_at_price, popularity, published_at, created_at, updated_at) VALUES ('prd_seed7', 'a-line-dress', 'A-line Dress', 'A rose A-line dress with tonal embroidery at the neckline and soft gathers at the waist.', 'cat_dresses', 'Rayon', 'Gentle hand wash in cold water. Wash dark colours separately. Dry in shade. Warm iron on the reverse.', 'active', 179900, NULL, 50, '2026-10-26T20:52:20.886Z', '2026-10-26T20:52:20.886Z', '2026-10-26T20:52:20.886Z');
+INSERT INTO products (id, slug, title, description, category_id, fabric, care, status, price, compare_at_price, popularity, published_at, created_at, updated_at) VALUES ('prd_seed7', 'a-line-dress', 'A-line Dress', 'A rose A-line dress with tonal embroidery at the neckline and soft gathers at the waist.', 'cat_dresses', 'Rayon', 'Gentle hand wash in cold water. Wash dark colours separately. Dry in shade. Warm iron on the reverse.', 'active', 179900, NULL, 50, '2026-10-26T22:37:33.009Z', '2026-10-26T22:37:33.009Z', '2026-10-26T22:37:33.009Z');
 INSERT INTO product_options (product_id, option, value, label, swatch, sort) VALUES ('prd_seed7', 1, 'S', 'S', NULL, 0);
 INSERT INTO product_options (product_id, option, value, label, swatch, sort) VALUES ('prd_seed7', 1, 'M', 'M', NULL, 1);
 INSERT INTO product_options (product_id, option, value, label, swatch, sort) VALUES ('prd_seed7', 1, 'L', 'L', NULL, 2);
@@ -250,7 +250,7 @@ INSERT INTO stock_ledger (variant_id, delta, reason, note, actor) VALUES ('var_s
 INSERT INTO variants (id, product_id, sku, option1, option2, on_hand, sort) VALUES ('var_seed7x7', 'prd_seed7', 'DRE-ALD-XL-CRE', 'XL', 'cream', 0, 7);
 INSERT INTO product_media (product_id, media_id, role, option2, sort) VALUES ('prd_seed7', 'med_seed23', 'main', 'rose', 0);
 INSERT INTO product_collections (product_id, collection_id, sort) VALUES ('prd_seed7', 'col_festive', 0);
-INSERT INTO products (id, slug, title, description, category_id, fabric, care, status, price, compare_at_price, popularity, published_at, created_at, updated_at) VALUES ('prd_seed8', 'lavender-embroidered-top', 'Lavender Embroidered Top', 'A short kurta-style top with fine embroidery. Pair with palazzos or jeans.', 'cat_tops', 'Cotton', 'Gentle hand wash in cold water. Wash dark colours separately. Dry in shade. Warm iron on the reverse.', 'active', 119900, 149900, 40, '2026-10-23T20:52:20.886Z', '2026-10-23T20:52:20.886Z', '2026-10-23T20:52:20.886Z');
+INSERT INTO products (id, slug, title, description, category_id, fabric, care, status, price, compare_at_price, popularity, published_at, created_at, updated_at) VALUES ('prd_seed8', 'lavender-embroidered-top', 'Lavender Embroidered Top', 'A short kurta-style top with fine embroidery. Pair with palazzos or jeans.', 'cat_tops', 'Cotton', 'Gentle hand wash in cold water. Wash dark colours separately. Dry in shade. Warm iron on the reverse.', 'active', 119900, 149900, 40, '2026-10-23T22:37:33.009Z', '2026-10-23T22:37:33.009Z', '2026-10-23T22:37:33.009Z');
 INSERT INTO product_options (product_id, option, value, label, swatch, sort) VALUES ('prd_seed8', 1, 'XS', 'XS', NULL, 0);
 INSERT INTO product_options (product_id, option, value, label, swatch, sort) VALUES ('prd_seed8', 1, 'S', 'S', NULL, 1);
 INSERT INTO product_options (product_id, option, value, label, swatch, sort) VALUES ('prd_seed8', 1, 'M', 'M', NULL, 2);
@@ -271,7 +271,7 @@ INSERT INTO variants (id, product_id, sku, option1, option2, on_hand, sort) VALU
 INSERT INTO stock_ledger (variant_id, delta, reason, note, actor) VALUES ('var_seed8x5', 2, 'restock', 'Opening stock (seed)', 'seed');
 INSERT INTO product_media (product_id, media_id, role, option2, sort) VALUES ('prd_seed8', 'med_seed04', 'main', 'lavender', 0);
 INSERT INTO product_collections (product_id, collection_id, sort) VALUES ('prd_seed8', 'col_work', 0);
-INSERT INTO products (id, slug, title, description, category_id, fabric, care, status, price, compare_at_price, popularity, published_at, created_at, updated_at) VALUES ('prd_seed9', 'block-print-palazzo', 'Block Print Palazzo', 'Wide-leg cotton palazzos with a hand-block print border and an easy elasticated waist.', 'cat_bottoms', 'Cotton', 'Gentle hand wash in cold water. Wash dark colours separately. Dry in shade. Warm iron on the reverse.', 'active', 99900, NULL, 30, '2026-10-20T20:52:20.886Z', '2026-10-20T20:52:20.886Z', '2026-10-20T20:52:20.886Z');
+INSERT INTO products (id, slug, title, description, category_id, fabric, care, status, price, compare_at_price, popularity, published_at, created_at, updated_at) VALUES ('prd_seed9', 'block-print-palazzo', 'Block Print Palazzo', 'Wide-leg cotton palazzos with a hand-block print border and an easy elasticated waist.', 'cat_bottoms', 'Cotton', 'Gentle hand wash in cold water. Wash dark colours separately. Dry in shade. Warm iron on the reverse.', 'active', 99900, NULL, 30, '2026-10-20T22:37:33.009Z', '2026-10-20T22:37:33.009Z', '2026-10-20T22:37:33.009Z');
 INSERT INTO product_options (product_id, option, value, label, swatch, sort) VALUES ('prd_seed9', 1, 'S', 'S', NULL, 0);
 INSERT INTO product_options (product_id, option, value, label, swatch, sort) VALUES ('prd_seed9', 1, 'M', 'M', NULL, 1);
 INSERT INTO product_options (product_id, option, value, label, swatch, sort) VALUES ('prd_seed9', 1, 'L', 'L', NULL, 2);
@@ -287,152 +287,532 @@ INSERT INTO stock_ledger (variant_id, delta, reason, note, actor) VALUES ('var_s
 INSERT INTO product_media (product_id, media_id, role, option2, sort) VALUES ('prd_seed9', 'med_seed05', 'main', 'cream', 0);
 INSERT INTO product_collections (product_id, collection_id, sort) VALUES ('prd_seed9', 'col_everyday', 0);
 INSERT INTO product_collections (product_id, collection_id, sort) VALUES ('prd_seed9', 'col_cotton', 1);
-INSERT INTO settings (key, value, updated_by) VALUES ('store', '{"name":"Femia","tagline":"Elegant Ethnicwear for Every Occasion","email":"hello@femia.example","phone":"+91 98470 00000","whatsapp":"9847000000","address":{"line1":"MG Road","line2":"","city":"Kochi","state":"Kerala","pincode":"682035"},"mapUrl":"https://maps.google.com/?q=MG+Road+Kochi","geo":{"lat":9.9706,"lng":76.2856},"hoursSummary":"Open daily · 10 AM – 9 PM","hours":null,"socials":{"instagram":"https://instagram.com/femia","facebook":"","youtube":""}}', 'seed');
+INSERT INTO settings (key, value, updated_by) VALUES ('store', '{"name":"Femia","tagline":"Elegant Ethnicwear for Every Occasion","email":"hello@femia.example","phone":"+91 98470 00000","whatsapp":"9847000000","address":{"line1":"MG Road","line2":"","city":"Kochi","state":"Kerala","pincode":"682035"},"mapUrl":"https://maps.google.com/?q=MG+Road+Kochi","geo":{"lat":9.9706,"lng":76.2856},"hoursSummary":"Open daily · 10 AM – 9 PM","hours":[{"open":"10:00","close":"21:00","closed":false},{"open":"10:00","close":"21:00","closed":false},{"open":"10:00","close":"21:00","closed":false},{"open":"10:00","close":"21:00","closed":false},{"open":"10:00","close":"21:00","closed":false},{"open":"10:00","close":"21:00","closed":false},{"open":"10:00","close":"21:00","closed":false}],"socials":{"instagram":"https://instagram.com/femia","facebook":"","youtube":""}}', 'seed');
 INSERT INTO settings (key, value, updated_by) VALUES ('shipping', '{"freeShippingThreshold":99900,"flatFee":7900,"shipToStates":["KL"],"cod":{"enabled":true,"maxOrderValue":500000}}', 'seed');
 INSERT INTO settings (key, value, updated_by) VALUES ('payments', '{"upi":{"enabled":true,"vpa":"femia@okicici","payeeName":"Femia","holdHours":12},"gateway":{"enabled":false,"provider":"razorpay","testMode":true},"whatsapp":{"enabled":true}}', 'seed');
 INSERT INTO settings (key, value, updated_by) VALUES ('notifications', '{"telegramChatId":"","lowStockThreshold":2,"dailySummary":true}', 'seed');
 INSERT INTO settings (key, value, updated_by) VALUES ('site_manifest', '{
   "manifestVersion": 1,
   "name": "Femia Storefront",
-  "locales": ["en"],
-  "variantLabels": { "option1": "Size", "option2": "Colour" },
-  "imageSizes": [480, 960, 1600],
+  "locales": [
+    "en"
+  ],
+  "variantLabels": {
+    "option1": "Size",
+    "option2": "Colour"
+  },
+  "imageSizes": [
+    480,
+    960,
+    1600
+  ],
   "imageSlots": [
-    { "id": "product", "label": "Product photo (3:4)", "aspect": 0.75, "minWidth": 1200, "mask": "rect" },
-    { "id": "hero", "label": "Hero image", "aspect": 0.9, "minWidth": 1400, "mask": "rect" },
-    { "id": "arch", "label": "Category tile (arch)", "aspect": 0.77, "minWidth": 800, "mask": "arch" },
-    { "id": "occasion", "label": "Occasion card", "aspect": 1.2, "minWidth": 1200, "mask": "rect" },
-    { "id": "boutique", "label": "Boutique photo (arch)", "aspect": 1.4, "minWidth": 1200, "mask": "arch" },
-    { "id": "social", "label": "Instagram post", "aspect": 0.95, "minWidth": 800, "mask": "rect" },
-    { "id": "page", "label": "Page banner", "aspect": 1.5, "minWidth": 1400, "mask": "rect" }
+    {
+      "id": "product",
+      "label": "Product photo (3:4)",
+      "aspect": 0.75,
+      "minWidth": 1200,
+      "mask": "rect"
+    },
+    {
+      "id": "hero",
+      "label": "Hero image",
+      "aspect": 0.9,
+      "minWidth": 1400,
+      "mask": "rect"
+    },
+    {
+      "id": "arch",
+      "label": "Category tile (arch)",
+      "aspect": 0.77,
+      "minWidth": 800,
+      "mask": "arch"
+    },
+    {
+      "id": "occasion",
+      "label": "Occasion card",
+      "aspect": 1.2,
+      "minWidth": 1200,
+      "mask": "rect"
+    },
+    {
+      "id": "boutique",
+      "label": "Boutique photo (arch)",
+      "aspect": 1.4,
+      "minWidth": 1200,
+      "mask": "arch"
+    },
+    {
+      "id": "social",
+      "label": "Instagram post",
+      "aspect": 0.95,
+      "minWidth": 800,
+      "mask": "rect"
+    },
+    {
+      "id": "page",
+      "label": "Page banner",
+      "aspect": 1.5,
+      "minWidth": 1400,
+      "mask": "rect"
+    }
   ],
   "sections": [
     {
-      "id": "announcement", "label": "Announcement bar", "page": "all",
+      "id": "announcement",
+      "label": "Announcement bar",
+      "page": "all",
       "fields": [
-        { "id": "enabled", "type": "boolean", "label": "Show the announcement bar" },
-        { "id": "messages", "type": "list", "label": "Messages", "itemLabel": "Message", "min": 0, "max": 3, "fields": [
-          { "id": "text", "type": "text", "label": "Text", "required": true, "maxLength": 80 },
-          { "id": "link", "type": "url", "label": "Link (optional)" }
-        ] }
+        {
+          "id": "enabled",
+          "type": "boolean",
+          "label": "Show the announcement bar"
+        },
+        {
+          "id": "messages",
+          "type": "list",
+          "label": "Messages",
+          "itemLabel": "Message",
+          "min": 0,
+          "max": 3,
+          "fields": [
+            {
+              "id": "text",
+              "type": "text",
+              "label": "Text",
+              "required": true,
+              "maxLength": 80
+            },
+            {
+              "id": "link",
+              "type": "url",
+              "label": "Link (optional)"
+            }
+          ]
+        }
       ]
     },
     {
-      "id": "hero", "label": "Hero", "page": "home",
+      "id": "hero",
+      "label": "Hero",
+      "page": "home",
       "fields": [
-        { "id": "eyebrow", "type": "text", "label": "Small heading", "maxLength": 40 },
-        { "id": "title", "type": "text", "label": "Headline", "required": true, "maxLength": 40 },
-        { "id": "titleAccent", "type": "text", "label": "Headline accent (italic, second line)", "maxLength": 30 },
-        { "id": "body", "type": "textarea", "label": "Intro text", "maxLength": 160 },
-        { "id": "ctaLabel", "type": "text", "label": "Button text", "required": true, "maxLength": 24 },
-        { "id": "ctaLink", "type": "url", "label": "Button link", "required": true },
-        { "id": "secondaryLabel", "type": "text", "label": "Second link text", "maxLength": 24 },
-        { "id": "secondaryLink", "type": "url", "label": "Second link" },
-        { "id": "image", "type": "image", "label": "Hero image", "slot": "hero" }
+        {
+          "id": "eyebrow",
+          "type": "text",
+          "label": "Tagline under the buttons",
+          "maxLength": 40
+        },
+        {
+          "id": "title",
+          "type": "text",
+          "label": "Headline",
+          "required": true,
+          "maxLength": 40
+        },
+        {
+          "id": "titleAccent",
+          "type": "text",
+          "label": "Headline accent (italic, second line)",
+          "maxLength": 30
+        },
+        {
+          "id": "body",
+          "type": "textarea",
+          "label": "Intro text",
+          "maxLength": 160
+        },
+        {
+          "id": "ctaLabel",
+          "type": "text",
+          "label": "Button text",
+          "required": true,
+          "maxLength": 24
+        },
+        {
+          "id": "ctaLink",
+          "type": "url",
+          "label": "Button link",
+          "required": true
+        },
+        {
+          "id": "secondaryLabel",
+          "type": "text",
+          "label": "Second link text",
+          "maxLength": 24
+        },
+        {
+          "id": "secondaryLink",
+          "type": "url",
+          "label": "Second link"
+        },
+        {
+          "id": "image",
+          "type": "image",
+          "label": "Hero image",
+          "slot": "hero"
+        }
       ]
     },
     {
-      "id": "categories", "label": "Shop by category", "page": "home",
+      "id": "categories",
+      "label": "Shop by category",
+      "page": "home",
       "fields": [
-        { "id": "eyebrow", "type": "text", "label": "Section heading", "maxLength": 40 },
-        { "id": "items", "type": "list", "label": "Tiles", "itemLabel": "Tile", "min": 2, "max": 8, "fields": [
-          { "id": "category", "type": "category", "label": "Category", "required": true },
-          { "id": "image", "type": "image", "label": "Tile photo", "slot": "arch" }
-        ] }
+        {
+          "id": "eyebrow",
+          "type": "text",
+          "label": "Heading",
+          "maxLength": 40,
+          "help": "Wrap one word in *asterisks* to set it in italics."
+        },
+        {
+          "id": "items",
+          "type": "list",
+          "label": "Tiles",
+          "itemLabel": "Tile",
+          "min": 2,
+          "max": 8,
+          "fields": [
+            {
+              "id": "category",
+              "type": "category",
+              "label": "Category",
+              "required": true
+            },
+            {
+              "id": "image",
+              "type": "image",
+              "label": "Tile photo",
+              "slot": "arch"
+            }
+          ]
+        }
       ]
     },
     {
-      "id": "newArrivals", "label": "New arrivals", "page": "home",
+      "id": "newArrivals",
+      "label": "New arrivals",
+      "page": "home",
       "fields": [
-        { "id": "eyebrow", "type": "text", "label": "Small heading", "maxLength": 40 },
-        { "id": "title", "type": "text", "label": "Heading", "maxLength": 40 },
-        { "id": "collection", "type": "collection", "label": "Show products from (empty = newest)" },
-        { "id": "count", "type": "number", "label": "How many products" }
+        {
+          "id": "eyebrow",
+          "type": "text",
+          "label": "Link text",
+          "maxLength": 40,
+          "help": "e.g. All new arrivals"
+        },
+        {
+          "id": "title",
+          "type": "text",
+          "label": "Heading",
+          "maxLength": 40,
+          "help": "Wrap one word in *asterisks* to set it in italics."
+        },
+        {
+          "id": "collection",
+          "type": "collection",
+          "label": "Show products from (empty = newest)"
+        },
+        {
+          "id": "count",
+          "type": "number",
+          "label": "How many products"
+        }
       ]
     },
     {
-      "id": "occasions", "label": "Shop by occasion", "page": "home",
+      "id": "occasions",
+      "label": "Shop by occasion",
+      "page": "home",
       "fields": [
-        { "id": "eyebrow", "type": "text", "label": "Small heading", "maxLength": 40 },
-        { "id": "title", "type": "text", "label": "Heading", "maxLength": 40 },
-        { "id": "items", "type": "list", "label": "Occasion cards", "itemLabel": "Card", "min": 1, "max": 6, "fields": [
-          { "id": "collection", "type": "collection", "label": "Collection", "required": true },
-          { "id": "title", "type": "text", "label": "Card title", "required": true, "maxLength": 30 },
-          { "id": "image", "type": "image", "label": "Photo", "slot": "occasion" }
-        ] }
+        {
+          "id": "title",
+          "type": "text",
+          "label": "Heading",
+          "maxLength": 40,
+          "help": "Wrap one word in *asterisks* to set it in italics."
+        },
+        {
+          "id": "items",
+          "type": "list",
+          "label": "Occasion cards",
+          "itemLabel": "Card",
+          "min": 1,
+          "max": 6,
+          "fields": [
+            {
+              "id": "collection",
+              "type": "collection",
+              "label": "Collection",
+              "required": true
+            },
+            {
+              "id": "title",
+              "type": "text",
+              "label": "Card title",
+              "required": true,
+              "maxLength": 30
+            },
+            {
+              "id": "image",
+              "type": "image",
+              "label": "Photo",
+              "slot": "occasion"
+            }
+          ]
+        }
       ]
     },
     {
-      "id": "boutique", "label": "Visit our boutique", "page": "home",
+      "id": "boutique",
+      "label": "Visit our boutique",
+      "page": "home",
       "fields": [
-        { "id": "eyebrow", "type": "text", "label": "Small heading", "maxLength": 40 },
-        { "id": "title", "type": "text", "label": "Heading", "maxLength": 40 },
-        { "id": "body", "type": "textarea", "label": "Text", "maxLength": 220 },
-        { "id": "image", "type": "image", "label": "Boutique photo", "slot": "boutique" }
+        {
+          "id": "title",
+          "type": "text",
+          "label": "Heading",
+          "maxLength": 40,
+          "help": "Wrap one word in *asterisks* to set it in italics."
+        },
+        {
+          "id": "body",
+          "type": "textarea",
+          "label": "Text",
+          "maxLength": 220
+        },
+        {
+          "id": "image",
+          "type": "image",
+          "label": "Boutique photo",
+          "slot": "boutique"
+        }
       ]
     },
     {
-      "id": "styled", "label": "Styled by you (Instagram)", "page": "home",
+      "id": "styled",
+      "label": "Styled by you (Instagram)",
+      "page": "home",
       "fields": [
-        { "id": "enabled", "type": "boolean", "label": "Show this section" },
-        { "id": "eyebrow", "type": "text", "label": "Small heading", "maxLength": 40 },
-        { "id": "handle", "type": "text", "label": "Instagram handle", "maxLength": 40 },
-        { "id": "images", "type": "list", "label": "Photos", "itemLabel": "Photo", "min": 0, "max": 8, "fields": [
-          { "id": "image", "type": "image", "label": "Photo", "slot": "social", "required": true },
-          { "id": "link", "type": "url", "label": "Post link (optional)" }
-        ] }
+        {
+          "id": "enabled",
+          "type": "boolean",
+          "label": "Show this section"
+        },
+        {
+          "id": "eyebrow",
+          "type": "text",
+          "label": "Heading",
+          "maxLength": 40,
+          "help": "Wrap one word in *asterisks* to set it in italics."
+        },
+        {
+          "id": "handle",
+          "type": "text",
+          "label": "Instagram handle",
+          "maxLength": 40
+        },
+        {
+          "id": "images",
+          "type": "list",
+          "label": "Photos",
+          "itemLabel": "Photo",
+          "min": 0,
+          "max": 8,
+          "fields": [
+            {
+              "id": "image",
+              "type": "image",
+              "label": "Photo",
+              "slot": "social",
+              "required": true
+            },
+            {
+              "id": "link",
+              "type": "url",
+              "label": "Post link (optional)"
+            }
+          ]
+        }
       ]
     },
     {
-      "id": "trust", "label": "Trust strip", "page": "all",
+      "id": "trust",
+      "label": "Trust strip",
+      "page": "all",
       "fields": [
-        { "id": "items", "type": "list", "label": "Items", "itemLabel": "Item", "min": 2, "max": 4, "fields": [
-          { "id": "icon", "type": "select", "label": "Icon", "options": [
-            { "value": "truck", "label": "Delivery truck" }, { "value": "returns", "label": "Returns" },
-            { "value": "shield", "label": "Secure" }, { "value": "chat", "label": "Chat" }, { "value": "heart", "label": "Heart" }
-          ] },
-          { "id": "title", "type": "text", "label": "Title", "required": true, "maxLength": 24 },
-          { "id": "body", "type": "text", "label": "Detail", "maxLength": 30 }
-        ] }
+        {
+          "id": "items",
+          "type": "list",
+          "label": "Items",
+          "itemLabel": "Item",
+          "min": 2,
+          "max": 4,
+          "fields": [
+            {
+              "id": "icon",
+              "type": "select",
+              "label": "Icon",
+              "options": [
+                {
+                  "value": "truck",
+                  "label": "Delivery truck"
+                },
+                {
+                  "value": "returns",
+                  "label": "Returns"
+                },
+                {
+                  "value": "shield",
+                  "label": "Secure"
+                },
+                {
+                  "value": "chat",
+                  "label": "Chat"
+                },
+                {
+                  "value": "heart",
+                  "label": "Heart"
+                }
+              ]
+            },
+            {
+              "id": "title",
+              "type": "text",
+              "label": "Title",
+              "required": true,
+              "maxLength": 24
+            },
+            {
+              "id": "body",
+              "type": "text",
+              "label": "Detail",
+              "maxLength": 30
+            }
+          ]
+        }
       ]
     },
     {
-      "id": "newsletter", "label": "Newsletter", "page": "all",
+      "id": "newsletter",
+      "label": "Newsletter",
+      "page": "all",
       "fields": [
-        { "id": "title", "type": "text", "label": "Heading", "maxLength": 40 },
-        { "id": "body", "type": "text", "label": "Text", "maxLength": 90 }
+        {
+          "id": "title",
+          "type": "text",
+          "label": "Heading",
+          "maxLength": 40
+        },
+        {
+          "id": "body",
+          "type": "text",
+          "label": "Text",
+          "maxLength": 90
+        }
       ]
     },
     {
-      "id": "about", "label": "About page", "page": "about",
+      "id": "about",
+      "label": "About page",
+      "page": "about",
       "fields": [
-        { "id": "title", "type": "text", "label": "Heading", "required": true, "maxLength": 60 },
-        { "id": "intro", "type": "textarea", "label": "Intro", "maxLength": 300 },
-        { "id": "body", "type": "richtext", "label": "Story", "maxLength": 4000 },
-        { "id": "image", "type": "image", "label": "Photo", "slot": "page" }
+        {
+          "id": "title",
+          "type": "text",
+          "label": "Heading",
+          "required": true,
+          "maxLength": 60
+        },
+        {
+          "id": "intro",
+          "type": "textarea",
+          "label": "Intro",
+          "maxLength": 300
+        },
+        {
+          "id": "body",
+          "type": "richtext",
+          "label": "Story",
+          "maxLength": 4000
+        },
+        {
+          "id": "image",
+          "type": "image",
+          "label": "Photo",
+          "slot": "page"
+        }
       ]
     },
     {
-      "id": "policies", "label": "Policies", "page": "policies",
+      "id": "policies",
+      "label": "Policies",
+      "page": "policies",
       "fields": [
-        { "id": "shipping", "type": "richtext", "label": "Shipping policy", "required": true, "maxLength": 8000 },
-        { "id": "returns", "type": "richtext", "label": "Returns & exchanges", "required": true, "maxLength": 8000 },
-        { "id": "privacy", "type": "richtext", "label": "Privacy policy", "required": true, "maxLength": 12000 },
-        { "id": "terms", "type": "richtext", "label": "Terms of service", "required": true, "maxLength": 12000 },
-        { "id": "contact", "type": "richtext", "label": "Contact", "required": true, "maxLength": 2000 }
+        {
+          "id": "shipping",
+          "type": "richtext",
+          "label": "Shipping policy",
+          "required": true,
+          "maxLength": 8000
+        },
+        {
+          "id": "returns",
+          "type": "richtext",
+          "label": "Returns & exchanges",
+          "required": true,
+          "maxLength": 8000
+        },
+        {
+          "id": "privacy",
+          "type": "richtext",
+          "label": "Privacy policy",
+          "required": true,
+          "maxLength": 12000
+        },
+        {
+          "id": "terms",
+          "type": "richtext",
+          "label": "Terms of service",
+          "required": true,
+          "maxLength": 12000
+        },
+        {
+          "id": "contact",
+          "type": "richtext",
+          "label": "Contact",
+          "required": true,
+          "maxLength": 2000
+        }
       ]
     },
     {
-      "id": "sizeGuide", "label": "Size guide", "page": "product",
+      "id": "sizeGuide",
+      "label": "Size guide",
+      "page": "product",
       "fields": [
-        { "id": "chart", "type": "richtext", "label": "Default size chart (markdown table)", "maxLength": 3000 },
-        { "id": "howToMeasure", "type": "textarea", "label": "How to measure", "maxLength": 600 }
+        {
+          "id": "chart",
+          "type": "richtext",
+          "label": "Default size chart (markdown table)",
+          "maxLength": 3000
+        },
+        {
+          "id": "howToMeasure",
+          "type": "textarea",
+          "label": "How to measure",
+          "maxLength": 600
+        }
       ]
     }
   ],
-  "flags": { "wishlist": true, "search": true, "whatsappOrder": true }
-}
-', 'seed');
-INSERT INTO content_versions (status, data, note, created_by, published_at) VALUES ('published', '{"announcement":{"enabled":true,"messages":[{"text":"Free shipping above ₹999","link":"/shop"},{"text":"Easy returns within 7 days","link":"/policies/returns"}]},"hero":{"eyebrow":"Contemporary Ethnic Wear","title":"Everyday Styles for","titleAccent":"Modern Women","body":"Kurtas, co-ord sets and dresses, thoughtfully curated for your everyday story.","ctaLabel":"Shop New Arrivals","ctaLink":"/shop?sort=new","secondaryLabel":"Visit our boutique","secondaryLink":"/visit","image":"med_seed14"},"categories":{"eyebrow":"Shop by Category","items":[{"category":"cat_kurtas","image":"med_seed01"},{"category":"cat_coords","image":"med_seed02"},{"category":"cat_dresses","image":"med_seed03"},{"category":"cat_tops","image":"med_seed04"},{"category":"cat_bottoms","image":"med_seed05"}]},"newArrivals":{"eyebrow":"New Arrivals","title":"Just landed","collection":null,"count":8},"occasions":{"eyebrow":"Shop by Occasion","title":"Dressed for every moment","items":[{"collection":"col_everyday","title":"Everyday Edit","image":"med_seed06"},{"collection":"col_festive","title":"Festive Edit","image":"med_seed07"},{"collection":"col_work","title":"Work Edit","image":"med_seed08"}]},"boutique":{"eyebrow":"Visit Our Boutique","title":"Try it on in person","body":"Step into our boutique to explore the full collection, feel the fabrics and find your perfect fit with our stylists.","image":"med_seed09"},"styled":{"enabled":true,"eyebrow":"Styled by You","handle":"@femia","images":[{"image":"med_seed10","link":""},{"image":"med_seed11","link":""},{"image":"med_seed12","link":""},{"image":"med_seed13","link":""}]},"trust":{"items":[{"icon":"truck","title":"Free Shipping","body":"Above ₹999"},{"icon":"returns","title":"Easy Returns","body":"Within 7 days"},{"icon":"shield","title":"Secure Payments","body":"UPI, Cards & more"},{"icon":"chat","title":"Need Help?","body":"Chat on WhatsApp"}]},"newsletter":{"title":"Get Style Updates","body":"New arrivals and exclusive offers, straight to your inbox."},"about":{"title":"Made for the way you live","intro":"Femia is a Kochi boutique for contemporary ethnic wear: kurtas, co-ords and dresses you will reach for again and again.","body":"DRAFT: replace with the owner''s story before launch.\n\nWe started Femia to make beautiful, comfortable ethnic wear easy to find. Every piece is chosen for its fabric, its fit and how it feels at the end of a long day.","image":"med_seed15"},"policies":{"shipping":"DRAFT for client review.\n\n## Where we deliver\nWe currently deliver within Kerala.\n\n## Charges\nFree shipping on orders above ₹999. A flat ₹79 applies below that.\n\n## Timelines\nOrders are packed within 1–2 working days and usually arrive in 2–5 days.","returns":"DRAFT for client review.\n\n## Returns within 7 days\nUnworn items with tags attached can be returned within 7 days of delivery. Message us on WhatsApp with your order number to start a return.","privacy":"DRAFT for client review (DPDP Act 2023).\n\nWe collect your name, phone, email and address only to deliver your order and keep you updated. We never sell your data.","terms":"DRAFT for client review.\n\nBy placing an order you agree to these terms.","contact":"WhatsApp: +91 98470 00000\nEmail: hello@femia.example\nBoutique: MG Road, Kochi. Open daily, 10 AM – 9 PM."},"sizeGuide":{"chart":"| Size | Bust (in) | Waist (in) | Hip (in) |\n|---|---|---|---|\n| XS | 32 | 26 | 35 |\n| S | 34 | 28 | 37 |\n| M | 36 | 30 | 39 |\n| L | 38 | 32 | 41 |\n| XL | 40 | 34 | 43 |\n| XXL | 42 | 36 | 45 |","howToMeasure":"Measure around the fullest part of your bust, the narrowest part of your waist and the fullest part of your hips. If you are between sizes, choose the larger one."}}', 'Seed content', 'seed', '2026-11-14T20:52:20.887Z');
+  "flags": {
+    "wishlist": true,
+    "search": true,
+    "whatsappOrder": true
+  }
+}', 'seed');
+INSERT INTO content_versions (status, data, note, created_by, published_at) VALUES ('published', '{"announcement":{"enabled":true,"messages":[{"text":"Free shipping above ₹999","link":"/shop"},{"text":"Easy returns within 7 days","link":"/policies/returns"}]},"hero":{"eyebrow":"Contemporary Ethnic Wear","title":"Everyday Styles for","titleAccent":"Modern Women","body":"Kurtas, co-ord sets and dresses, thoughtfully curated for your everyday story.","ctaLabel":"Shop New Arrivals","ctaLink":"/shop?sort=new","secondaryLabel":"Visit our boutique","secondaryLink":"/visit","image":"med_seed14"},"categories":{"eyebrow":"Shop by *category*","items":[{"category":"cat_kurtas","image":"med_seed01"},{"category":"cat_coords","image":"med_seed02"},{"category":"cat_dresses","image":"med_seed03"},{"category":"cat_tops","image":"med_seed04"},{"category":"cat_bottoms","image":"med_seed05"}]},"newArrivals":{"eyebrow":"All new arrivals","title":"Just *landed*","collection":null,"count":8},"occasions":{"title":"Dressed for every *moment*","items":[{"collection":"col_everyday","title":"Everyday Edit","image":"med_seed06"},{"collection":"col_festive","title":"Festive Edit","image":"med_seed07"},{"collection":"col_work","title":"Work Edit","image":"med_seed08"}]},"boutique":{"title":"Try it on *in person*","body":"Step into our boutique to explore the full collection, feel the fabrics and find your perfect fit with our stylists.","image":"med_seed09"},"styled":{"enabled":true,"eyebrow":"Styled *by you*","handle":"@femia","images":[{"image":"med_seed10","link":""},{"image":"med_seed11","link":""},{"image":"med_seed12","link":""},{"image":"med_seed13","link":""}]},"trust":{"items":[{"icon":"truck","title":"Free Shipping","body":"Above ₹999"},{"icon":"returns","title":"Easy Returns","body":"Within 7 days"},{"icon":"shield","title":"Secure Payments","body":"UPI, Cards & more"},{"icon":"chat","title":"Need Help?","body":"Chat on WhatsApp"}]},"newsletter":{"title":"Get Style Updates","body":"New arrivals and exclusive offers, straight to your inbox."},"about":{"title":"Made for the way you live","intro":"Femia is a Kochi boutique for contemporary ethnic wear: kurtas, co-ords and dresses you will reach for again and again.","body":"DRAFT: replace with the owner''s story before launch.\n\nWe started Femia to make beautiful, comfortable ethnic wear easy to find. Every piece is chosen for its fabric, its fit and how it feels at the end of a long day.","image":"med_seed15"},"policies":{"shipping":"DRAFT for client review.\n\n## Where we deliver\nWe currently deliver within Kerala.\n\n## Charges\nFree shipping on orders above ₹999. A flat ₹79 applies below that.\n\n## Timelines\nOrders are packed within 1–2 working days and usually arrive in 2–5 days.","returns":"DRAFT for client review.\n\n## Returns within 7 days\nUnworn items with tags attached can be returned within 7 days of delivery. Message us on WhatsApp with your order number to start a return.","privacy":"DRAFT for client review (DPDP Act 2023).\n\nWe collect your name, phone, email and address only to deliver your order and keep you updated. We never sell your data.","terms":"DRAFT for client review.\n\nBy placing an order you agree to these terms.","contact":"WhatsApp: +91 98470 00000\nEmail: hello@femia.example\nBoutique: MG Road, Kochi. Open daily, 10 AM – 9 PM."},"sizeGuide":{"chart":"| Size | Bust (in) | Waist (in) | Hip (in) |\n|---|---|---|---|\n| XS | 32 | 26 | 35 |\n| S | 34 | 28 | 37 |\n| M | 36 | 30 | 39 |\n| L | 38 | 32 | 41 |\n| XL | 40 | 34 | 43 |\n| XXL | 42 | 36 | 45 |","howToMeasure":"Measure around the fullest part of your bust, the narrowest part of your waist and the fullest part of your hips. If you are between sizes, choose the larger one."}}', 'Seed content', 'seed', '2026-11-14T22:37:33.009Z');
 INSERT INTO users (id, email, name, role_id) VALUES ('usr_owner', 'owner@femia.local', 'Owner (dev)', 'owner');
 INSERT INTO users (id, email, name, role_id) VALUES ('usr_staff', 'staff@femia.local', 'Staff (dev)', 'staff');

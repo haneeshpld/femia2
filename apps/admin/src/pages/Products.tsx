@@ -23,7 +23,12 @@ export default function Products() {
     <>
       <div className="page-head">
         <div><h1>Products</h1><p className="muted">{list.data ? `${list.data.total} products` : ' '}</p></div>
-        {can('catalog.write') && <Link to="/products/new" className="btn"><Icon name="plus" /> Add product</Link>}
+        {can('catalog.write') && (
+          <div className="row">
+            <Link to="/catalog" className="btn btn--quiet"><Icon name="tag" /> Categories, colours & sizes</Link>
+            <Link to="/products/new" className="btn"><Icon name="plus" /> Add product</Link>
+          </div>
+        )}
       </div>
       <div className="row" style={{ marginBottom: 'var(--sp-4)' }}>
         <div className="seg" role="tablist">

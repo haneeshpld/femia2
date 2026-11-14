@@ -9,13 +9,13 @@ import './shell.css';
 export default function Shell({ freeShippingThreshold, sizeGuide }: { freeShippingThreshold: number; sizeGuide: string }) {
   const [cart, setCart] = useState(false);
   const [search, setSearch] = useState(false);
-  const [quick, setQuick] = useState<{ slug: string; colour?: string | null; origin?: DOMRect } | null>(null);
+  const [quick, setQuick] = useState<{ slug: string; colour?: string | null; origin?: DOMRect; imageUrl?: string | null } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => onUi((e) => {
     if (e.type === 'cart:open') setCart(true);
     if (e.type === 'search:open') setSearch(true);
-    if (e.type === 'quick-add') setQuick({ slug: e.slug, colour: e.colour, origin: e.origin });
+    if (e.type === 'quick-add') setQuick({ slug: e.slug, colour: e.colour, origin: e.origin, imageUrl: e.imageUrl });
     if (e.type === 'toast') setToast(e.message);
   }), []);
 
@@ -33,7 +33,7 @@ export default function Shell({ freeShippingThreshold, sizeGuide }: { freeShippi
     <>
       <CartDrawer open={cart} onClose={closeCart} threshold={freeShippingThreshold} />
       <SearchOverlay open={search} onClose={closeSearch} />
-      <QuickAdd slug={quick?.slug ?? null} colour={quick?.colour} origin={quick?.origin} onClose={closeQuick} onAdded={setToast} sizeGuide={sizeGuide} />
+      <QuickAdd slug={quick?.slug ?? null} colour={quick?.colour} origin={quick?.origin} imageUrl={quick?.imageUrl} onClose={closeQuick} onAdded={setToast} sizeGuide={sizeGuide} />
       <div className={`toast${toast ? ' is-on' : ''}`} role="status" aria-live="polite">
         {toast && <><span>{toast}</span><button type="button" onClick={() => { setToast(null); setCart(true); }}>View Bag</button></>}
       </div>

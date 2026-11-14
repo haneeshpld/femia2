@@ -7,8 +7,8 @@ const { site, categories } = await getCommon();
 ---
 <Base site={site} categories={categories} title={t('wishlist.title')} noindex>
   <section class="section container">
-    <p class="eyebrow">Saved on this device</p>
-    <h1 class="h2" style="margin-top: var(--sp-2)">{t('wishlist.title')}</h1>
+    <h1 class="h2">{t('wishlist.title')}</h1>
+    <p class="muted" style="margin-top: var(--sp-2)">Saved on this device.</p>
     <ul role="list" class="grid-products wl" data-wishlist></ul>
     <div class="wl-empty" data-wl-empty hidden>
       <span class="wl-empty__icon"><Icon name="heart" size={32} /></span>
@@ -46,6 +46,6 @@ const { site, categories } = await getCommon();
     const rm = t.closest<HTMLElement>('[data-remove]');
     if (rm) { const w = $wishlist.get().find((x) => x.productId === rm.dataset.remove); if (w) toggleWish(w); return; }
     const add = t.closest<HTMLElement>('[data-add]');
-    if (add) emit({ type: 'quick-add', slug: add.dataset.add!, origin: add.closest('.pcard')?.querySelector('img')?.getBoundingClientRect() });
+    if (add) { const img = add.closest('.pcard')?.querySelector('img'); emit({ type: 'quick-add', slug: add.dataset.add!, origin: img?.getBoundingClientRect(), imageUrl: img?.currentSrc }); }
   });
 </script>

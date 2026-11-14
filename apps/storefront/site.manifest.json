@@ -1,141 +1,522 @@
 {
   "manifestVersion": 1,
   "name": "Femia Storefront",
-  "locales": ["en"],
-  "variantLabels": { "option1": "Size", "option2": "Colour" },
-  "imageSizes": [480, 960, 1600],
+  "locales": [
+    "en"
+  ],
+  "variantLabels": {
+    "option1": "Size",
+    "option2": "Colour"
+  },
+  "imageSizes": [
+    480,
+    960,
+    1600
+  ],
   "imageSlots": [
-    { "id": "product", "label": "Product photo (3:4)", "aspect": 0.75, "minWidth": 1200, "mask": "rect" },
-    { "id": "hero", "label": "Hero image", "aspect": 0.9, "minWidth": 1400, "mask": "rect" },
-    { "id": "arch", "label": "Category tile (arch)", "aspect": 0.77, "minWidth": 800, "mask": "arch" },
-    { "id": "occasion", "label": "Occasion card", "aspect": 1.2, "minWidth": 1200, "mask": "rect" },
-    { "id": "boutique", "label": "Boutique photo (arch)", "aspect": 1.4, "minWidth": 1200, "mask": "arch" },
-    { "id": "social", "label": "Instagram post", "aspect": 0.95, "minWidth": 800, "mask": "rect" },
-    { "id": "page", "label": "Page banner", "aspect": 1.5, "minWidth": 1400, "mask": "rect" }
+    {
+      "id": "product",
+      "label": "Product photo (3:4)",
+      "aspect": 0.75,
+      "minWidth": 1200,
+      "mask": "rect"
+    },
+    {
+      "id": "hero",
+      "label": "Hero image",
+      "aspect": 0.9,
+      "minWidth": 1400,
+      "mask": "rect"
+    },
+    {
+      "id": "arch",
+      "label": "Category tile (arch)",
+      "aspect": 0.77,
+      "minWidth": 800,
+      "mask": "arch"
+    },
+    {
+      "id": "occasion",
+      "label": "Occasion card",
+      "aspect": 1.2,
+      "minWidth": 1200,
+      "mask": "rect"
+    },
+    {
+      "id": "boutique",
+      "label": "Boutique photo (arch)",
+      "aspect": 1.4,
+      "minWidth": 1200,
+      "mask": "arch"
+    },
+    {
+      "id": "social",
+      "label": "Instagram post",
+      "aspect": 0.95,
+      "minWidth": 800,
+      "mask": "rect"
+    },
+    {
+      "id": "page",
+      "label": "Page banner",
+      "aspect": 1.5,
+      "minWidth": 1400,
+      "mask": "rect"
+    }
   ],
   "sections": [
     {
-      "id": "announcement", "label": "Announcement bar", "page": "all",
+      "id": "announcement",
+      "label": "Announcement bar",
+      "page": "all",
       "fields": [
-        { "id": "enabled", "type": "boolean", "label": "Show the announcement bar" },
-        { "id": "messages", "type": "list", "label": "Messages", "itemLabel": "Message", "min": 0, "max": 3, "fields": [
-          { "id": "text", "type": "text", "label": "Text", "required": true, "maxLength": 80 },
-          { "id": "link", "type": "url", "label": "Link (optional)" }
-        ] }
+        {
+          "id": "enabled",
+          "type": "boolean",
+          "label": "Show the announcement bar"
+        },
+        {
+          "id": "messages",
+          "type": "list",
+          "label": "Messages",
+          "itemLabel": "Message",
+          "min": 0,
+          "max": 3,
+          "fields": [
+            {
+              "id": "text",
+              "type": "text",
+              "label": "Text",
+              "required": true,
+              "maxLength": 80
+            },
+            {
+              "id": "link",
+              "type": "url",
+              "label": "Link (optional)"
+            }
+          ]
+        }
       ]
     },
     {
-      "id": "hero", "label": "Hero", "page": "home",
+      "id": "hero",
+      "label": "Hero",
+      "page": "home",
       "fields": [
-        { "id": "eyebrow", "type": "text", "label": "Small heading", "maxLength": 40 },
-        { "id": "title", "type": "text", "label": "Headline", "required": true, "maxLength": 40 },
-        { "id": "titleAccent", "type": "text", "label": "Headline accent (italic, second line)", "maxLength": 30 },
-        { "id": "body", "type": "textarea", "label": "Intro text", "maxLength": 160 },
-        { "id": "ctaLabel", "type": "text", "label": "Button text", "required": true, "maxLength": 24 },
-        { "id": "ctaLink", "type": "url", "label": "Button link", "required": true },
-        { "id": "secondaryLabel", "type": "text", "label": "Second link text", "maxLength": 24 },
-        { "id": "secondaryLink", "type": "url", "label": "Second link" },
-        { "id": "image", "type": "image", "label": "Hero image", "slot": "hero" }
+        {
+          "id": "eyebrow",
+          "type": "text",
+          "label": "Tagline under the buttons",
+          "maxLength": 40
+        },
+        {
+          "id": "title",
+          "type": "text",
+          "label": "Headline",
+          "required": true,
+          "maxLength": 40
+        },
+        {
+          "id": "titleAccent",
+          "type": "text",
+          "label": "Headline accent (italic, second line)",
+          "maxLength": 30
+        },
+        {
+          "id": "body",
+          "type": "textarea",
+          "label": "Intro text",
+          "maxLength": 160
+        },
+        {
+          "id": "ctaLabel",
+          "type": "text",
+          "label": "Button text",
+          "required": true,
+          "maxLength": 24
+        },
+        {
+          "id": "ctaLink",
+          "type": "url",
+          "label": "Button link",
+          "required": true
+        },
+        {
+          "id": "secondaryLabel",
+          "type": "text",
+          "label": "Second link text",
+          "maxLength": 24
+        },
+        {
+          "id": "secondaryLink",
+          "type": "url",
+          "label": "Second link"
+        },
+        {
+          "id": "image",
+          "type": "image",
+          "label": "Hero image",
+          "slot": "hero"
+        }
       ]
     },
     {
-      "id": "categories", "label": "Shop by category", "page": "home",
+      "id": "categories",
+      "label": "Shop by category",
+      "page": "home",
       "fields": [
-        { "id": "eyebrow", "type": "text", "label": "Section heading", "maxLength": 40 },
-        { "id": "items", "type": "list", "label": "Tiles", "itemLabel": "Tile", "min": 2, "max": 8, "fields": [
-          { "id": "category", "type": "category", "label": "Category", "required": true },
-          { "id": "image", "type": "image", "label": "Tile photo", "slot": "arch" }
-        ] }
+        {
+          "id": "eyebrow",
+          "type": "text",
+          "label": "Heading",
+          "maxLength": 40,
+          "help": "Wrap one word in *asterisks* to set it in italics."
+        },
+        {
+          "id": "items",
+          "type": "list",
+          "label": "Tiles",
+          "itemLabel": "Tile",
+          "min": 2,
+          "max": 8,
+          "fields": [
+            {
+              "id": "category",
+              "type": "category",
+              "label": "Category",
+              "required": true
+            },
+            {
+              "id": "image",
+              "type": "image",
+              "label": "Tile photo",
+              "slot": "arch"
+            }
+          ]
+        }
       ]
     },
     {
-      "id": "newArrivals", "label": "New arrivals", "page": "home",
+      "id": "newArrivals",
+      "label": "New arrivals",
+      "page": "home",
       "fields": [
-        { "id": "eyebrow", "type": "text", "label": "Small heading", "maxLength": 40 },
-        { "id": "title", "type": "text", "label": "Heading", "maxLength": 40 },
-        { "id": "collection", "type": "collection", "label": "Show products from (empty = newest)" },
-        { "id": "count", "type": "number", "label": "How many products" }
+        {
+          "id": "eyebrow",
+          "type": "text",
+          "label": "Link text",
+          "maxLength": 40,
+          "help": "e.g. All new arrivals"
+        },
+        {
+          "id": "title",
+          "type": "text",
+          "label": "Heading",
+          "maxLength": 40,
+          "help": "Wrap one word in *asterisks* to set it in italics."
+        },
+        {
+          "id": "collection",
+          "type": "collection",
+          "label": "Show products from (empty = newest)"
+        },
+        {
+          "id": "count",
+          "type": "number",
+          "label": "How many products"
+        }
       ]
     },
     {
-      "id": "occasions", "label": "Shop by occasion", "page": "home",
+      "id": "occasions",
+      "label": "Shop by occasion",
+      "page": "home",
       "fields": [
-        { "id": "eyebrow", "type": "text", "label": "Small heading", "maxLength": 40 },
-        { "id": "title", "type": "text", "label": "Heading", "maxLength": 40 },
-        { "id": "items", "type": "list", "label": "Occasion cards", "itemLabel": "Card", "min": 1, "max": 6, "fields": [
-          { "id": "collection", "type": "collection", "label": "Collection", "required": true },
-          { "id": "title", "type": "text", "label": "Card title", "required": true, "maxLength": 30 },
-          { "id": "image", "type": "image", "label": "Photo", "slot": "occasion" }
-        ] }
+        {
+          "id": "title",
+          "type": "text",
+          "label": "Heading",
+          "maxLength": 40,
+          "help": "Wrap one word in *asterisks* to set it in italics."
+        },
+        {
+          "id": "items",
+          "type": "list",
+          "label": "Occasion cards",
+          "itemLabel": "Card",
+          "min": 1,
+          "max": 6,
+          "fields": [
+            {
+              "id": "collection",
+              "type": "collection",
+              "label": "Collection",
+              "required": true
+            },
+            {
+              "id": "title",
+              "type": "text",
+              "label": "Card title",
+              "required": true,
+              "maxLength": 30
+            },
+            {
+              "id": "image",
+              "type": "image",
+              "label": "Photo",
+              "slot": "occasion"
+            }
+          ]
+        }
       ]
     },
     {
-      "id": "boutique", "label": "Visit our boutique", "page": "home",
+      "id": "boutique",
+      "label": "Visit our boutique",
+      "page": "home",
       "fields": [
-        { "id": "eyebrow", "type": "text", "label": "Small heading", "maxLength": 40 },
-        { "id": "title", "type": "text", "label": "Heading", "maxLength": 40 },
-        { "id": "body", "type": "textarea", "label": "Text", "maxLength": 220 },
-        { "id": "image", "type": "image", "label": "Boutique photo", "slot": "boutique" }
+        {
+          "id": "title",
+          "type": "text",
+          "label": "Heading",
+          "maxLength": 40,
+          "help": "Wrap one word in *asterisks* to set it in italics."
+        },
+        {
+          "id": "body",
+          "type": "textarea",
+          "label": "Text",
+          "maxLength": 220
+        },
+        {
+          "id": "image",
+          "type": "image",
+          "label": "Boutique photo",
+          "slot": "boutique"
+        }
       ]
     },
     {
-      "id": "styled", "label": "Styled by you (Instagram)", "page": "home",
+      "id": "styled",
+      "label": "Styled by you (Instagram)",
+      "page": "home",
       "fields": [
-        { "id": "enabled", "type": "boolean", "label": "Show this section" },
-        { "id": "eyebrow", "type": "text", "label": "Small heading", "maxLength": 40 },
-        { "id": "handle", "type": "text", "label": "Instagram handle", "maxLength": 40 },
-        { "id": "images", "type": "list", "label": "Photos", "itemLabel": "Photo", "min": 0, "max": 8, "fields": [
-          { "id": "image", "type": "image", "label": "Photo", "slot": "social", "required": true },
-          { "id": "link", "type": "url", "label": "Post link (optional)" }
-        ] }
+        {
+          "id": "enabled",
+          "type": "boolean",
+          "label": "Show this section"
+        },
+        {
+          "id": "eyebrow",
+          "type": "text",
+          "label": "Heading",
+          "maxLength": 40,
+          "help": "Wrap one word in *asterisks* to set it in italics."
+        },
+        {
+          "id": "handle",
+          "type": "text",
+          "label": "Instagram handle",
+          "maxLength": 40
+        },
+        {
+          "id": "images",
+          "type": "list",
+          "label": "Photos",
+          "itemLabel": "Photo",
+          "min": 0,
+          "max": 8,
+          "fields": [
+            {
+              "id": "image",
+              "type": "image",
+              "label": "Photo",
+              "slot": "social",
+              "required": true
+            },
+            {
+              "id": "link",
+              "type": "url",
+              "label": "Post link (optional)"
+            }
+          ]
+        }
       ]
     },
     {
-      "id": "trust", "label": "Trust strip", "page": "all",
+      "id": "trust",
+      "label": "Trust strip",
+      "page": "all",
       "fields": [
-        { "id": "items", "type": "list", "label": "Items", "itemLabel": "Item", "min": 2, "max": 4, "fields": [
-          { "id": "icon", "type": "select", "label": "Icon", "options": [
-            { "value": "truck", "label": "Delivery truck" }, { "value": "returns", "label": "Returns" },
-            { "value": "shield", "label": "Secure" }, { "value": "chat", "label": "Chat" }, { "value": "heart", "label": "Heart" }
-          ] },
-          { "id": "title", "type": "text", "label": "Title", "required": true, "maxLength": 24 },
-          { "id": "body", "type": "text", "label": "Detail", "maxLength": 30 }
-        ] }
+        {
+          "id": "items",
+          "type": "list",
+          "label": "Items",
+          "itemLabel": "Item",
+          "min": 2,
+          "max": 4,
+          "fields": [
+            {
+              "id": "icon",
+              "type": "select",
+              "label": "Icon",
+              "options": [
+                {
+                  "value": "truck",
+                  "label": "Delivery truck"
+                },
+                {
+                  "value": "returns",
+                  "label": "Returns"
+                },
+                {
+                  "value": "shield",
+                  "label": "Secure"
+                },
+                {
+                  "value": "chat",
+                  "label": "Chat"
+                },
+                {
+                  "value": "heart",
+                  "label": "Heart"
+                }
+              ]
+            },
+            {
+              "id": "title",
+              "type": "text",
+              "label": "Title",
+              "required": true,
+              "maxLength": 24
+            },
+            {
+              "id": "body",
+              "type": "text",
+              "label": "Detail",
+              "maxLength": 30
+            }
+          ]
+        }
       ]
     },
     {
-      "id": "newsletter", "label": "Newsletter", "page": "all",
+      "id": "newsletter",
+      "label": "Newsletter",
+      "page": "all",
       "fields": [
-        { "id": "title", "type": "text", "label": "Heading", "maxLength": 40 },
-        { "id": "body", "type": "text", "label": "Text", "maxLength": 90 }
+        {
+          "id": "title",
+          "type": "text",
+          "label": "Heading",
+          "maxLength": 40
+        },
+        {
+          "id": "body",
+          "type": "text",
+          "label": "Text",
+          "maxLength": 90
+        }
       ]
     },
     {
-      "id": "about", "label": "About page", "page": "about",
+      "id": "about",
+      "label": "About page",
+      "page": "about",
       "fields": [
-        { "id": "title", "type": "text", "label": "Heading", "required": true, "maxLength": 60 },
-        { "id": "intro", "type": "textarea", "label": "Intro", "maxLength": 300 },
-        { "id": "body", "type": "richtext", "label": "Story", "maxLength": 4000 },
-        { "id": "image", "type": "image", "label": "Photo", "slot": "page" }
+        {
+          "id": "title",
+          "type": "text",
+          "label": "Heading",
+          "required": true,
+          "maxLength": 60
+        },
+        {
+          "id": "intro",
+          "type": "textarea",
+          "label": "Intro",
+          "maxLength": 300
+        },
+        {
+          "id": "body",
+          "type": "richtext",
+          "label": "Story",
+          "maxLength": 4000
+        },
+        {
+          "id": "image",
+          "type": "image",
+          "label": "Photo",
+          "slot": "page"
+        }
       ]
     },
     {
-      "id": "policies", "label": "Policies", "page": "policies",
+      "id": "policies",
+      "label": "Policies",
+      "page": "policies",
       "fields": [
-        { "id": "shipping", "type": "richtext", "label": "Shipping policy", "required": true, "maxLength": 8000 },
-        { "id": "returns", "type": "richtext", "label": "Returns & exchanges", "required": true, "maxLength": 8000 },
-        { "id": "privacy", "type": "richtext", "label": "Privacy policy", "required": true, "maxLength": 12000 },
-        { "id": "terms", "type": "richtext", "label": "Terms of service", "required": true, "maxLength": 12000 },
-        { "id": "contact", "type": "richtext", "label": "Contact", "required": true, "maxLength": 2000 }
+        {
+          "id": "shipping",
+          "type": "richtext",
+          "label": "Shipping policy",
+          "required": true,
+          "maxLength": 8000
+        },
+        {
+          "id": "returns",
+          "type": "richtext",
+          "label": "Returns & exchanges",
+          "required": true,
+          "maxLength": 8000
+        },
+        {
+          "id": "privacy",
+          "type": "richtext",
+          "label": "Privacy policy",
+          "required": true,
+          "maxLength": 12000
+        },
+        {
+          "id": "terms",
+          "type": "richtext",
+          "label": "Terms of service",
+          "required": true,
+          "maxLength": 12000
+        },
+        {
+          "id": "contact",
+          "type": "richtext",
+          "label": "Contact",
+          "required": true,
+          "maxLength": 2000
+        }
       ]
     },
     {
-      "id": "sizeGuide", "label": "Size guide", "page": "product",
+      "id": "sizeGuide",
+      "label": "Size guide",
+      "page": "product",
       "fields": [
-        { "id": "chart", "type": "richtext", "label": "Default size chart (markdown table)", "maxLength": 3000 },
-        { "id": "howToMeasure", "type": "textarea", "label": "How to measure", "maxLength": 600 }
+        {
+          "id": "chart",
+          "type": "richtext",
+          "label": "Default size chart (markdown table)",
+          "maxLength": 3000
+        },
+        {
+          "id": "howToMeasure",
+          "type": "textarea",
+          "label": "How to measure",
+          "maxLength": 600
+        }
       ]
     }
   ],
-  "flags": { "wishlist": true, "search": true, "whatsappOrder": true }
+  "flags": {
+    "wishlist": true,
+    "search": true,
+    "whatsappOrder": true
+  }
 }

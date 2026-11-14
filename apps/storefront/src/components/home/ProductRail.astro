@@ -2,18 +2,19 @@
 import type { ProductCard } from '@femia/contracts';
 import PCard from '../ProductCard.astro';
 import Icon from '../ui/Icon.astro';
-import { t } from '@femia/i18n';
-interface Props { eyebrow: string; title: string; products: ProductCard[]; viewAll: string; id: string }
-const { eyebrow, title, products, viewAll, id } = Astro.props;
+import { emph } from '../../lib/format.ts';
+interface Props { title: string; linkLabel: string; products: ProductCard[]; viewAll: string; id: string }
+const { title, linkLabel, products, viewAll, id } = Astro.props;
 ---
 {products.length > 0 && (
   <section class="section rail" aria-labelledby={id}>
     <div class="container">
       <div class="section-head">
-        <div><p class="eyebrow">{eyebrow}</p><h2 id={id}>{title}</h2></div>
-        <a class="link-arrow" href={viewAll}>{t('common.viewAll')} <Icon name="arrowRight" size={20} /></a>
+        <h2 id={id} data-split set:html={emph(title)} />
+        <span class="thread-rule" aria-hidden="true"></span>
+        <a class="link-arrow" href={viewAll}>{linkLabel} <Icon name="arrowRight" size={18} /></a>
       </div>
-      <ul role="list" class="rail__track" data-reveal-group>
+      <ul role="list" class="rail__track" data-cards>
         {products.map((p) => <li><PCard product={p} /></li>)}
       </ul>
     </div>
@@ -21,10 +22,10 @@ const { eyebrow, title, products, viewAll, id } = Astro.props;
 )}
 <style>
   .rail { padding-top: 0; }
-  .rail__track { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-6); }
+  .rail__track { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-10) var(--sp-6); }
   @media (max-width: 1023px) {
-    .rail__track { display: flex; gap: var(--sp-4); overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; margin-inline: calc(var(--layout-gutter) * -1); padding: 4px var(--layout-gutter) var(--sp-4); }
+    .rail__track { display: flex; gap: var(--sp-4); overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; margin-inline: calc(var(--layout-gutter) * -1); padding: var(--sp-2) var(--layout-gutter) var(--sp-10); }
     .rail__track::-webkit-scrollbar { display: none; }
-    .rail__track > li { flex: 0 0 clamp(200px, 46vw, 280px); scroll-snap-align: start; }
+    .rail__track > li { flex: 0 0 clamp(210px, 48vw, 290px); scroll-snap-align: start; }
   }
 </style>

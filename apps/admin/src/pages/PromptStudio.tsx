@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { get, put } from '../lib/api.ts';
 import type { MediaRef } from '../lib/image.ts';
@@ -37,8 +37,10 @@ export default function PromptStudio() {
   const toast = useToast();
   const manifest = useQuery({ queryKey: ['manifest'], queryFn: () => get<{ imageSlots: Slot[] }>('/admin/manifest'), staleTime: Infinity });
   const products = useQuery({ queryKey: ['products', '', ''], queryFn: () => get<{ items: { id: string; title: string; category: string; thumb: string | null }[] }>('/admin/products?pageSize=100') });
+  const nav = useNavigate();
+  const [sp] = useSearchParams();
   const [slot, setSlot] = useState<SlotKey>('product-main');
-  const [productId, setProductId] = useState('');
+  const [productId, setProductId] = useState(sp.get('product') ?? '');
   const [colour, setColour] = useState('');
   const [pose, setPose] = useState(POSES[0]!);
   const [framing, setFraming] = useState(FRAMING[0]!);
@@ -119,12 +121,27 @@ export default function PromptStudio() {
           {def.needsProduct && (
             <div className="grid2">
               <Field label="2 · Product">
-                <select className="select" value={productId} onChange={(e) => { setProductId(e.target.value); setColour(''); }}>
+                <select className="select" value={productId} onChange={(e) => {
+                  if (e.target.value === '__new') { nav('/products/new?return=/prompt-studio'); return; }
+                  setProductId(e.target.value); setColour('');
+                }}>
                   <option value="">Choose…</option>
                   {products.data?.items.map((x) => <option key={x.id} value={x.id}>{x.title}</option>)}
+                  <option value="__new">+ Add a new product…</option>
                 </select>
               </Field>
-              {p?.option2Values.length > 0 && <Field label="Colour"><select className="select" value={colour} onChange={(e) => setColour(e.target.value)}>{p.option2Values.map((o: any) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></Field>}
+              {p && (
+                <Field label="Colour">
+                  <select className="select" value={colour} onChange={(e) => {
+                    if (e.target.value === '__new') { nav(`/products/${p.id}?step=2&return=${encodeURIComponent('/prompt-studio')}`); return; }
+                    setColour(e.target.value);
+                  }}>
+                    {p.option2Values.length === 0 && <option value="">No colours yet</option>}
+                    {p.option2Values.map((o: any) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    <option value="__new">+ Add a colour to this product…</option>
+                  </select>
+                </Field>
+              )}
             </div>
           )}
           <div className="grid2">

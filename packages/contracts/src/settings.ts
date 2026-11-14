@@ -36,11 +36,27 @@ export const NotificationSettings = z.object({
 });
 export type NotificationSettings = z.infer<typeof NotificationSettings>;
 
+/** Lists the product wizard offers (owner can extend them from Admin → Catalog setup or inline). */
+export const DEFAULT_COLOURS: { label: string; hex: string }[] = [
+  { label: 'Maroon', hex: '#7A1F2B' }, { label: 'Red', hex: '#B3261E' }, { label: 'Pink', hex: '#E58FA6' }, { label: 'Rose', hex: '#D98A86' },
+  { label: 'Peach', hex: '#F3D9C4' }, { label: 'Mustard', hex: '#D9A21B' }, { label: 'Yellow', hex: '#EFCB4A' }, { label: 'Olive', hex: '#6E6B33' },
+  { label: 'Green', hex: '#2F6B3F' }, { label: 'Teal', hex: '#1F6E6B' }, { label: 'Blue', hex: '#2F5DA8' }, { label: 'Navy', hex: '#1F2A4D' },
+  { label: 'Lavender', hex: '#B9A0D8' }, { label: 'Purple', hex: '#5E3A87' }, { label: 'Cream', hex: '#F2E2CC' }, { label: 'White', hex: '#FAFAF7' },
+  { label: 'Beige', hex: '#D9C3A5' }, { label: 'Brown', hex: '#6B4330' }, { label: 'Grey', hex: '#8B8B8B' }, { label: 'Black', hex: '#1C1C1C' },
+];
+export const CatalogPresets = z.object({
+  colours: z.array(z.object({ label: z.string().trim().min(1).max(30), hex: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Use a colour like #7A1628') })).max(80).default(DEFAULT_COLOURS),
+  sizes: z.array(z.string().trim().min(1).max(20)).max(40).default(['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', 'Free Size']),
+  fabrics: z.array(z.string().trim().min(1).max(40)).max(60).default(['Cotton', 'Rayon', 'Georgette', 'Silk', 'Linen', 'Chiffon', 'Crepe', 'Muslin', 'Chanderi', 'Organza']),
+});
+export type CatalogPresets = z.infer<typeof CatalogPresets>;
+
 export const Settings = z.object({
   store: StoreSettings.prefault({}),
   shipping: ShippingSettings.prefault({}),
   payments: PaymentSettings.prefault({}),
   notifications: NotificationSettings.prefault({}),
+  catalog: CatalogPresets.prefault({}),
 });
 export type Settings = z.infer<typeof Settings>;
 

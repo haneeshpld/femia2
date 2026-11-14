@@ -8,7 +8,6 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
 ---
 <Base site={site} categories={categories} title="Size guide">
   <section class="section container" style="max-width: 820px">
-    <p class="eyebrow">Fit</p>
     <h1 class="h2" style="margin-block: var(--sp-2) var(--sp-6)">Size guide</h1>
     <div class="prose" set:html={richText(g.chart ?? '')} />
     {g.howToMeasure && <><h2 class="h3" style="margin-top: var(--sp-10)">How to measure</h2><p style="margin-top: var(--sp-3)">{g.howToMeasure}</p></>}

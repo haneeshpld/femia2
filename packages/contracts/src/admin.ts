@@ -85,4 +85,23 @@ export const MediaPatch = z.object({ alt: z.string().trim().max(200) });
 
 export const GatewayKeysInput = z.object({ provider: z.enum(['razorpay', 'cashfree', 'phonepe', 'payu']), keys: z.record(z.string(), z.string().trim().min(1)) });
 
+export const CategoryInput = z.object({
+  name: z.string().trim().min(2, 'Give the category a name').max(40),
+  slug: Slug.optional(),
+  imageId: Id.nullable().optional(),
+  sort: z.number().int().min(0).max(999).optional(),
+});
+export type CategoryInput = z.input<typeof CategoryInput>;
+
+export const CollectionInput = z.object({
+  name: z.string().trim().min(2, 'Give the collection a name').max(50),
+  slug: Slug.optional(),
+  kind: z.enum(['collection', 'occasion']).default('collection'),
+  description: z.string().trim().max(200).default(''),
+  imageId: Id.nullable().optional(),
+  active: z.boolean().default(true),
+  sort: z.number().int().min(0).max(999).optional(),
+});
+export type CollectionInput = z.input<typeof CollectionInput>;
+
 export const UserInput = z.object({ email: z.email().toLowerCase(), name: z.string().trim().max(60).default(''), roleId: z.string(), active: z.boolean().default(true) });

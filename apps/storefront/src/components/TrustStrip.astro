@@ -10,7 +10,7 @@ const map: Record<string, IconName> = { truck: 'truck', returns: 'returns', shie
     <ul role="list" class="trust__list">
       {items.map((it) => (
         <li class="trust__item">
-          <Icon name={map[it.icon] ?? 'sparkle'} size={34} />
+          <Icon name={map[it.icon] ?? 'sparkle'} size={32} />
           <div><strong>{it.title}</strong><span>{it.body}</span></div>
         </li>
       ))}
@@ -18,13 +18,16 @@ const map: Record<string, IconName> = { truck: 'truck', returns: 'returns', shie
   </section>
 )}
 <style>
-  .trust { padding-block: var(--sp-8); }
-  .trust__list { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--c-line); padding-top: var(--sp-8); }
+  .trust { padding-block: var(--sp-10) var(--sp-4); }
+  .trust__list { display: grid; grid-template-columns: repeat(4, 1fr); position: relative; padding-block: var(--sp-8); }
+  .trust__list::before, .trust__list::after { content: ''; position: absolute; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--c-zari), transparent); opacity: .55; }
+  .trust__list::before { top: 0; } .trust__list::after { bottom: 0; }
   .trust__item { display: flex; align-items: center; justify-content: center; gap: var(--sp-4); color: var(--c-ink); padding-inline: var(--sp-4); }
-  .trust__item + .trust__item { border-left: 1px solid var(--c-line); }
+  .trust__item + .trust__item { border-left: 1px solid rgba(199, 154, 62, .35); }
+  .trust__item :global(svg) { color: var(--c-zari-deep); flex: none; }
   .trust__item div { display: grid; line-height: 1.35; }
-  .trust__item strong { font-weight: 600; }
-  .trust__item span { color: var(--c-muted); font-size: .9375rem; }
+  .trust__item strong { font-family: var(--font-display); font-size: 1.1875rem; font-weight: 500; letter-spacing: -0.01em; }
+  .trust__item span { color: var(--c-muted); font-size: .875rem; }
   @media (max-width: 899px) {
     .trust__list { grid-template-columns: 1fr 1fr; row-gap: var(--sp-6); }
     .trust__item { justify-content: flex-start; padding-inline: var(--sp-3); }

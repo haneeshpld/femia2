@@ -156,7 +156,7 @@ Cron: `*/5 * * * *` release expired holds · `30 3 * * *` (09:00 IST) daily summ
 | 2 | Hydrate the storefront React shell on first interaction instead of idle (React DOM is ~65 KB gz) to protect TBT on low-end Android | Week 4 perf pass |
 | 3 | Playwright e2e for browse → bag → checkout (each method), add product, update stock, publish content | Week 4 |
 | 4 | Gateway "retry payment" button on the order page when the customer dismisses the payment window | Week 4 |
-| 5 | Categories and collections editing in Admin (seeded today; owners can't add new ones yet) | Before content load |
+| 5 | ~~Categories and collections editing in Admin~~ Done: Catalog setup page + inline "+ New" everywhere (15 Nov) | Done |
 | 6 | Real photos, copy and policies (seed content is placeholder, policies marked DRAFT) | Client, Week 2–3 |
 | 7 | Default OG image (`/og-default.jpg`) and on-brand email header image | Week 4 |
 | 8 | Rate limiting on `/orders/track` and `/newsletter` (Cloudflare WAF rate-limit rule, free tier) | Go-live checklist |

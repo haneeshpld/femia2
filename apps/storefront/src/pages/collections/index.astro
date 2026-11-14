@@ -13,10 +13,10 @@ const banner = site.content.hero?.image ? site.media[site.content.hero.image] : 
 Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=600');
 ---
 <Base site={site} categories={categories} title="Collections" description="Curated Femia edits for every day, every celebration and every workday.">
-  <PageBanner eyebrow="Curated edits" title="Collections" sub="Dressed for every moment." image={banner} />
+  <PageBanner title="Collections" sub="Dressed for every moment." image={banner} />
   {[{ title: 'Shop by occasion', items: occasions }, { title: 'Our edits', items: edits }].filter((g) => g.items.length).map((g) => (
     <section class="section container" aria-label={g.title}>
-      <p class="eyebrow">{g.title}</p>
+      <div class="section-head"><h2 data-split>{g.title}</h2><span class="thread-rule" aria-hidden="true"></span></div>
       <ul role="list" class="colls" data-reveal-group>
         {g.items.map((c) => (
           <li>

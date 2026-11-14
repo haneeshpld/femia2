@@ -1,14 +1,14 @@
 ---
 import type { MediaRef } from '@femia/contracts';
 import { srcset } from '../../lib/format.ts';
-interface Props { eyebrow: string; title: string; sub?: string; image?: MediaRef | null }
-const { eyebrow, title, sub, image } = Astro.props;
+interface Props { eyebrow?: string; title: string; sub?: string; image?: MediaRef | null }
+const { title, sub, image } = Astro.props;
 ---
 <section class="banner">
   {image && <div class="banner__art" aria-hidden="true"><img src={image.src['960']} srcset={srcset(image)} sizes="60vw" width={image.width} height={image.height} alt="" fetchpriority="high" /></div>}
   <div class="container banner__inner">
-    <p class="eyebrow">{eyebrow}</p>
-    <h1>{title}</h1>
+    <h1 data-split>{title}</h1>
+    <span class="banner__rule" aria-hidden="true"><i class="lozenge"></i></span>
     {sub && <p class="banner__sub">{sub}</p>}
   </div>
 </section>
@@ -17,7 +17,11 @@ const { eyebrow, title, sub, image } = Astro.props;
   .banner__art { position: absolute; inset: 0 0 0 auto; width: 55%; z-index: -1; -webkit-mask-image: linear-gradient(90deg, transparent, #000 35%); mask-image: linear-gradient(90deg, transparent, #000 35%); }
   .banner__art img { width: 100%; height: 100%; object-fit: cover; }
   .banner__inner { padding-block: clamp(var(--sp-10), 6vw, var(--sp-16)); }
-  .banner h1 { margin-top: var(--sp-3); font-size: clamp(2.5rem, 1.8rem + 3vw, 4rem); }
-  .banner__sub { font-family: var(--font-display); font-size: 1.375rem; color: var(--c-text); margin-top: var(--sp-2); }
+  .banner__inner > * { animation: rise 1000ms var(--motion-ease-out) both; }
+  .banner__inner > *:nth-child(2) { animation-delay: 120ms; } .banner__inner > *:nth-child(3) { animation-delay: 220ms; }
+  .banner h1 { font-size: clamp(2.75rem, 1.8rem + 3.6vw, 4.75rem); letter-spacing: -0.03em; }
+  .banner__rule { display: flex; align-items: center; gap: var(--sp-3); width: min(260px, 60%); margin-top: var(--sp-4); }
+  .banner__rule::before, .banner__rule::after { content: ''; flex: 1; height: 1px; background: var(--c-zari); opacity: .7; }
+  .banner__sub { font-family: var(--font-display); font-style: italic; font-size: clamp(1.25rem, 1.1rem + .5vw, 1.5rem); color: var(--c-text); margin-top: var(--sp-3); }
   @media (max-width: 767px) { .banner__art { width: 70%; opacity: .55; } }
 </style>

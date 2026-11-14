@@ -54,6 +54,12 @@ export default function NewOrder() {
               ))}
             </div>
           )}
+          {search.data && q.length >= 2 && search.data.length === 0 && (
+            <div className="notice" style={{ alignItems: 'center' }}>
+              <span style={{ flex: 1 }}>No product matches “{q}”.</span>
+              <a className="btn btn--quiet" href={`/products/new?return=${encodeURIComponent('/orders/new')}`}><Icon name="plus" /> Add new product</a>
+            </div>
+          )}
           {lines.map((l) => (
             <div key={l.row.id} className="row" style={{ flexWrap: 'nowrap' }}>
               <span style={{ flex: 1 }}><strong>{l.row.title}</strong> <span className="muted">{[l.row.option1, l.row.colourLabel].filter(Boolean).join(' / ')}</span></span>
