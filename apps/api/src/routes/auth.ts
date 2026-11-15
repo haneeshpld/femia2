@@ -4,14 +4,14 @@ import { z } from 'zod';
 import type { AppEnv, Env } from '../env.ts';
 import { audit, first, newId, nowIso, all } from '../lib/db.ts';
 import { HttpError, readJson } from '../lib/http.ts';
-import { assertSameOrigin, clientIp, hashPassword, rateLimit, readToken, signToken, verifyPassword } from '../lib/security.ts';
-import { sendEmail, sendTelegram } from '../notify/index.ts';
+import { assertSameOrigin, clientIp, edgeLimit, hashPassword, rateLimit, readToken, sha256Hex, signToken, verifyPassword } from '../lib/security.ts';
+import { escHtml, sendEmail, sendTelegram } from '../notify/index.ts';
 import { claimGuestOrdersStatements, createCustomer, customerByEmail, toProfile } from '../services/customers.ts';
-import { issueCode, verifyCode } from '../services/otp.ts';
+import { codeDelivery, issueCode, verifyCode } from '../services/otp.ts';
 import { endSession, revokeAllStatement, startSession } from '../services/sessions.ts';
 
 export const authRoutes = new Hono<AppEnv>();
-authRoutes.use('*', async (c, next) => { assertSameOrigin(c); await next(); });
+authRoutes.use('*', async (c, next) => { assertSameOrigin(c); if (c.req.method === 'POST') await edgeLimit(c, 'auth'); await next(); });
 
 // ═════════════ shoppers: email → 6-digit code → (new accounts) name & mobile ═════════════
 
@@ -58,17 +58,25 @@ type UserRow = { id: string; email: string; name: string; role_id: string; statu
 authRoutes.post('/admin/signup', async (c) => {
   const v = await readJson(c, AdminSignup);
   await rateLimit(c.env.DB, `adm-signup:${clientIp(c)}`, 10, 3600);
+  const passwordHash = await hashPassword(c.env, v.password);
   await c.env.DB.prepare(`INSERT INTO admin_signups (email, name, password_hash, created_at) VALUES (?,?,?,?)
     ON CONFLICT(email) DO UPDATE SET name = excluded.name, password_hash = excluded.password_hash, created_at = excluded.created_at`)
-    .bind(v.email, v.name, await hashPassword(c.env, v.password), nowIso()).run();
-  return c.json({ sent: true, email: v.email, ...(await issueCode(c.env, c.executionCtx, 'admin_signup', v.email, clientIp(c))) });
+    .bind(v.email, v.name, passwordHash, nowIso()).run();
+  // Ties the emailed code to this form: if someone else signs up with the same email meanwhile (replacing the
+  // password), the code no longer finishes either sign-up, so nobody can set a password for another person's inbox.
+  const signupToken = await signToken(c.env, 'admin-signup', { email: v.email, ph: await sha256Hex(passwordHash) }, 60 * 60);
+  return c.json({ sent: true, email: v.email, signupToken, ...(await issueCode(c.env, c.executionCtx, 'admin_signup', v.email, clientIp(c))) });
 });
 
 authRoutes.post('/admin/signup/verify', async (c) => {
-  const { email, code } = await readJson(c, CodeVerify);
+  const { email, code, signupToken } = await readJson(c, CodeVerify.extend({ signupToken: z.string().min(20).max(600) }));
+  const t = await readToken<{ email: string; ph: string }>(c.env, 'admin-signup', signupToken);
+  if (!t || t.email !== email) throw new HttpError(400, 'signup_expired', 'Please start again: fill in the form and we’ll send a new code.');
   await verifyCode(c.env, 'admin_signup', email, code, clientIp(c));
   const pending = await first<{ name: string; password_hash: string; created_at: string }>(c.env.DB, 'SELECT name, password_hash, created_at FROM admin_signups WHERE email = ?', email);
-  if (!pending || Date.now() - Date.parse(pending.created_at) > 60 * 60e3) throw new HttpError(400, 'signup_expired', 'Please start again: fill in the form and we’ll send a new code.');
+  if (!pending || Date.now() - Date.parse(pending.created_at) > 60 * 60e3 || t.ph !== (await sha256Hex(pending.password_hash))) {
+    throw new HttpError(400, 'signup_expired', 'Please start again: fill in the form and we’ll send a new code.');
+  }
   const user = await first<UserRow>(c.env.DB, 'SELECT * FROM users WHERE email = ?', email);
   const now = nowIso();
   const done = c.env.DB.prepare('DELETE FROM admin_signups WHERE email = ?').bind(email);
@@ -108,10 +116,10 @@ async function tellApprovers(env: Env, name: string, email: string) {
   const admins = await all<{ email: string }>(env.DB, `SELECT u.email FROM users u JOIN roles r ON r.id = u.role_id
     WHERE u.status = 'active' AND r.permissions LIKE '%people.manage%'`);
   const link = `${env.ADMIN_URL}/people`;
-  await sendTelegram(env, `🔐 <b>${name}</b> (${email}) asked for access to Femia Admin. Approve or decline in People: ${link}`);
+  await sendTelegram(env, `🔐 <b>${escHtml(name)}</b> (${escHtml(email)}) asked for access to Femia Admin. Approve or decline in People: ${link}`);
   if (env.RESEND_API_KEY) {
     for (const a of admins) await sendEmail(env, { to: a.email, subject: `${name} asked for access to Femia Admin`,
-      html: `<p>${name} (${email}) signed up for Femia Admin and is waiting for approval.</p><p><a href="${link}">Review in People</a></p><p>If you don't know this person, decline the request.</p>`,
+      html: `<p>${escHtml(name)} (${escHtml(email)}) signed up for Femia Admin and is waiting for approval.</p><p><a href="${link}">Review in People</a></p><p>If you don't know this person, decline the request.</p>`,
       text: `${name} (${email}) signed up for Femia Admin and is waiting for approval. Review: ${link}` });
   }
 }
@@ -172,6 +180,7 @@ authRoutes.post('/admin/login/verify', async (c) => {
 authRoutes.post('/admin/forgot', async (c) => {
   const { email } = await readJson(c, EmailStart);
   await rateLimit(c.env.DB, `adm-forgot:${clientIp(c)}`, 10, 3600);
+  codeDelivery(c.env, 'admin_reset'); // refuses for everyone when resets aren't possible, so the answer never depends on the email
   const user = await first<UserRow>(c.env.DB, "SELECT * FROM users WHERE email = ? AND status = 'active' AND password_hash IS NOT NULL", email);
   // Same answer either way, so this can't be used to find out who has an account.
   const sent = user ? await issueCode(c.env, c.executionCtx, 'admin_reset', email, clientIp(c)) : { delivery: 'email' as const, resendIn: 30, expiresIn: 600 };

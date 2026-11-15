@@ -56,6 +56,8 @@ export const CheckoutRequest = z.object({
   }),
   address: Address,
   paymentMethod: PaymentMethod,
+  /** Online payments (Razorpay): open straight on UPI, or on cards / netbanking / wallets. */
+  payWith: z.enum(['upi', 'other']).nullable().default(null),
   newsletter: z.boolean().default(false),
   /** signed-in shoppers: keep this address in their account */
   saveAddress: z.boolean().default(false),
@@ -97,6 +99,8 @@ export const PublicOrder = z.object({
   payment: z.object({
     method: PaymentMethod, status: PaymentStatus, amount: Paise, provider: z.string().nullable(),
     reference: z.string().nullable(), gatewayOrderId: z.string().nullable(), paidAt: z.string().nullable(),
+    /** what was used inside the gateway: upi, card, netbanking, wallet, emi, paylater */
+    instrument: z.string().nullable().default(null),
   }).nullable().default(null),
   refunds: z.array(z.object({
     amount: Paise, status: z.enum(['pending', 'processed', 'failed', 'to_send', 'sent']), reference: z.string().nullable(),
@@ -132,3 +136,7 @@ export type CheckoutResult = z.infer<typeof CheckoutResult>;
 
 export const TrackRequest = z.object({ number: z.string().trim().toUpperCase().min(4).max(20), phone: Phone });
 export type TrackRequest = z.input<typeof TrackRequest>;
+
+/** How a gateway payment was made, in words ("UPI", "Card"…). */
+export const instrumentLabel = (i: string | null | undefined) =>
+  i ? ({ upi: 'UPI', card: 'Card', netbanking: 'Netbanking', wallet: 'Wallet', emi: 'EMI', paylater: 'Pay later', cardless_emi: 'Cardless EMI' } as Record<string, string>)[i] ?? i : null;

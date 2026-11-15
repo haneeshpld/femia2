@@ -18,7 +18,11 @@ export const StoreSettings = z.object({
   geo: z.object({ lat: z.number(), lng: z.number() }).nullable().default(null),
   hoursSummary: z.string().default(''),
   hours: z.array(DayHours).length(7).nullable().default(null),
-  socials: z.object({ instagram: z.string().default(''), facebook: z.string().default(''), youtube: z.string().default('') }).prefault({}),
+  socials: z.object({
+    instagram: z.string().default(''), facebook: z.string().default(''), youtube: z.string().default(''),
+    /** WhatsApp group / community invite (chat.whatsapp.com/…), separate from the order number in `whatsapp` */
+    whatsappGroup: z.string().default(''),
+  }).prefault({}),
 });
 export type StoreSettings = z.infer<typeof StoreSettings>;
 

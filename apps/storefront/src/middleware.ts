@@ -49,4 +49,22 @@ const noindex = defineMiddleware(async (_ctx, next) => {
   return res;
 });
 
-export const onRequest = sequence(noindex, edgeCache);
+/**
+ * Browser safety headers on every response (cached pages included). Checkout can't be shown inside another site's
+ * frame (clickjacking), browsers stay on HTTPS, and full URLs (order links carry their token) never leave for
+ * other sites. No script/form restrictions: Razorpay Checkout loads its own scripts, frames and redirect forms.
+ */
+const securityHeaders = defineMiddleware(async (ctx, next) => {
+  const res = await next();
+  const out = new Response(res.body, res);
+  // 'self', not 'none': Astro's client router loads the next page in a hidden same-site frame (in development, before
+  // pages with client-only islands such as /account). Other sites still can't frame the shop.
+  out.headers.set('Content-Security-Policy', "frame-ancestors 'self'; base-uri 'self'; object-src 'none'");
+  out.headers.set('X-Frame-Options', 'SAMEORIGIN');
+  out.headers.set('X-Content-Type-Options', 'nosniff');
+  out.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  if (new URL(ctx.request.url).protocol === 'https:') out.headers.set('Strict-Transport-Security', 'max-age=31536000');
+  return out;
+});
+
+export const onRequest = sequence(securityHeaders, noindex, edgeCache);

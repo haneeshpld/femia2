@@ -102,9 +102,10 @@ describe('the shopper cancels', () => {
 });
 
 describe('the store refunds', () => {
-  it('cancelling a paid UPI order records a refund to send; marking it sent completes it', async () => {
+  it('cancelling an order paid by UPI outside Razorpay records a refund to send; marking it sent completes it', async () => {
+    // e.g. a phone order the shopper paid by UPI straight to the shop, entered by staff
     const { variantIds: [v] } = await seedProduct([2], 49900);
-    const r = await call('POST', '/orders', checkout(v!, 'upi'));
+    const r = await call('POST', '/admin/orders', { ...checkout(v!, 'upi'), channel: 'phone' });
     await call('POST', `/admin/orders/${r.json.order.number}/mark-paid`);
     await call('POST', `/admin/orders/${r.json.order.number}/transition`, { to: 'cancelled', reason: 'Out of stock in that colour' });
     const d = await call('GET', `/admin/orders/${r.json.order.number}`);

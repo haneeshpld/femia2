@@ -109,6 +109,30 @@ describe('acceptance 5: gateway (Razorpay test mode)', () => {
     expect(await variant(v!)).toEqual({ on_hand: 1, reserved: 0 });
   });
 
+  it('UPI is a Razorpay payment: checkout opens on UPI, and the order records it was paid by UPI', async () => {
+    const { variantIds: [v, v2] } = await seedProduct([2, 2]);
+    const r = await call('POST', '/orders', { ...checkout(v!, 'gateway'), payWith: 'upi' });
+    expect(r.json.next).toMatchObject({ type: 'gateway', provider: 'razorpay' });
+    expect(r.json.next.payload.config.display.sequence).toEqual(['block.upi']);
+    expect(r.json.next.payload.prefill.method).toBe('upi');
+    // a page that still sends the old "upi" method lands on Razorpay too
+    const old = await call('POST', '/orders', checkout(v2!, 'upi'));
+    expect(old.json.order.paymentMethod).toBe('gateway');
+    expect(old.json.next.payload.config.display.sequence).toEqual(['block.upi']);
+
+    const rzp = r.json.next.payload.order_id as string;
+    const body = JSON.stringify({ event: 'payment.captured', payload: { payment: { entity: { id: 'pay_upi1', order_id: rzp, method: 'upi' } } } });
+    expect((await call('POST', '/payments/webhook/razorpay', body, { 'X-Razorpay-Signature': await hmacSha256Hex(keys.webhookSecret, body), 'X-Razorpay-Event-Id': 'evt_upi' })).status).toBe(200);
+    const o = await call('GET', `/orders/${r.json.order.number}?token=${r.json.accessToken}`);
+    expect(o.json.payment).toMatchObject({ method: 'gateway', status: 'paid', instrument: 'upi' });
+  });
+
+  it('cards, netbanking and wallets open without the UPI block', async () => {
+    const { variantIds: [v] } = await seedProduct([2]);
+    const r = await call('POST', '/orders', { ...checkout(v!, 'gateway'), payWith: 'other' });
+    expect(r.json.next.payload.config.display.hide).toEqual([{ method: 'upi' }]);
+  });
+
   it('browser return path verifies the signature', async () => {
     const { variantIds: [v] } = await seedProduct([1]);
     const r = await call('POST', '/orders', checkout(v!, 'gateway'));

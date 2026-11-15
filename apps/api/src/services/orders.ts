@@ -13,10 +13,26 @@ import { getGatewayKeys, getProvider, upiUri } from '../payments/index.ts';
 import { getSettings } from './settings.ts';
 import { automaticOffers, checkCoupon } from './offers.ts';
 import {
-  commitDirectStatements, commitHeldStatements, holdStatements, releaseHeldStatements, restockStatements, type StockLine,
+  commitDirectStatements, commitHeldStatements, holdStatements, releaseHeldStatements, resellReleasedStatements, restockStatements, type StockLine,
 } from './stock.ts';
+import { escHtml } from '../notify/index.ts';
 
 type Ctx = { waitUntil(p: Promise<unknown>): void };
+
+/** Razorpay (and most gateways) won't take less than ₹1. */
+const MIN_ONLINE_AMOUNT = 100;
+/** Unpaid online/UPI orders one mobile number can have holding stock at once (stops one person locking up the shop). */
+const MAX_OPEN_HOLDS_PER_PHONE = 3;
+
+// Conditional writes: each runs only while `cond` is still true, so a batch that lost a race writes nothing.
+const eventIf = (db: D1Database, orderId: string, status: string, note: string | null, actor: string, isPublic: boolean, cond: string, ...condBinds: unknown[]) =>
+  db.prepare(`INSERT INTO order_events (order_id, status, note, actor, public) SELECT ?,?,?,?,? WHERE ${cond}`).bind(orderId, status, note, actor, isPublic ? 1 : 0, ...condBinds);
+const auditIf = (db: D1Database, actor: string, action: string, entityId: string, summary: string, cond: string, ...condBinds: unknown[]) =>
+  db.prepare(`INSERT INTO audit_log (actor, action, entity, entity_id, summary) SELECT ?,?,'order',?,? WHERE ${cond}`).bind(actor, action, entityId, summary, ...condBinds);
+/** The order hasn't been paid yet (a refunded order was paid once and must never be "paid" again). */
+const UNPAID = "EXISTS (SELECT 1 FROM orders WHERE id = ? AND payment_status NOT IN ('paid','refunded'))";
+const UNPAID_IN = "EXISTS (SELECT 1 FROM orders WHERE id = ? AND payment_status NOT IN ('paid','refunded') AND stock_state = ?)";
+const isPaid = (s: string) => s === 'paid' || s === 'refunded';
 
 // ───────────────────────────────── pricing ─────────────────────────────────
 
@@ -92,8 +108,8 @@ export async function toPublicOrder(db: D1Database, o: OrderRow): Promise<Public
     orderItems(db, o.id),
     all<{ status: string; note: string | null; created_at: string }>(db, 'SELECT status, note, created_at FROM order_events WHERE order_id = ? AND public = 1 ORDER BY id', o.id),
     all<{ label: string; code: string | null; amount: number }>(db, 'SELECT label, code, amount FROM order_discounts WHERE order_id = ? ORDER BY id', o.id),
-    first<{ provider: string; provider_order_id: string | null; provider_payment_id: string | null }>(db,
-      "SELECT provider, provider_order_id, provider_payment_id FROM payments WHERE order_id = ? ORDER BY CASE status WHEN 'paid' THEN 0 ELSE 1 END, created_at DESC LIMIT 1", o.id),
+    first<{ provider: string; provider_order_id: string | null; provider_payment_id: string | null; instrument: string | null }>(db,
+      "SELECT provider, provider_order_id, provider_payment_id, instrument FROM payments WHERE order_id = ? ORDER BY CASE status WHEN 'paid' THEN 0 ELSE 1 END, created_at DESC LIMIT 1", o.id),
     listRefunds(db, o.id),
   ]);
   return {
@@ -108,7 +124,7 @@ export async function toPublicOrder(db: D1Database, o: OrderRow): Promise<Public
     createdAt: o.created_at, email: o.email, phone: o.phone,
     payment: {
       method: o.payment_method, status: o.payment_status, amount: o.total, provider: pay?.provider ?? null,
-      reference: pay?.provider_payment_id ?? null, gatewayOrderId: pay?.provider_order_id ?? null, paidAt: o.paid_at,
+      reference: pay?.provider_payment_id ?? null, gatewayOrderId: pay?.provider_order_id ?? null, paidAt: o.paid_at, instrument: pay?.instrument ?? null,
     },
     refunds: refunds.map((r) => ({ amount: r.amount, status: r.status, reference: r.provider_refund_id ?? r.reference, toOriginal: !!r.provider, createdAt: r.created_at, processedAt: r.processed_at })),
     canCancel: CUSTOMER_CANCELLABLE.includes(o.status),
@@ -160,10 +176,16 @@ export async function createOrder(env: Env, ctx: Ctx, input: unknown, opts: Crea
   if (!canShipTo(req.address.pincode, settings.shipping.shipToStates)) {
     throw new HttpError(422, 'pincode_blocked', "Sorry, we currently deliver only within Kerala. Visit our boutique or message us on WhatsApp and we'll help.");
   }
-  const method = req.paymentMethod;
+  // Online, UPI goes through Razorpay (instant confirmation, automatic refunds): checkout offers it as a Razorpay
+  // option, and a page that still sends "upi" gets Razorpay opened on UPI. Only a shop without Razorpay but with
+  // an older direct-UPI setup (pay to the shop's UPI ID, confirmed by staff) keeps that flow.
+  const directUpi = settings.payments.upi.enabled && !!settings.payments.upi.vpa;
+  const viaGateway = !opts.manual && req.paymentMethod === 'upi' && settings.payments.gateway.enabled && !!(await getGatewayKeys(env, settings.payments.gateway.provider));
+  const method: PaymentMethod = viaGateway ? 'gateway' : req.paymentMethod;
+  const payWith = method === 'gateway' ? (req.paymentMethod === 'upi' ? 'upi' : req.payWith ?? null) : null;
   if (!opts.manual) {
     const enabled = {
-      upi: settings.payments.upi.enabled && !!settings.payments.upi.vpa,
+      upi: directUpi,
       gateway: settings.payments.gateway.enabled,
       cod: settings.shipping.cod.enabled,
       whatsapp: settings.payments.whatsapp.enabled && !!settings.store.whatsapp,
@@ -176,6 +198,16 @@ export async function createOrder(env: Env, ctx: Ctx, input: unknown, opts: Crea
   if (q.coupon && !q.coupon.applied) throw new HttpError(422, 'coupon_invalid', q.coupon.message, { quote: q });
   if (!opts.manual && method === 'cod' && settings.shipping.cod.maxOrderValue !== null && q.total > settings.shipping.cod.maxOrderValue) {
     throw new HttpError(422, 'cod_limit', `Cash on Delivery is available for orders up to ${formatINR(settings.shipping.cod.maxOrderValue)}. Please choose another payment option.`);
+  }
+  if (!opts.manual && (method === 'gateway' || method === 'upi') && q.total < MIN_ONLINE_AMOUNT) {
+    throw new HttpError(422, 'amount_too_small', `Online payment needs an order of at least ${formatINR(MIN_ONLINE_AMOUNT)}. Please choose Cash on Delivery or add another piece.`, { quote: q });
+  }
+  if (!opts.manual && method !== 'cod') {
+    // only live holds: an expired one is about to be released (or is waiting for the gateway to answer)
+    const open = await first<{ n: number }>(db, "SELECT COUNT(*) AS n FROM orders WHERE phone = ? AND stock_state = 'held' AND status IN ('pending_payment','new') AND hold_expires_at > ?", req.customer.phone, nowIso());
+    if ((open?.n ?? 0) >= MAX_OPEN_HOLDS_PER_PHONE) {
+      throw new HttpError(429, 'too_many_unpaid', 'You already have orders waiting for payment. Please complete one from its order page (or cancel it there) before placing another.');
+    }
   }
 
   // Stock mode per method: gateway/UPI/WhatsApp hold until paid or confirmed; COD and manual orders sell immediately.
@@ -242,11 +274,11 @@ export async function createOrder(env: Env, ctx: Ctx, input: unknown, opts: Crea
 
   if (method === 'gateway' && !opts.manual) {
     try {
-      await startGatewayPayment(env, order, settings.store.name);
+      await startGatewayPayment(env, order, settings.store.name, payWith);
     } catch (e) {
       console.error('gateway create failed', e);
       await cancelOrder(env, ctx, order, 'system', 'Payment gateway unavailable', false);
-      throw new HttpError(502, 'gateway_unavailable', 'Online payment is not responding right now. Please try UPI or Cash on Delivery.');
+      throw new HttpError(502, 'gateway_unavailable', 'Online payment is not responding right now. Please try again in a minute, or choose Cash on Delivery.');
     }
     order = (await getOrderRow(db, { id: orderId }))!;
   }
@@ -263,13 +295,13 @@ export async function createOrder(env: Env, ctx: Ctx, input: unknown, opts: Crea
   return checkoutResult(env, order, settings);
 }
 
-async function startGatewayPayment(env: Env, order: OrderRow, storeName: string) {
+async function startGatewayPayment(env: Env, order: OrderRow, storeName: string, payWith: 'upi' | 'other' | null = null) {
   const settings = await getSettings(env.DB);
   const provider = getProvider(settings.payments.gateway.provider);
   const keys = await getGatewayKeys(env, provider.id);
   if (!keys) throw new Error('gateway keys missing');
   const { providerOrderId, payload } = await provider.createOrder(
-    { orderId: order.id, number: order.number, amount: order.total, customer: { name: order.customer_name, email: order.email, phone: order.phone }, storeName },
+    { orderId: order.id, number: order.number, amount: order.total, customer: { name: order.customer_name, email: order.email, phone: order.phone }, storeName, payWith },
     keys, env,
   );
   await env.DB.prepare('INSERT INTO payments (id, order_id, provider, provider_order_id, amount, status, raw) VALUES (?,?,?,?,?,?,?)')
@@ -303,18 +335,28 @@ export function whatsappOrderUrl(whatsapp: string, o: Pick<PublicOrder, 'number'
 
 // ──────────────────────────────── payment ────────────────────────────────
 
-export async function markPaid(env: Env, ctx: Ctx, o: OrderRow, actor: string, ref?: { provider: string; providerOrderId?: string; providerPaymentId?: string | null }) {
+/**
+ * Record a payment. Safe to call several times at once for the same order (the browser return, Razorpay's
+ * payment.captured and order.paid webhooks, the 5-minute check): every write is conditional on the order still
+ * being unpaid, so stock, refunds, events and notifications happen exactly once.
+ */
+export async function markPaid(env: Env, ctx: Ctx, o: OrderRow, actor: string, ref?: { provider: string; providerOrderId?: string; providerPaymentId?: string | null; instrument?: string | null }): Promise<OrderRow> {
   const db = env.DB;
-  if (o.payment_status === 'paid') return o;
+  if (isPaid(o.payment_status)) {
+    // Already confirmed (e.g. by the browser): a later webhook can still tell us it was UPI / card.
+    if (ref?.providerOrderId && ref.instrument) await db.prepare('UPDATE payments SET instrument = ? WHERE provider = ? AND provider_order_id = ? AND instrument IS NULL').bind(ref.instrument, ref.provider, ref.providerOrderId).run();
+    return o;
+  }
   if (o.status === 'cancelled' && o.cancelled_by === 'customer') {
     // They cancelled before the payment landed: keep the order cancelled and send the money straight back.
     const at = nowIso();
-    await db.batch([
-      db.prepare("UPDATE orders SET payment_status = 'paid', paid_at = ?, updated_at = ? WHERE id = ?").bind(at, at, o.id),
-      ...(ref?.providerOrderId ? [db.prepare("UPDATE payments SET status = 'paid', provider_payment_id = ?, updated_at = ? WHERE provider = ? AND provider_order_id = ?").bind(ref.providerPaymentId ?? null, at, ref.provider, ref.providerOrderId)] : []),
-      event(db, o.id, 'paid', 'Payment arrived after you cancelled', actor),
+    const res = await db.batch([
+      ...(ref?.providerOrderId ? [db.prepare("UPDATE payments SET status = 'paid', provider_payment_id = ?, instrument = COALESCE(?, instrument), updated_at = ? WHERE provider = ? AND provider_order_id = ?").bind(ref.providerPaymentId ?? null, ref.instrument ?? null, at, ref.provider, ref.providerOrderId)] : []),
+      eventIf(db, o.id, 'paid', 'Payment arrived after you cancelled', actor, true, UNPAID, o.id),
+      db.prepare("UPDATE orders SET payment_status = 'paid', paid_at = ?, updated_at = ? WHERE id = ? AND payment_status NOT IN ('paid','refunded')").bind(at, at, o.id),
     ]);
     const fresh = (await getOrderRow(db, { id: o.id }))!;
+    if (!res.at(-1)!.meta.changes) return fresh; // another confirmation got here first and started the refund
     await startRefund(env, ctx, fresh, { amount: fresh.total, reason: 'Paid after the order was cancelled', by: 'system' });
     return (await getOrderRow(db, { id: o.id }))!;
   }
@@ -322,7 +364,7 @@ export async function markPaid(env: Env, ctx: Ctx, o: OrderRow, actor: string, r
   const lines = items.map((i) => ({ variantId: i.variant_id, qty: i.qty }));
   const paidAt = nowIso();
   const paymentStmt = ref?.providerOrderId
-    ? [db.prepare("UPDATE payments SET status = 'paid', provider_payment_id = ?, updated_at = ? WHERE provider = ? AND provider_order_id = ?").bind(ref.providerPaymentId ?? null, paidAt, ref.provider, ref.providerOrderId)]
+    ? [db.prepare("UPDATE payments SET status = 'paid', provider_payment_id = ?, instrument = COALESCE(?, instrument), updated_at = ? WHERE provider = ? AND provider_order_id = ?").bind(ref.providerPaymentId ?? null, ref.instrument ?? null, paidAt, ref.provider, ref.providerOrderId)]
     : [];
   const label = o.payment_method === 'upi' ? 'UPI payment received' : 'Payment received';
 
@@ -339,23 +381,32 @@ export async function markPaid(env: Env, ctx: Ctx, o: OrderRow, actor: string, r
     await db.batch([event(db, o.id, 'paid', label, actor), audit(db, actor, 'order.paid', 'order', o.id, `${o.number} marked paid`)]);
   } else {
     // Committed already (COD/manual), or the hold was released before payment arrived: try to sell again.
-    const resell = o.stock_state === 'released' ? commitDirectStatements(db, o.id, lines, actor) : [];
+    // Every write is conditional on the order still being unpaid in the state we read (see markPaid's comment).
+    const resell = o.stock_state === 'released' ? resellReleasedStatements(db, o.id, lines, actor) : [];
     const finish = [
+      ...paymentStmt,
+      eventIf(db, o.id, 'paid', label, actor, true, UNPAID_IN, o.id, o.stock_state),
+      auditIf(db, actor, 'order.paid', o.id, `${o.number} marked paid`, UNPAID_IN, o.id, o.stock_state),
       db.prepare(`UPDATE orders SET payment_status = 'paid', paid_at = ?, stock_state = 'committed', cancel_reason = NULL,
-                  status = CASE WHEN status IN ('pending_payment','cancelled') THEN 'new' ELSE status END, updated_at = ? WHERE id = ?`).bind(paidAt, paidAt, o.id),
-      ...paymentStmt, event(db, o.id, 'paid', label, actor), audit(db, actor, 'order.paid', 'order', o.id, `${o.number} marked paid`),
+                  status = CASE WHEN status IN ('pending_payment','cancelled') THEN 'new' ELSE status END, updated_at = ?
+                  WHERE id = ? AND payment_status NOT IN ('paid','refunded') AND stock_state = ?`).bind(paidAt, paidAt, o.id, o.stock_state),
     ];
+    let res: D1Result[];
     try {
-      await db.batch([...resell, ...finish]);
+      res = await db.batch([...resell, ...finish]);
     } catch (e) {
       if (!isConstraintError(e)) throw e;
       stockProblem = true; // paid after the hold expired and the stock was sold: owner must refund or substitute
-      await db.batch([
+      res = await db.batch([
+        ...paymentStmt,
+        eventIf(db, o.id, 'paid', label, actor, true, UNPAID, o.id),
+        eventIf(db, o.id, 'stock_issue', 'Paid after hold expired; item sold out', 'system', false, UNPAID, o.id),
         db.prepare(`UPDATE orders SET payment_status = 'paid', paid_at = ?, status = 'new', cancel_reason = NULL, updated_at = ?,
-                    notes = notes || ? WHERE id = ?`).bind(paidAt, paidAt, '\n⚠ Paid after the hold expired and an item sold out. Refund or offer a substitute.', o.id),
-        ...paymentStmt, event(db, o.id, 'paid', label, actor), event(db, o.id, 'stock_issue', 'Paid after hold expired; item sold out', 'system', false),
+                    notes = notes || ? WHERE id = ? AND payment_status NOT IN ('paid','refunded')`).bind(paidAt, paidAt, '\n⚠ Paid after the hold expired and an item sold out. Refund or offer a substitute.', o.id),
       ]);
     }
+    // Lost a race (another confirmation, or the order changed meanwhile): start again from what's there now.
+    if (!res.at(-1)!.meta.changes) return markPaid(env, ctx, (await getOrderRow(db, { id: o.id }))!, actor, ref);
   }
 
   const fresh = (await getOrderRow(db, { id: o.id }))!;
@@ -379,23 +430,40 @@ export async function markPaymentFailed(env: Env, ctx: Ctx, o: OrderRow, provide
 
 // ──────────────────────────────── status ────────────────────────────────
 
-export async function cancelOrder(env: Env, ctx: Ctx, o: OrderRow, actor: string, reason: string, isPublic = true, by: 'customer' | 'store' | 'system' = actor === 'system' ? 'system' : 'store') {
+/**
+ * Cancel an order and give its stock back. Returns false when nothing changed because the order was cancelled or
+ * changed by someone else meanwhile (double tap, staff and shopper at once, a payment landing): every write is
+ * conditional on the order still being in the state we read, so stock and coupon uses come back exactly once.
+ */
+export async function cancelOrder(env: Env, ctx: Ctx, o: OrderRow, actor: string, reason: string, isPublic = true, by: 'customer' | 'store' | 'system' = actor === 'system' ? 'system' : 'store'): Promise<boolean> {
   const db = env.DB;
+  if (o.status === 'cancelled') return false;
   const items = await orderItems(db, o.id);
   const lines = items.map((i) => ({ variantId: i.variant_id, qty: i.qty }));
   const stock = o.stock_state === 'held' ? releaseHeldStatements(db, o.id, lines, actor, reason)
     : o.stock_state === 'committed' ? restockStatements(db, o.id, lines, actor, reason) : [];
-  await db.batch([
+  const STILL = "EXISTS (SELECT 1 FROM orders WHERE id = ? AND status != 'cancelled' AND stock_state = ?)";
+  const res = await db.batch([
     ...stock,
     // a cancelled order gives its coupon use back
     db.prepare(`UPDATE offers SET used_count = MAX(used_count - 1, 0) WHERE id IN (SELECT offer_id FROM order_discounts WHERE order_id = ? AND kind = 'coupon')
-      AND EXISTS (SELECT 1 FROM orders WHERE id = ? AND status != 'cancelled' AND stock_state = ?)`).bind(o.id, o.id, o.stock_state),
-    db.prepare("UPDATE orders SET status = 'cancelled', stock_state = 'released', hold_expires_at = NULL, cancel_reason = ?, cancelled_by = ?, updated_at = ? WHERE id = ? AND stock_state = ?")
+      AND ${STILL}`).bind(o.id, o.id, o.stock_state),
+    eventIf(db, o.id, 'cancelled', isPublic ? reason : null, actor, true, STILL, o.id, o.stock_state),
+    auditIf(db, actor, 'order.cancel', o.id, `${o.number} cancelled: ${reason}`, STILL, o.id, o.stock_state),
+    // last: everything above checks the state this changes
+    db.prepare("UPDATE orders SET status = 'cancelled', stock_state = 'released', hold_expires_at = NULL, cancel_reason = ?, cancelled_by = ?, updated_at = ? WHERE id = ? AND stock_state = ? AND status != 'cancelled'")
       .bind(reason, by, nowIso(), o.id, o.stock_state),
-    event(db, o.id, 'cancelled', isPublic ? reason : null, actor),
-    audit(db, actor, 'order.cancel', 'order', o.id, `${o.number} cancelled: ${reason}`),
   ]);
   void ctx;
+  return !!res.at(-1)!.meta.changes;
+}
+
+/** After a cancel that didn't apply: say why, from the order as it is now. */
+async function cancelConflict(db: D1Database, orderId: string) {
+  const now = await getOrderRow(db, { id: orderId });
+  return now?.status === 'cancelled'
+    ? conflict('already_cancelled', 'This order is already cancelled.')
+    : conflict('order_changed', 'This order was just updated (a payment may have arrived). Please refresh and try again.');
 }
 
 export interface TransitionInput { to: OrderStatus; note?: string; courier?: string; trackingNumber?: string; trackingUrl?: string; reason?: string; refund?: boolean }
@@ -404,10 +472,12 @@ export async function transitionOrder(env: Env, ctx: Ctx, number: string, input:
   const db = env.DB;
   const o = await getOrderRow(db, { number });
   if (!o) throw notFound('Order not found');
+  // Tapped twice (or a colleague got there first): it's already where they wanted it. Nothing to do, nothing to email.
+  if (o.status === input.to && input.to !== 'cancelled') return o;
   if (!canTransition(o.status, input.to)) throw conflict('bad_transition', `An order that is ${o.status.replace('_', ' ')} can't move to ${input.to}.`);
 
   if (input.to === 'cancelled') {
-    await cancelOrder(env, ctx, o, actor, input.reason || 'Cancelled by store');
+    if (!(await cancelOrder(env, ctx, o, actor, input.reason || 'Cancelled by store'))) throw await cancelConflict(db, o.id);
     // A paid order gets its money back (Razorpay automatically; UPI/cash recorded for the owner to send).
     if (input.refund !== false && o.payment_status === 'paid') {
       const left = await refundable(db, o);
@@ -415,34 +485,45 @@ export async function transitionOrder(env: Env, ctx: Ctx, number: string, input:
     }
     ctx.waitUntil((async () => { const pub = await toPublicOrder(db, (await getOrderRow(db, { id: o.id }))!); await notifyOrder(env, pub, 'cancelled'); })());
   } else {
+    // Every write runs only while the order is still in the status we read, and the status itself changes last.
+    // Two taps, two people, or the shopper cancelling at the same moment: one of them wins, the other writes
+    // nothing (no second timeline entry, no "shipped" email for an order that was just cancelled).
+    const STILL = 'EXISTS (SELECT 1 FROM orders WHERE id = ? AND status = ?)';
     const stmts: D1PreparedStatement[] = [];
     const now = nowIso();
     if (input.to === 'confirmed' && o.stock_state === 'held') {
       const items = await orderItems(db, o.id);
       stmts.push(...commitHeldStatements(db, o.id, items.map((i) => ({ variantId: i.variant_id, qty: i.qty })), actor));
-      stmts.push(db.prepare("UPDATE orders SET stock_state = 'committed', hold_expires_at = NULL WHERE id = ?").bind(o.id));
+      stmts.push(db.prepare("UPDATE orders SET stock_state = 'committed', hold_expires_at = NULL WHERE id = ? AND status = ? AND stock_state = 'held'").bind(o.id, o.status));
     }
     if (input.to === 'shipped') {
       if (!input.courier) throw new HttpError(422, 'validation', 'Add the courier name before marking as shipped', { fields: { courier: 'Required' } });
-      stmts.push(db.prepare('UPDATE orders SET courier = ?, tracking_number = ?, tracking_url = ? WHERE id = ?')
-        .bind(input.courier, input.trackingNumber ?? null, input.trackingUrl ?? null, o.id));
+      stmts.push(db.prepare('UPDATE orders SET courier = ?, tracking_number = ?, tracking_url = ? WHERE id = ? AND status = ?')
+        .bind(input.courier, input.trackingNumber ?? null, input.trackingUrl ?? null, o.id, o.status));
     }
     if (input.to === 'delivered' && o.payment_status === 'cod') {
-      stmts.push(db.prepare("UPDATE orders SET payment_status = 'paid', paid_at = ? WHERE id = ?").bind(now, o.id));
+      stmts.push(db.prepare("UPDATE orders SET payment_status = 'paid', paid_at = ? WHERE id = ? AND status = ? AND payment_status = 'cod'").bind(now, o.id, o.status));
     }
     const notes: Partial<Record<OrderStatus, string>> = {
       confirmed: 'Order confirmed', packed: 'Packed and ready to ship',
       shipped: `Shipped with ${input.courier ?? 'courier'}${input.trackingNumber ? ` · ${input.trackingNumber}` : ''}`, delivered: 'Delivered',
     };
     stmts.push(
+      eventIf(db, o.id, input.to, notes[input.to] ?? null, actor, true, STILL, o.id, o.status),
+      ...(input.note ? [eventIf(db, o.id, 'note', input.note, actor, false, STILL, o.id, o.status)] : []),
+      auditIf(db, actor, `order.${input.to}`, o.id, `${o.number} → ${input.to}`, STILL, o.id, o.status),
+      // last: everything above checks the status this changes
       db.prepare('UPDATE orders SET status = ?, updated_at = ? WHERE id = ? AND status = ?').bind(input.to, now, o.id, o.status),
-      event(db, o.id, input.to, notes[input.to] ?? null, actor),
-      ...(input.note ? [event(db, o.id, 'note', input.note, actor, false)] : []),
-      audit(db, actor, `order.${input.to}`, 'order', o.id, `${o.number} → ${input.to}`),
     );
-    try { await db.batch(stmts); } catch (e) {
+    let res: D1Result[];
+    try { res = await db.batch(stmts); } catch (e) {
       if (isConstraintError(e)) throw conflict('insufficient_stock', 'Not enough stock to confirm this order. Update stock or cancel the order.');
       throw e;
+    }
+    if (!res.at(-1)!.meta.changes) {
+      const current = (await getOrderRow(db, { id: o.id }))!;
+      if (current.status === input.to) return current; // someone else just did the same thing
+      throw conflict('order_changed', current.status === 'cancelled' ? 'This order was just cancelled. Refresh to see it.' : 'This order was just updated by someone else. Refresh and try again.');
     }
   }
 
@@ -460,17 +541,17 @@ export async function transitionOrder(env: Env, ctx: Ctx, number: string, input:
  */
 export async function reconcileGatewayOrder(env: Env, ctx: Ctx, o: OrderRow): Promise<'paid' | 'pending' | 'not_gateway' | 'unavailable'> {
   if (o.payment_method !== 'gateway') return 'not_gateway';
-  if (o.payment_status === 'paid') return 'paid';
+  if (isPaid(o.payment_status)) return 'paid';
   const pay = await first<{ provider: string; provider_order_id: string | null; amount: number }>(env.DB,
     "SELECT provider, provider_order_id, amount FROM payments WHERE order_id = ? AND provider_order_id IS NOT NULL ORDER BY created_at DESC LIMIT 1", o.id);
   if (!pay?.provider_order_id) return 'pending';
   const keys = await getGatewayKeys(env, pay.provider);
   if (!keys) return 'pending'; // no gateway keys at all: nothing could have been paid through it
-  let r: { status: 'paid' | 'pending'; providerPaymentId: string | null };
+  let r: { status: 'paid' | 'pending'; providerPaymentId: string | null; instrument?: string | null };
   try { r = await getProvider(pay.provider).checkOrder(pay.provider_order_id, pay.amount, keys); }
   catch (e) { console.error('gateway check failed', o.number, e); return 'unavailable'; }
   if (r.status === 'paid') {
-    await markPaid(env, ctx, o, `gateway:${pay.provider}`, { provider: pay.provider, providerOrderId: pay.provider_order_id, providerPaymentId: r.providerPaymentId });
+    await markPaid(env, ctx, o, `gateway:${pay.provider}`, { provider: pay.provider, providerOrderId: pay.provider_order_id, providerPaymentId: r.providerPaymentId, instrument: r.instrument });
     return 'paid';
   }
   return 'pending';
@@ -481,26 +562,73 @@ export async function reconcilePendingGateway(env: Env, ctx: Ctx) {
   const rows = await all<OrderRow>(env.DB, `SELECT * FROM orders WHERE payment_method = 'gateway' AND payment_status != 'paid' AND status = 'pending_payment'
     AND created_at < ? ORDER BY created_at LIMIT 15`, new Date(Date.now() - 3 * 60e3).toISOString());
   let paid = 0;
-  for (const o of rows) if ((await reconcileGatewayOrder(env, ctx, o)) === 'paid') paid++;
+  // One order that can't be processed must not stop the ones after it (this runs oldest first, every time).
+  const check = async (o: OrderRow) => {
+    try { if ((await reconcileGatewayOrder(env, ctx, o)) === 'paid') paid++; }
+    catch (e) { console.error('payment check failed', o.number, e); }
+  };
+  for (const o of rows) await check(o);
+
+  // Cancelled online orders can still be paid: a UPI request approved late, a payment window left open, or a
+  // webhook that never arrived. Ask the gateway every 30 minutes for a day after cancelling, so money is never
+  // kept without its order (markPaid refunds a shopper-cancelled order and reopens one that timed out).
+  const late = await all<OrderRow & { pay_id: string }>(env.DB, `SELECT o.*, p.id AS pay_id FROM orders o JOIN payments p ON p.order_id = o.id
+    WHERE o.payment_method = 'gateway' AND o.status = 'cancelled' AND o.payment_status NOT IN ('paid','refunded') AND o.updated_at > ?
+      AND p.provider_order_id IS NOT NULL AND p.status != 'paid' AND p.updated_at < ?
+    ORDER BY p.updated_at LIMIT 10`, new Date(Date.now() - 864e5).toISOString(), new Date(Date.now() - 30 * 60e3).toISOString());
+  for (const o of late) {
+    await env.DB.prepare('UPDATE payments SET updated_at = ? WHERE id = ?').bind(nowIso(), o.pay_id).run();
+    await check(o);
+  }
   return paid;
 }
 
 export async function releaseExpiredHolds(env: Env, ctx: Ctx) {
-  const expired = await all<OrderRow>(env.DB, "SELECT * FROM orders WHERE stock_state = 'held' AND hold_expires_at < ? LIMIT 100", nowIso());
+  const expired = await all<OrderRow>(env.DB, "SELECT * FROM orders WHERE stock_state = 'held' AND hold_expires_at < ? ORDER BY hold_expires_at LIMIT 100", nowIso());
   let released = 0;
   for (const o of expired) {
-    // Never cancel an online order that was actually paid: check with the gateway first.
-    const check = await reconcileGatewayOrder(env, ctx, o);
-    if (check === 'paid') continue;
-    // Gateway unreachable: keep the hold and try again next run, for up to a day, rather than cancel a possibly paid order.
-    if (check === 'unavailable' && Date.parse(o.hold_expires_at ?? '') > Date.now() - 864e5) continue;
-    await cancelOrder(env, ctx, o, 'system', o.payment_method === 'whatsapp' ? 'Not confirmed in time' : 'Payment not received in time');
-    released++;
+    try {
+      // Never cancel an online order that was actually paid: check with the gateway first.
+      const check = await reconcileGatewayOrder(env, ctx, o);
+      if (check === 'paid') continue;
+      // Gateway unreachable: keep the hold and try again next run, for up to a day, rather than cancel a possibly paid order.
+      if (check === 'unavailable' && Date.parse(o.hold_expires_at ?? '') > Date.now() - 864e5) continue;
+      if (await cancelOrder(env, ctx, o, 'system', o.payment_method === 'whatsapp' ? 'Not confirmed in time' : 'Payment not received in time')) released++;
+    } catch (e) {
+      // One order that can't be released must not keep every other expired hold (and its stock) stuck.
+      console.error('hold release failed', o.number, e);
+    }
   }
   return released;
 }
 
 export const shipToLabel = (codes: string[]) => codes.map((c) => STATE_PINCODES[c as 'KL']?.name ?? c).join(', ');
+
+/** Why an order was set aside at checkout. Such orders never reached the shopper, so their account doesn't list them. */
+export const SWITCHED_METHOD = 'Changed payment method at checkout';
+
+/**
+ * Checkout, after the shopper closed the online payment window and chose another way to pay: ask the gateway
+ * first (it may have gone through), then release the unpaid online order. It counts as cancelled by the shopper,
+ * so a payment that still lands later is refunded automatically.
+ */
+export async function releaseForOtherMethod(env: Env, ctx: Ctx, number: string, token: string): Promise<{ status: 'paid' | 'released' }> {
+  const o = await getOrderRow(env.DB, { number });
+  if (!o || !safeEqual(o.access_token, token)) throw notFound('Order not found');
+  if (o.payment_method !== 'gateway') throw conflict('not_online', 'This order isn’t paid online.');
+  if (isPaid(o.payment_status)) return { status: 'paid' };
+  if (o.status !== 'pending_payment') {
+    if (o.status === 'cancelled') return { status: 'released' }; // already out of the way (hold expired, double tap)
+    throw conflict('closed', 'This order no longer needs payment.');
+  }
+  const check = await reconcileGatewayOrder(env, ctx, o);
+  if (check === 'paid') return { status: 'paid' };
+  if (check === 'unavailable') throw new HttpError(502, 'gateway_unavailable', 'We couldn’t confirm your online payment just now. Please try again in a moment.');
+  const fresh = (await getOrderRow(env.DB, { id: o.id }))!;
+  if (isPaid(fresh.payment_status)) return { status: 'paid' };
+  await cancelOrder(env, ctx, fresh, 'customer', SWITCHED_METHOD, false, 'customer');
+  return { status: 'released' };
+}
 
 /**
  * The shopper cancels from their order page (link with the order's secret token) until the order is packed.
@@ -517,13 +645,15 @@ export async function customerCancel(env: Env, ctx: Ctx, number: string, token: 
     throw conflict('too_late', o.status === 'packed' || o.status === 'shipped' ? 'Your order is already packed or on its way, so it can’t be cancelled here. Message us on WhatsApp and we’ll help.' : 'This order can no longer be cancelled.');
   }
   const why = `Cancelled by you: ${reason}${note ? ` (${note})` : ''}`;
-  await cancelOrder(env, ctx, o, 'customer', why, true, 'customer');
-  if (o.payment_status === 'paid') await startRefund(env, ctx, o, { amount: o.total, reason: why, by: 'customer' });
+  // Only the request that actually cancelled goes on to refund (a double tap must not refund twice).
+  if (!(await cancelOrder(env, ctx, o, 'customer', why, true, 'customer'))) throw await cancelConflict(db, o.id);
+  const left = o.payment_status === 'paid' ? await refundable(db, o) : 0;
+  if (left > 0) await startRefund(env, ctx, o, { amount: left, reason: why, by: 'customer' });
   const fresh = (await getOrderRow(db, { id: o.id }))!;
   ctx.waitUntil((async () => {
     const pub = await toPublicOrder(db, fresh);
     await notifyOrder(env, pub, 'cancelled');
-    await sendTelegram(env, `❌ <b>${fresh.number} cancelled by the customer</b> (${reason})${o!.payment_status === 'paid' ? `. Refund of ${formatINR(o!.total)} started.` : '.'}`);
+    await sendTelegram(env, `❌ <b>${escHtml(fresh.number)} cancelled by the customer</b> (${escHtml(reason)})${left > 0 ? `. Refund of ${formatINR(left)} started.` : '.'}`);
   })());
   const { email: _e, phone: _p, ...pub } = await toPublicOrder(db, fresh);
   return pub;

@@ -18,3 +18,7 @@ export const STATUS_LABEL: Record<string, string> = {
   pending_payment: 'Awaiting payment', new: 'New', confirmed: 'Confirmed', packed: 'Packed', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled',
 };
 export const METHOD_LABEL: Record<string, string> = { upi: 'UPI', gateway: 'Online', cod: 'COD', whatsapp: 'WhatsApp' };
+
+/** How a gateway payment was made ("UPI", "Card"…). */
+export const instrumentLabel = (i: string | null | undefined) =>
+  i ? ({ upi: 'UPI', card: 'Card', netbanking: 'Netbanking', wallet: 'Wallet', emi: 'EMI', paylater: 'Pay later', cardless_emi: 'Cardless EMI' } as Record<string, string>)[i] ?? i : null;

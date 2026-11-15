@@ -175,7 +175,7 @@ h3, .h3 { font-size: var(--fs-xl); line-height: 1.12; }
 /* ───────── product card: warm depth, silk sheen, a zari thread that travels the edge ───────── */
 @property --zari-angle { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
 .pcard {
-  position: relative; display: flex; flex-direction: column; height: 100%;
+  position: relative; isolation: isolate; display: flex; flex-direction: column; height: 100%;
   background: linear-gradient(180deg, #FFFEFB 0%, #FFF8F2 100%);
   border-radius: var(--r-card); box-shadow: var(--shadow-card);
   transition: box-shadow 500ms ease;
@@ -209,13 +209,13 @@ h3, .h3 { font-size: var(--fs-xl); line-height: 1.12; }
 .pcard__wish[aria-pressed='true'] svg { fill: var(--c-maroon); animation: heart-pop 480ms var(--motion-ease-out); }
 @keyframes heart-pop { 0% { transform: scale(.6); } 55% { transform: scale(1.28); } 100% { transform: scale(1); } }
 .pcard__tag {
-  position: absolute; left: var(--sp-3); top: var(--sp-3); z-index: 5; display: inline-flex; align-items: center; gap: 6px;
+  pointer-events: none; position: absolute; left: var(--sp-3); top: var(--sp-3); z-index: 5; display: inline-flex; align-items: center; gap: 6px;
   background: rgba(255, 253, 250, .92); color: var(--c-ink); font-size: .6875rem; font-weight: 500; letter-spacing: .18em; text-transform: uppercase;
   padding: 5px 11px; border-radius: var(--r-pill);
 }
 .pcard__tag::before { content: ''; width: 5px; height: 5px; background: var(--c-zari); transform: rotate(45deg); }
 .pcard__tag--soldout { background: var(--c-ink); color: var(--c-cream); }
-.pcard__tags { position: absolute; left: var(--sp-3); right: calc(var(--sp-3) + 50px); top: var(--sp-3); z-index: 5; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.pcard__tags { pointer-events: none; position: absolute; left: var(--sp-3); right: calc(var(--sp-3) + 50px); top: var(--sp-3); z-index: 5; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .pcard__tags .offer-tag { max-width: 100%; }
 @media (max-width: 520px) { .pcard__tags .offer-tag { letter-spacing: .1em; padding: 5px 15px 5px 9px; gap: 5px; } }
 .pcard__tags .pcard__tag { position: static; }
@@ -245,9 +245,12 @@ h3, .h3 { font-size: var(--fs-xl); line-height: 1.12; }
 .sale-ends::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--c-maroon); animation: ends-pulse 1.6s ease-in-out infinite; }
 @keyframes ends-pulse { 50% { opacity: .25; } }
 @media (prefers-reduced-motion: reduce) { .sale-ends::before { animation: none; } .offer-tag::after { display: none; } }
-.pcard__body { position: relative; z-index: 2; display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-4) var(--sp-4) var(--sp-5); flex: 1; }
+.pcard__body { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-4) var(--sp-4) var(--sp-5); flex: 1; }
 .pcard__title { font-family: var(--font-display); font-size: 1.3125rem; font-weight: 500; color: var(--c-ink); line-height: 1.15; letter-spacing: -0.01em; }
-.pcard__title a::after { content: ''; position: absolute; inset: 0; z-index: 1; }
+/* the title link covers the whole card (photo included); wishlist, swatches and Add to Bag sit above it */
+.pcard__title a::after { content: ''; position: absolute; inset: 0; z-index: 1; border-radius: var(--r-card); }
+.pcard__title a:focus-visible { outline: none; }
+.pcard__title a:focus-visible::after { outline: 2px solid var(--c-maroon); outline-offset: 3px; border-radius: var(--r-card); }
 .price { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--sp-2); font-weight: 600; color: var(--c-ink); font-variant-numeric: tabular-nums lining-nums; }
 .price s { color: var(--c-muted); font-weight: 400; font-size: .9em; text-decoration-color: rgba(110, 90, 80, .6); }
 .price .off { color: var(--c-maroon); font-size: .75rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }

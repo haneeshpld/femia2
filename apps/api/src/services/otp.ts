@@ -20,11 +20,17 @@ export type Delivery = { mode: 'email' } | { mode: 'fixed'; code: string; reveal
 export function codeDelivery(env: Env, purpose: CodePurpose): Delivery {
   if (env.RESEND_API_KEY) return { mode: 'email' };
   if (env.ENVIRONMENT === 'development') return { mode: 'fixed', code: env.FIXED_OTP_CODE || '123456', reveal: true };
-  // A fixed code you choose (FIXED_OTP_CODE). Production: Admin only. Staging (a test site): shoppers too.
-  if (env.FIXED_OTP_CODE && /^\d{6}$/.test(env.FIXED_OTP_CODE) && (purpose !== 'customer' || env.ENVIRONMENT === 'staging')) return { mode: 'fixed', code: env.FIXED_OTP_CODE, reveal: false };
+  // A fixed code you choose (FIXED_OTP_CODE). Staging (a test site): everything. Production: only as the second
+  // step of Admin sign-in and sign-up, where a password (or an admin's approval) is still needed. Everyone on the
+  // team knows the code, so it must never be enough on its own: it can't reset a password (that would let anyone
+  // who knows it take over the owner's account) and it can't sign a shopper in.
+  if (env.FIXED_OTP_CODE && /^\d{6}$/.test(env.FIXED_OTP_CODE)
+    && (env.ENVIRONMENT === 'staging' || purpose === 'admin_login' || purpose === 'admin_signup')) return { mode: 'fixed', code: env.FIXED_OTP_CODE, reveal: false };
   throw new HttpError(503, 'codes_unavailable', purpose === 'customer'
     ? 'Signing in by email is not available just yet. You can still check out as a guest.'
-    : 'Email codes are not set up yet. Add the Resend key (or a temporary FIXED_OTP_CODE secret) to the API.');
+    : purpose === 'admin_reset' && env.FIXED_OTP_CODE
+      ? 'Passwords can be reset once email codes are set up (add the Resend key to the API). Until then, ask the owner.'
+      : 'Email codes are not set up yet. Add the Resend key (or a temporary FIXED_OTP_CODE secret) to the API.');
 }
 
 function sixDigits() {
@@ -68,7 +74,9 @@ export async function issueCode(env: Env, ctx: { waitUntil(p: Promise<unknown>):
   if (recent && age < 30 && Date.parse(recent.expires_at) > Date.now()) {
     return { delivery: delivery.mode, devCode: delivery.mode === 'fixed' && delivery.reveal ? delivery.code : undefined, resendIn: Math.ceil(30 - age), expiresIn: Math.floor((Date.parse(recent.expires_at) - Date.now()) / 1000), reused: true };
   }
-  await rateLimit(env.DB, `otp:hour:${email}`, 8, 3600, 'Too many codes for this email. Please try again in an hour.');
+  // Counted per kind of code: anyone can ask for a shopper code for any email, and that must not use up the
+  // codes an admin with the same email needs to sign in (it would lock them out of Admin for as long as it's kept up).
+  await rateLimit(env.DB, `otp:hour:${purpose}:${email}`, 8, 3600, 'Too many codes for this email. Please try again in an hour.');
   await rateLimit(env.DB, `otp:ip:${ip}`, 30, 3600);
   const code = delivery.mode === 'fixed' ? delivery.code : sixDigits();
   const now = nowIso();
@@ -87,10 +95,12 @@ export async function verifyCode(env: Env, purpose: CodePurpose, email: string, 
   const row = await first<{ id: number; code_hash: string; attempts: number; expires_at: string }>(env.DB,
     'SELECT id, code_hash, attempts, expires_at FROM otp_codes WHERE purpose = ? AND email = ? AND consumed_at IS NULL ORDER BY id DESC LIMIT 1', purpose, email);
   if (!row || Date.parse(row.expires_at) <= Date.now()) throw new HttpError(400, 'code_expired', 'This code has expired. Ask for a new one.');
-  if (row.attempts >= MAX_TRIES) throw new HttpError(400, 'code_locked', 'Too many wrong tries. Ask for a new code.');
+  // Use up a try *before* checking, in one statement: many guesses sent at once can't all slip in under the limit.
+  const took = await env.DB.prepare('UPDATE otp_codes SET attempts = attempts + 1 WHERE id = ? AND attempts < ? AND consumed_at IS NULL RETURNING attempts')
+    .bind(row.id, MAX_TRIES).first<{ attempts: number }>();
+  if (!took) throw new HttpError(400, 'code_locked', 'Too many wrong tries. Ask for a new code.');
   if (!safeEqual(await hashCode(env, purpose, email, code), row.code_hash)) {
-    await env.DB.prepare('UPDATE otp_codes SET attempts = attempts + 1 WHERE id = ?').bind(row.id).run();
-    const left = MAX_TRIES - row.attempts - 1;
+    const left = MAX_TRIES - took.attempts;
     throw new HttpError(400, left > 0 ? 'code_wrong' : 'code_locked', left > 0 ? `That code isn't right. ${left} ${left === 1 ? 'try' : 'tries'} left.` : 'Too many wrong tries. Ask for a new code.');
   }
   const used = await env.DB.prepare('UPDATE otp_codes SET consumed_at = ? WHERE id = ? AND consumed_at IS NULL').bind(nowIso(), row.id).run();

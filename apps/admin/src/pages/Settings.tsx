@@ -73,6 +73,9 @@ function Store({ initial }: { initial: any }) {
         <Field label="Google Maps link"><input className="input" inputMode="url" value={s.mapUrl} onChange={set('mapUrl')} /></Field>
         <Field label="Instagram link"><input className="input" inputMode="url" value={s.socials.instagram} onChange={(e) => setS({ ...s, socials: { ...s.socials, instagram: e.target.value } })} /></Field>
       </div>
+      <Field label="WhatsApp group link" hint="Invite link for your WhatsApp group (chat.whatsapp.com/…). Orders still go to the WhatsApp number above.">
+        <input className="input" inputMode="url" value={s.socials.whatsappGroup ?? ''} onChange={(e) => setS({ ...s, socials: { ...s.socials, whatsappGroup: e.target.value.trim() } })} />
+      </Field>
     </Section>
   );
 }
@@ -111,16 +114,9 @@ function Payments({ initial, gateway }: { initial: any; gateway: Resp['gateway']
   return (
     <>
       <Section title="Payments" desc="Customers see only the methods you switch on." onSave={() => save(s)} busy={busy}>
-        <label className="check"><input type="checkbox" checked={s.upi.enabled} onChange={(e) => setS({ ...s, upi: { ...s.upi, enabled: e.target.checked } })} /> UPI (scan & pay, you confirm in Admin)</label>
-        {s.upi.enabled && (
-          <div className="grid3">
-            <Field label="UPI ID" error={errors['upi.vpa']} hint="e.g. femia@okicici"><input className="input" value={s.upi.vpa} onChange={(e) => setS({ ...s, upi: { ...s.upi, vpa: e.target.value.trim() } })} /></Field>
-            <Field label="Name on UPI"><input className="input" value={s.upi.payeeName} onChange={(e) => setS({ ...s, upi: { ...s.upi, payeeName: e.target.value } })} /></Field>
-            <Field label="Hold items for (hours)" hint="Unpaid UPI orders cancel after this."><input className="input" inputMode="numeric" value={s.upi.holdHours} onChange={(e) => setS({ ...s, upi: { ...s.upi, holdHours: Number(e.target.value.replace(/\D/g, '')) || 1 } })} /></Field>
-          </div>
-        )}
-        <label className="check"><input type="checkbox" checked={s.whatsapp.enabled} onChange={(e) => setS({ ...s, whatsapp: { ...s.whatsapp, enabled: e.target.checked } })} /> WhatsApp orders</label>
         <label className="check"><input type="checkbox" checked={s.gateway.enabled} disabled={!keysReady} onChange={(e) => setS({ ...s, gateway: { ...s.gateway, enabled: e.target.checked } })} /> Online payments via {gateway?.label ?? 'gateway'}{!keysReady && <span className="muted small"> (add keys below first)</span>}</label>
+        <p className="muted small" style={{ marginTop: -6 }}>Shoppers choose <strong>UPI</strong> (Google Pay, PhonePe, Paytm, BHIM or any UPI app) or <strong>cards, netbanking & wallets</strong>. Both go through {gateway?.label ?? 'the gateway'}, so payments confirm instantly and refunds go back automatically.</p>
+        <label className="check"><input type="checkbox" checked={s.whatsapp.enabled} onChange={(e) => setS({ ...s, whatsapp: { ...s.whatsapp, enabled: e.target.checked } })} /> WhatsApp orders</label>
       </Section>
       {gateway && can('payments.keys') && (
         <form className="card stack" onSubmit={(e) => { e.preventDefault(); saveKeys.mutate(); }}>

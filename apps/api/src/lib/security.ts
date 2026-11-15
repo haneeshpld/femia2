@@ -61,6 +61,25 @@ export async function rateLimit(db: D1Database, key: string, limit: number, wind
   if (row && row.count > limit) throw new HttpError(429, 'rate_limited', message, { retryAfter: row.reset_at - now });
 }
 
+/** API tests (DEV_AUTH_BYPASS, development only) place many orders from one address; real traffic is always limited. */
+const testRun = (env: Env) => env.DEV_AUTH_BYPASS === '1' && env.ENVIRONMENT === 'development';
+
+/**
+ * Cheap first gate for public endpoints: Cloudflare's in-memory rate limiter (60 a minute per IP and bucket). Unlike
+ * rateLimit() it writes nothing to D1, so a flood is turned away without using up the database's daily write quota.
+ */
+export async function edgeLimit(c: Context<AppEnv>, bucket: string) {
+  if (!c.env.EDGE_LIMIT || testRun(c.env)) return;
+  const { success } = await c.env.EDGE_LIMIT.limit({ key: `${bucket}:${clientIp(c)}` }).catch(() => ({ success: true }));
+  if (!success) throw new HttpError(429, 'rate_limited', 'Too many requests. Please wait a minute and try again.');
+}
+
+/** rateLimit() for the public shop endpoints, off only in API tests. */
+export async function shopLimit(c: Context<AppEnv>, key: string, limit: number, windowSec: number, message?: string) {
+  if (testRun(c.env)) return;
+  await rateLimit(c.env.DB, key, limit, windowSec, message);
+}
+
 export const clientIp = (c: Context) => c.req.header('cf-connecting-ip') ?? c.req.header('x-real-ip') ?? 'local';
 export const userAgent = (c: Context) => (c.req.header('user-agent') ?? '').slice(0, 200);
 

@@ -11,7 +11,7 @@ const list = await api().catalog.products(listQuery(Astro.url));
 const banner = heroOf(site).image;
 Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=600');
 ---
-<Base site={site} categories={categories} title="Shop all" description="Kurtas, co-ord sets, dresses, tops and bottoms from Femia, Kochi." noindex={Astro.url.search.length > 0}>
+<Base site={site} categories={categories} title="Shop all" description={`Kurtas, co-ord sets, dresses, tops and bottoms from ${site.settings.store.name}${site.settings.store.address.city ? `, ${site.settings.store.address.city}` : ''}.`} noindex={Astro.url.search.length > 0}>
   <PageBanner eyebrow="Shop our collections" title="All Collections" sub={categories.map((c) => c.name).slice(0, 3).join(', ') + ' and more.'} image={banner} />
   <Listing list={list} categories={categories} basePath="/shop" />
 </Base>

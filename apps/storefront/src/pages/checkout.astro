@@ -16,5 +16,10 @@ Astro.response.headers.set('Cache-Control', 'no-store');
 </Base>
 <style>
   .checkout { padding-block: var(--sp-8) var(--sp-16); }
-  .checkout > .muted { margin: var(--sp-2) 0 var(--sp-8); }
+  .checkout > .muted { margin: var(--sp-2) 0 var(--sp-8); font-size: .9375rem; }
+  @media (max-width: 1023px) {
+    .checkout { padding-block: var(--sp-5) var(--sp-6); }
+    .checkout > h1 { font-size: 1.75rem; }
+    .checkout > .muted { margin: 2px 0 var(--sp-4); font-size: .8125rem; }
+  }
 </style>

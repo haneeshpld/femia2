@@ -8,7 +8,7 @@ type Step =
   | { s: 'sign-in' }
   | { s: 'sign-in-code'; email: string; challenge: string } & Sent
   | { s: 'sign-up' }
-  | { s: 'sign-up-code'; email: string; name: string; password: string } & Sent
+  | { s: 'sign-up-code'; email: string; name: string; password: string; signupToken: string } & Sent
   | { s: 'pending'; email: string }
   | { s: 'forgot' }
   | { s: 'forgot-code'; email: string } & Sent
@@ -45,8 +45,8 @@ export default function Auth({ onSignedIn }: { onSignedIn: () => void }) {
 
   const signIn = (e: FormEvent) => { e.preventDefault(); run(() => post<{ challenge: string } & Sent>('/auth/admin/login', { email, password }), (r) => { setPassword(''); move({ s: 'sign-in-code', email: email.trim().toLowerCase(), challenge: r.challenge, devCode: r.devCode, resendIn: r.resendIn, delivery: r.delivery }); }); };
   const finishSignIn = (c: string) => step.s === 'sign-in-code' && run(() => post('/auth/admin/login/verify', { challenge: step.challenge, code: c }), () => onSignedIn());
-  const signUp = (e: FormEvent) => { e.preventDefault(); run(() => post<Sent>('/auth/admin/signup', { name, email, password }), (r) => move({ s: 'sign-up-code', email: email.trim().toLowerCase(), name, password, devCode: r.devCode, resendIn: r.resendIn, delivery: r.delivery })); };
-  const finishSignUp = (c: string) => step.s === 'sign-up-code' && run(() => post<{ status: 'active' | 'pending' }>('/auth/admin/signup/verify', { email: step.email, code: c }), (r) => {
+  const signUp = (e: FormEvent) => { e.preventDefault(); run(() => post<Sent & { signupToken: string }>('/auth/admin/signup', { name, email, password }), (r) => move({ s: 'sign-up-code', email: email.trim().toLowerCase(), name, password, signupToken: r.signupToken, devCode: r.devCode, resendIn: r.resendIn, delivery: r.delivery })); };
+  const finishSignUp = (c: string) => step.s === 'sign-up-code' && run(() => post<{ status: 'active' | 'pending' }>('/auth/admin/signup/verify', { email: step.email, code: c, signupToken: step.signupToken }), (r) => {
     setPassword('');
     if (r.status === 'active') onSignedIn(); else move({ s: 'pending', email: step.email }, '/sign-in');
   });
@@ -91,8 +91,9 @@ export default function Auth({ onSignedIn }: { onSignedIn: () => void }) {
             {busy ? 'Verifying…' : step.s === 'sign-in-code' ? 'Sign in' : 'Verify email'}
           </button>
           <Resend seconds={step.resendIn} busy={busy} onResend={() => run(
-            () => (step.s === 'sign-in-code' ? post<Sent>('/auth/admin/login/resend', { challenge: step.challenge }) : post<Sent>('/auth/admin/signup', { name: step.name, email: step.email, password: step.password })),
-            (r) => setStep({ ...step, devCode: r.devCode, resendIn: r.resendIn + Math.random() * 0.001 }),
+            () => (step.s === 'sign-in-code' ? post<Sent>('/auth/admin/login/resend', { challenge: step.challenge }) : post<Sent & { signupToken?: string }>('/auth/admin/signup', { name: step.name, email: step.email, password: step.password })),
+            // a fresh sign-up gets a fresh token, which the new code is tied to
+            (r: Sent & { signupToken?: string }) => setStep({ ...step, ...(r.signupToken && step.s === 'sign-up-code' ? { signupToken: r.signupToken } : {}), devCode: r.devCode, resendIn: r.resendIn + Math.random() * 0.001 }),
           )} />
         </div>
       )}

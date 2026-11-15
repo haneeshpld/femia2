@@ -2,7 +2,7 @@
 import Base from '../layouts/Base.astro';
 import OrderTimeline from '../components/OrderTimeline.astro';
 import OrderItems from '../components/OrderItems.astro';
-import { api } from '../lib/api.ts';
+import { apiFor } from '../lib/api.ts';
 import { getCommon } from '../lib/content.ts';
 import { ApiError } from '@femia/sdk';
 import type { PublicOrder } from '@femia/contracts';
@@ -17,7 +17,7 @@ if (Astro.request.method === 'POST') {
   const f = await Astro.request.formData();
   number = String(f.get('number') ?? '').trim().toUpperCase();
   const phone = String(f.get('phone') ?? '');
-  try { order = await api().orders.track({ number, phone }); }
+  try { order = await apiFor(Astro.request).orders.track({ number, phone }); }
   catch (e) { error = e instanceof ApiError && e.status !== 500 ? (e.status === 422 ? 'Check the order number and mobile number.' : e.message) : t('error.generic'); }
 }
 Astro.response.headers.set('Cache-Control', 'no-store');

@@ -53,11 +53,31 @@ export function releaseHeldStatements(db: D1Database, orderId: string, lines: St
   ]);
 }
 
-/** Put sold units back (cancelled after stock was committed). */
+/**
+ * Put sold units back (cancelled after stock was committed). Guarded by the order still being committed and not
+ * cancelled, so two cancels at once (a double tap, staff and shopper together) give the units back only once.
+ * Must precede the orders UPDATE in the same batch.
+ */
+const COMMITTED = "EXISTS (SELECT 1 FROM orders WHERE id = ? AND stock_state = 'committed' AND status != 'cancelled')";
 export function restockStatements(db: D1Database, orderId: string, lines: StockLine[], actor: string, note = '') {
   return lines.flatMap((l) => [
-    db.prepare('UPDATE variants SET on_hand = on_hand + ? WHERE id = ?').bind(l.qty, l.variantId),
-    ledger(db, l, l.qty, 0, 'cancel', orderId, actor, note),
+    db.prepare(`INSERT INTO stock_ledger (variant_id, delta, reserved_delta, reason, order_id, actor, note) SELECT ?,?,?,?,?,?,? WHERE ${COMMITTED}`)
+      .bind(l.variantId, l.qty, 0, 'cancel', orderId, actor, note, orderId),
+    db.prepare(`UPDATE variants SET on_hand = on_hand + ? WHERE id = ? AND ${COMMITTED}`).bind(l.qty, l.variantId, orderId),
+  ]);
+}
+
+/**
+ * Sell again the units of an order whose hold was released (paid late). Guarded by the order still being released
+ * and unpaid, so the browser return and both Razorpay webhooks arriving together take the stock only once.
+ * Must precede the orders UPDATE in the same batch.
+ */
+const RELEASED_UNPAID = "EXISTS (SELECT 1 FROM orders WHERE id = ? AND stock_state = 'released' AND payment_status NOT IN ('paid','refunded'))";
+export function resellReleasedStatements(db: D1Database, orderId: string, lines: StockLine[], actor: string) {
+  return lines.flatMap((l) => [
+    db.prepare(`INSERT INTO stock_ledger (variant_id, delta, reserved_delta, reason, order_id, actor, note) SELECT ?,?,?,?,?,?,? WHERE ${RELEASED_UNPAID}`)
+      .bind(l.variantId, -l.qty, 0, 'sale', orderId, actor, '', orderId),
+    db.prepare(`UPDATE variants SET on_hand = on_hand - ? WHERE id = ? AND ${RELEASED_UNPAID}`).bind(l.qty, l.variantId, orderId),
   ]);
 }
 

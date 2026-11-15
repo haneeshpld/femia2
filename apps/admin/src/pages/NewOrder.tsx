@@ -24,12 +24,14 @@ export default function NewOrder() {
     queryKey: ['quote', lines.map((l) => `${l.row.id}:${l.qty}`).join()], enabled: lines.length > 0,
     queryFn: () => post<{ total: number; shipping: number }>('/cart/quote', { lines: lines.map((l) => ({ variantId: l.row.id, qty: l.qty })) }),
   });
+  // Walk-in orders are "delivered" at the boutique: use its own address.
+  const shop = useQuery({ queryKey: ['settings'], queryFn: () => get<{ settings: { store: { address: { line1: string; line2: string; city: string; pincode: string } } } }>('/admin/settings') }).data?.settings.store.address;
   const create = useMutation({
     mutationFn: () => post('/admin/orders', {
       channel, paymentMethod: method, paid: method === 'cod' ? false : paid, note: '',
       lines: lines.map((l) => ({ variantId: l.row.id, qty: l.qty })),
       customer: { name: c.name, phone: c.phone, email: c.email.trim() },
-      address: channel === 'shop' && !c.line1 ? { line1: 'Collected at boutique', city: 'Kochi', pincode: '682035' } : { line1: c.line1, city: c.city, pincode: c.pincode },
+      address: channel === 'shop' && !c.line1 ? { line1: `Collected at boutique${shop?.line1 ? `, ${shop.line1}` : ''}`, line2: shop?.line2 ?? '', city: shop?.city ?? '', pincode: shop?.pincode ?? '' } : { line1: c.line1, city: c.city, pincode: c.pincode },
     }),
     onSuccess: (r) => { toast({ text: `Order ${r.order.number} created` }); nav(`/orders/${r.order.number}`); },
     onError: (e) => { if (e instanceof ApiError) setErrors(Object.fromEntries(Object.entries(e.fields).map(([k, v]) => [k.split('.').pop()!, v]))); toast({ text: (e as Error).message, bad: true }); },

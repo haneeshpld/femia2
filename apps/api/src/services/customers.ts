@@ -1,6 +1,7 @@
 import type { AddressInput, CustomerAddress, CustomerProfile } from '@femia/contracts';
 import { all, first, newId, nowIso } from '../lib/db.ts';
 import { notFound } from '../lib/http.ts';
+import { SWITCHED_METHOD } from './orders.ts';
 
 interface CustomerRow { id: string; email: string; name: string; phone: string; marketing: number; disabled: number; created_at: string; last_login_at: string | null }
 interface AddressRow { id: string; label: string; name: string; phone: string; line1: string; line2: string; landmark: string; city: string; state: string; pincode: string; is_default: number }
@@ -86,7 +87,10 @@ export async function customerOrders(db: D1Database, customerId: string) {
             (SELECT image_url FROM order_items WHERE order_id = o.id ORDER BY id LIMIT 1) AS image,
             (SELECT title FROM order_items WHERE order_id = o.id ORDER BY id LIMIT 1) AS first_title,
             (SELECT CASE WHEN SUM(status IN ('pending','to_send','failed')) > 0 THEN 'pending' WHEN COUNT(*) > 0 THEN 'done' END FROM refunds WHERE order_id = o.id) AS refund_state
-     FROM orders o WHERE o.customer_id = ? ORDER BY o.created_at DESC LIMIT 200`, customerId);
+     FROM orders o WHERE o.customer_id = ?
+       -- set aside at checkout for another payment method, never paid: not an order the shopper placed
+       AND NOT (o.status = 'cancelled' AND o.cancel_reason = ? AND o.payment_status NOT IN ('paid','refunded'))
+     ORDER BY o.created_at DESC LIMIT 200`, customerId, SWITCHED_METHOD);
   const offers = await all<{ label: string; code: string | null; kind: string; amount: number; number: string; created_at: string }>(db,
     `SELECT d.label, d.code, d.kind, d.amount, o.number, o.created_at FROM order_discounts d JOIN orders o ON o.id = d.order_id
      WHERE o.customer_id = ? AND o.status != 'cancelled' ORDER BY o.created_at DESC`, customerId);

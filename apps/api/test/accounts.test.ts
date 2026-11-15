@@ -104,7 +104,7 @@ describe('admin team', () => {
   async function signUp(email: string, name = 'Riya Menon') {
     const s = await call('POST', '/auth/admin/signup', { name, email, password: pw });
     expect(s.json).toMatchObject({ sent: true, devCode: CODE });
-    return call('POST', '/auth/admin/signup/verify', { email, code: CODE });
+    return call('POST', '/auth/admin/signup/verify', { email, code: CODE, signupToken: s.json.signupToken });
   }
   async function login(email: string, password = pw) {
     await E.DB.prepare('DELETE FROM rate_limits').run(); // the 30-second resend cooldown

@@ -5,7 +5,7 @@ import OrderItems from '../../components/OrderItems.astro';
 import Icon from '../../components/ui/Icon.astro';
 import { api } from '../../lib/api.ts';
 import { getCommon } from '../../lib/content.ts';
-import { CANCEL_REASONS, formatINR, upiUri } from '@femia/contracts';
+import { CANCEL_REASONS, formatINR, instrumentLabel, upiUri } from '@femia/contracts';
 import { ApiError } from '@femia/sdk';
 import { renderSVG } from 'uqr';
 import { t } from '@femia/i18n';
@@ -26,7 +26,7 @@ const waUrl = order.paymentMethod === 'whatsapp' && waDigits
 const first = order.customerName.split(' ')[0];
 const awaitingOnline = order.status === 'pending_payment' && order.paymentMethod === 'gateway' && order.paymentStatus !== 'paid';
 const p = order.payment;
-const METHOD = { gateway: 'Online · card, UPI or netbanking', upi: 'UPI to Femia', cod: 'Cash on Delivery', whatsapp: 'Arranged on WhatsApp' } as const;
+const METHOD = { gateway: 'Online · UPI, card or netbanking', upi: 'UPI to Femia', cod: 'Cash on Delivery', whatsapp: 'Arranged on WhatsApp' } as const;
 const PAY_STATE = order.paymentStatus === 'refunded' ? ['Refunded', 'ok'] : order.paymentStatus === 'paid' ? ['Paid', 'ok']
   : order.paymentStatus === 'cod' ? ['Pay on delivery', 'quiet'] : order.paymentStatus === 'failed' ? ['Payment failed', 'bad']
   : order.status === 'cancelled' ? ['Not charged', 'quiet'] : ['Awaiting payment', 'warn'];
@@ -88,9 +88,9 @@ Astro.response.headers.set('Cache-Control', 'no-store');
 
       {p && (
         <section aria-labelledby="pay-title" class="order__card order__pay">
-          <div class="pay-head"><h2 id="pay-title" class="h3">Payment</h2><span class={`chip chip--${PAY_STATE[1]}`}>{PAY_STATE[0]}</span></div>
+          <div class="pay-head"><h2 id="pay-title" class="h3">Payment</h2><span class={`status-pill status-pill--${PAY_STATE[1]}`}>{PAY_STATE[0]}</span></div>
           <dl class="pay-list">
-            <div><dt>Method</dt><dd>{METHOD[p.method]}</dd></div>
+            <div><dt>Method</dt><dd>{p.method === 'gateway' && instrumentLabel(p.instrument) ? `${instrumentLabel(p.instrument)} · paid online` : METHOD[p.method]}</dd></div>
             <div><dt>Amount</dt><dd>{formatINR(p.amount)}</dd></div>
             {p.reference && <div><dt>Payment ID</dt><dd class="pay-ref"><code>{p.reference}</code><button type="button" class="pay-copy" data-copy={p.reference} aria-label="Copy payment ID">Copy</button></dd></div>}
             {p.gatewayOrderId && <div><dt>Razorpay order</dt><dd><code class="muted">{p.gatewayOrderId}</code></dd></div>}
@@ -107,7 +107,7 @@ Astro.response.headers.set('Cache-Control', 'no-store');
           <ul role="list" class="rf-list">
             {order.refunds.map((r) => (
               <li class="rf">
-                <div class="rf__top"><strong>{formatINR(r.amount)}</strong><span class={`chip chip--${REFUND_STATE[r.status]![1]}`}>{REFUND_STATE[r.status]![0]}</span></div>
+                <div class="rf__top"><strong>{formatINR(r.amount)}</strong><span class={`status-pill status-pill--${REFUND_STATE[r.status]![1]}`}>{REFUND_STATE[r.status]![0]}</span></div>
                 <p class="muted">{r.toOriginal ? 'Back to the card, UPI or bank account you paid with.' : 'Sent to you by UPI from Femia.'} Started {when(r.createdAt)}{r.processedAt && `, completed ${when(r.processedAt)}`}.</p>
                 {r.reference && <p class="pay-ref"><span class="muted">Refund reference</span> <code>{r.reference}</code><button type="button" class="pay-copy" data-copy={r.reference} aria-label="Copy refund reference">Copy</button></p>}
                 {r.toOriginal && r.status === 'pending' && <p class="rf__eta">Banks usually take 5–7 working days to show it in your account.</p>}
@@ -161,9 +161,9 @@ Astro.response.headers.set('Cache-Control', 'no-store');
   @media (min-width: 1024px) and (pointer: fine) { .upi__open { display: none; } }
   .order__grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-6); }
   .pay-head, .rf__top { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
-  .chip { padding: 3px 12px; border-radius: var(--r-pill); font-size: .8125rem; font-weight: 600; white-space: nowrap; }
-  .chip--ok { background: #E3F1E6; color: var(--c-success); } .chip--warn { background: #FFF1D6; color: #7A5418; }
-  .chip--bad { background: #FBEAEA; color: var(--c-danger); } .chip--quiet { background: var(--c-blush); color: var(--c-text); }
+  .status-pill { display: inline-flex; align-items: center; flex: none; line-height: 1.4; padding: 4px 12px; border-radius: var(--r-pill); font-size: .8125rem; font-weight: 600; white-space: nowrap; }
+  .status-pill--ok { background: #E3F1E6; color: var(--c-success); } .status-pill--warn { background: #FFF1D6; color: #7A5418; }
+  .status-pill--bad { background: #FBEAEA; color: var(--c-danger); } .status-pill--quiet { background: var(--c-blush); color: var(--c-text); }
   .pay-list { display: grid; gap: var(--sp-2); margin-top: var(--sp-4); }
   .pay-list div { display: flex; justify-content: space-between; gap: var(--sp-4); padding-bottom: var(--sp-2); border-bottom: 1px solid var(--c-line); }
   .pay-list div:last-child { border-bottom: 0; }
@@ -192,13 +192,14 @@ Astro.response.headers.set('Cache-Control', 'no-store');
   .cx__err:empty { display: none; } .cx__err { color: var(--c-danger); font-size: .9375rem; }
   .cx__actions { display: flex; gap: var(--sp-3); justify-content: flex-end; flex-wrap: wrap; }
   .cx__go { background: var(--c-danger); border-color: var(--c-danger); }
-  .chip { line-height: 1.5; align-self: center; }
+
   @media (max-width: 560px) {
     .cx { margin: auto 0 0; width: 100vw; max-width: 100vw; border-radius: 20px 20px 0 0; padding-bottom: env(safe-area-inset-bottom); }
     .cx__actions { flex-direction: column-reverse; } .cx__actions .btn { width: 100%; }
   }
   .order__card { background: var(--c-surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: var(--sp-6); }
   .order__card h2 { margin-bottom: var(--sp-5); font-size: 1.625rem; }
+  .order__card .pay-head { margin-bottom: var(--sp-1); } .order__card .pay-head h2 { margin-bottom: 0; }
   .order__ship { margin-top: var(--sp-4); font-size: .9375rem; }
   .order__help { text-align: center; margin-top: var(--sp-8); }
   .order__help a { color: var(--c-maroon); text-decoration: underline; }
@@ -254,13 +255,16 @@ Astro.response.headers.set('Cache-Control', 'no-store');
       payBtn.disabled = true; if (msg) msg.textContent = 'Opening secure payment…';
       try {
         const r = await fetch(`/api/orders/${number}/pay`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) });
-        const d = await r.json() as { status?: string; provider?: string; payload?: Record<string, unknown>; error?: { message: string } };
+        const d = await r.json() as { status?: string; provider?: string; payload?: Record<string, unknown>; holdUntil?: string | null; error?: { message: string } };
         if (!r.ok) throw new Error(d.error?.message ?? 'Something went wrong');
         if (d.status === 'paid') { if (msg) msg.textContent = 'Payment received!'; void reload(); return; }
         await loadRazorpay();
         const RZ = (window as unknown as { Razorpay: new (o: Record<string, unknown>) => { open(): void; on(e: string, cb: (x: { error?: { description?: string } }) => void): void } }).Razorpay;
+        // close the window before the hold runs out (see razorpayTimeout in Checkout.tsx)
+        const left = Math.floor((Date.parse(d.holdUntil ?? '') - Date.now()) / 1000) - 120;
         const rz = new RZ({
           ...d.payload,
+          ...(Number.isFinite(left) ? { timeout: Math.max(60, left) } : {}),
           handler: async (resp: Record<string, string>) => {
             if (msg) msg.textContent = 'Confirming your payment…';
             await fetch(`/api/payments/${d.provider}/return`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ number, token, params: resp }) }).catch(() => {});
@@ -270,6 +274,8 @@ Astro.response.headers.set('Cache-Control', 'no-store');
         });
         rz.on('payment.failed', (e) => { if (msg) msg.textContent = `${e.error?.description ?? 'The payment didn’t go through'}. You can try again or use another method.`; payBtn.disabled = false; });
         rz.open();
+        // the window covers the page now; the button must work again however it ends (closed, timed out)
+        payBtn.disabled = false; if (msg) msg.textContent = '';
       } catch (e) {
         if (msg) msg.textContent = (e as Error).message === 'razorpay' ? 'Couldn’t load the payment window. Check your connection and try again.' : (e as Error).message;
         payBtn.disabled = false;

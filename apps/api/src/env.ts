@@ -24,6 +24,8 @@ export interface Env {
   RAZORPAY_KEY_ID?: string;
   RAZORPAY_KEY_SECRET?: string;
   RAZORPAY_WEBHOOK_SECRET?: string;
+  /** Workers Rate Limiting binding (wrangler.jsonc "ratelimits"): 60 requests a minute per key. */
+  EDGE_LIMIT?: RateLimit;
 }
 
 export interface Customer { id: string; email: string; name: string; phone: string }

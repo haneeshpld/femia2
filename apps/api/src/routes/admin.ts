@@ -20,7 +20,7 @@ import { customerOrders, listAddresses } from '../services/customers.ts';
 import { listRefunds, markRefundSent, refundable, retryRefund, startRefund, syncRefund, type RefundRow } from '../services/refunds.ts';
 import { deviceLabel, revokeAllStatement } from '../services/sessions.ts';
 import { hashPassword, rateLimit, verifyPassword } from '../lib/security.ts';
-import { sendEmail } from '../notify/index.ts';
+import { escHtml, sendEmail } from '../notify/index.ts';
 import { adjustStock, stockHistory } from '../services/stock.ts';
 
 export const adminRoutes = new Hono<AppEnv>();
@@ -275,6 +275,11 @@ adminRoutes.get('/orders/:number', can('orders.read'), async (c) => {
 
 adminRoutes.post('/orders/:number/transition', can('orders.write'), async (c) => {
   const body = await readJson(c, OrderTransitionInput);
+  // Cancelling a paid order gives money back (or decides not to): that's a refund decision, not an order update.
+  if (body.to === 'cancelled' && !c.get('user').permissions.has('payments.refund')) {
+    const cur = await getOrderRow(c.env.DB, { number: c.req.param('number').toUpperCase() });
+    if (cur?.payment_status === 'paid') throw forbidden('This order is paid, so cancelling it means a refund. Ask the owner to cancel it.');
+  }
   const o = await transitionOrder(c.env, c.executionCtx, c.req.param('number').toUpperCase(), body, actorOf(c));
   return c.json({ number: o.number, status: o.status });
 });
@@ -303,11 +308,11 @@ adminRoutes.post('/refunds/:id/check', can('orders.read'), async (c) => {
   try { const s = await syncRefund(c.env, r); return c.json({ status: s.status }); }
   catch { throw new HttpError(502, 'gateway_unavailable', 'Couldn’t reach the payment gateway. Try again in a minute.'); }
 });
-adminRoutes.post('/refunds/:id/retry', can('orders.write'), async (c) => {
+adminRoutes.post('/refunds/:id/retry', can('payments.refund'), async (c) => {
   const r = await retryRefund(c.env, c.executionCtx, c.req.param('id'), actorOf(c));
   return c.json({ id: r.id, status: r.status, error: r.error });
 });
-adminRoutes.post('/refunds/:id/sent', can('orders.write'), async (c) => {
+adminRoutes.post('/refunds/:id/sent', can('payments.refund'), async (c) => {
   const { reference } = await readJson(c, ManualRefundSent);
   await markRefundSent(c.env, c.req.param('id'), reference, actorOf(c));
   return c.json({ ok: true });
@@ -389,7 +394,7 @@ adminRoutes.get('/settings', can('settings.read'), async (c) => {
 
 adminRoutes.put('/settings/:section', can('settings.write'), async (c) => {
   const section = c.req.param('section') as keyof Settings;
-  const shape = Settings.shape[section];
+  const shape = Object.hasOwn(Settings.shape, section) ? Settings.shape[section] : undefined;
   if (!shape || section === 'catalog') throw notFound('Unknown settings section');
   const value = parse(shape, await c.req.json());
   if (section === 'payments' && value && (value as Settings['payments']).gateway.enabled) {
@@ -441,7 +446,7 @@ adminRoutes.post('/users', can('people.manage'), async (c) => {
   const link = `${c.env.ADMIN_URL}/sign-up?email=${encodeURIComponent(u.email)}`;
   if (c.env.RESEND_API_KEY) {
     c.executionCtx.waitUntil(sendEmail(c.env, { to: u.email, subject: 'You’re invited to Femia Admin',
-      html: `<p>${c.get('user').name || 'The Femia team'} invited you to Femia Admin.</p><p><a href="${link}">Create your password</a> with this email address to get started.</p>`,
+      html: `<p>${escHtml(c.get('user').name || 'The Femia team')} invited you to Femia Admin.</p><p><a href="${link}">Create your password</a> with this email address to get started.</p>`,
       text: `You're invited to Femia Admin. Create your password with this email address: ${link}` }));
   }
   return c.json({ ok: true, link, emailed: !!c.env.RESEND_API_KEY }, 201);
@@ -460,7 +465,7 @@ adminRoutes.post('/users/:id/approve', can('people.manage'), async (c) => {
   ]);
   if (c.env.RESEND_API_KEY) {
     c.executionCtx.waitUntil(sendEmail(c.env, { to: u.email, subject: 'Your Femia Admin access is approved',
-      html: `<p>Hi ${u.name || 'there'}, your Femia Admin account is approved. <a href="${c.env.ADMIN_URL}">Sign in</a>.</p>`, text: `Your Femia Admin account is approved. Sign in: ${c.env.ADMIN_URL}` }));
+      html: `<p>Hi ${escHtml(u.name || 'there')}, your Femia Admin account is approved. <a href="${c.env.ADMIN_URL}">Sign in</a>.</p>`, text: `Your Femia Admin account is approved. Sign in: ${c.env.ADMIN_URL}` }));
   }
   return c.json({ ok: true });
 });

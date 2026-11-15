@@ -8,7 +8,9 @@ const s = site.settings.store;
 const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const fmt = (hm: string) => { const [h, m] = hm.split(':').map(Number); const d = new Date(2000, 0, 1, h, m); return d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: m ? '2-digit' : undefined, hour12: true }).toUpperCase(); };
 const address = [s.address.line1, s.address.line2, s.address.city, s.address.state, s.address.pincode].filter(Boolean).join(', ');
-const mapEmbed = s.geo ? `https://maps.google.com/maps?q=${s.geo.lat},${s.geo.lng}&z=16&output=embed` : null;
+// Exact pin when the owner set coordinates; otherwise Google finds the address.
+const mapQuery = s.geo ? `${s.geo.lat},${s.geo.lng}` : [s.address.line1, s.address.line2, s.address.city, s.address.state].filter(Boolean).join(', ');
+const mapEmbed = mapQuery ? `https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&z=16&output=embed` : null;
 const tel = s.phone.replace(/[^\d+]/g, '');
 const ld = { '@context': 'https://schema.org', '@type': 'ClothingStore', name: `${s.name} Boutique`, address, telephone: s.phone || undefined, openingHours: s.hoursSummary || undefined };
 Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');

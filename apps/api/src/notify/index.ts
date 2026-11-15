@@ -28,7 +28,10 @@ export async function sendTelegram(env: Env, text: string) {
   if (!res.ok) console.error('telegram failed', res.status, await res.text());
 }
 
-const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]!);
+/** Escape text for Telegram's HTML mode and for emails. Anything a shopper or sign-up typed must go through this:
+ * a stray `<` makes Telegram reject the whole message (the owner would never hear about the order). */
+export const escHtml = (s: string) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+const esc = escHtml;
 const METHOD: Record<string, string> = { upi: 'UPI', gateway: 'Online', cod: 'COD', whatsapp: 'WhatsApp' };
 
 export async function notifyOrder(env: Env, order: PublicOrder & { email: string; phone: string }, kind: OrderEmailKind | 'owner_new' | 'owner_failed') {
@@ -39,7 +42,7 @@ export async function notifyOrder(env: Env, order: PublicOrder & { email: string
       : order.paymentMethod === 'whatsapp' ? '💬 <b>New WhatsApp order: confirm with the customer</b>'
       : '🛍 <b>New order</b>';
     const items = order.items.map((i) => `• ${esc(i.title)} (${esc(i.optionLabel)}) × ${i.qty}`).join('\n');
-    await sendTelegram(env, `${head} ${order.number}\n${esc(order.customerName)} · ${order.city}\n${items}\n<b>${formatINR(order.total)}</b> · ${METHOD[order.paymentMethod]}\n${env.ADMIN_URL}/orders/${order.number}`);
+    await sendTelegram(env, `${head} ${esc(order.number)}\n${esc(order.customerName)} · ${esc(order.city)}\n${items}\n<b>${formatINR(order.total)}</b> · ${METHOD[order.paymentMethod]}\n${env.ADMIN_URL}/orders/${order.number}`);
     return;
   }
   if (!order.email) return;
@@ -55,6 +58,6 @@ export async function notifyLowStock(env: Env, variantIds: string[]) {
      WHERE v.id IN (${variantIds.map(() => '?').join(',')}) AND (v.on_hand - v.reserved) <= COALESCE(v.low_stock_threshold, ?)`,
   ).bind(...variantIds, s.notifications.lowStockThreshold).all<{ title: string; option1: string | null; option2: string | null; available: number }>();
   if (!rows.results.length) return;
-  const lines = rows.results.map((r) => `• ${esc(r.title)} ${[r.option1, r.option2].filter(Boolean).join('/')}: ${r.available === 0 ? '<b>sold out</b>' : `${r.available} left`}`).join('\n');
+  const lines = rows.results.map((r) => `• ${esc(r.title)} ${esc([r.option1, r.option2].filter(Boolean).join('/'))}: ${r.available === 0 ? '<b>sold out</b>' : `${r.available} left`}`).join('\n');
   await sendTelegram(env, `📦 <b>Low stock</b>\n${lines}\n${env.ADMIN_URL}/stock?filter=low`);
 }

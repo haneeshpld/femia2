@@ -23,7 +23,8 @@ accountRoutes.patch('/me', async (c) => {
   await c.env.DB.batch([
     c.env.DB.prepare('UPDATE customers SET name = ?, phone = ?, marketing = ?, updated_at = ? WHERE id = ?').bind(v.name, v.phone, v.marketing ? 1 : 0, new Date().toISOString(), id),
     v.marketing
-      ? c.env.DB.prepare('INSERT OR IGNORE INTO newsletter_subscribers (email, source) VALUES (?, ?)').bind(c.get('customer').email, 'account')
+      ? // signed in, so this is the owner of the email asking: it may re-subscribe
+      c.env.DB.prepare('INSERT INTO newsletter_subscribers (email, source) VALUES (?, ?) ON CONFLICT(email) DO UPDATE SET unsubscribed_at = NULL').bind(c.get('customer').email, 'account')
       : c.env.DB.prepare('DELETE FROM newsletter_subscribers WHERE email = ?').bind(c.get('customer').email),
   ]);
   return c.json({ customer: toProfile(await getCustomer(c.env.DB, id)) });

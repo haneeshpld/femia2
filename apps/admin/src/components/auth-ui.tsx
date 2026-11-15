@@ -95,7 +95,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
           <img src="/wordmark.webp" alt="" className="auth__word" />
           <p>Studio for the Femia team</p>
         </div>
-        <p className="auth__foot">Kochi · Everyday styles for modern women</p>
+        <p className="auth__foot">Femia Boutique · Elegance, made for her</p>
       </aside>
       <main className="auth__main">
         <div className="auth__card">{children}</div>

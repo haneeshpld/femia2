@@ -28,6 +28,12 @@ export function richText(md: string): string {
 }
 
 /** Owner headings may mark one italic accent with *asterisks*: "Just *landed*" → Just <em>landed</em>. */
+/**
+ * JSON for an inline <script> (JSON-LD, page data). Plain JSON.stringify would let a product title containing
+ * "</script>" end the tag and run whatever follows; escaping < keeps it inert and still valid JSON.
+ */
+export const scriptJson = (v: unknown) => JSON.stringify(v).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+
 export function emph(text: string | null | undefined): string {
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   return esc(text ?? '').replace(/\*(.+?)\*/g, '<em>$1</em>');

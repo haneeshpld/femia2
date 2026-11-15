@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { get, post } from '../lib/api.ts';
-import { dateTime, formatINR, METHOD_LABEL, STATUS_LABEL } from '../lib/format.ts';
+import { dateTime, formatINR, instrumentLabel, METHOD_LABEL, STATUS_LABEL } from '../lib/format.ts';
 import { useCan } from '../lib/me.ts';
 import { Icon } from '../components/Icon.tsx';
 import { ErrorBox, Field, Sheet, Skeleton, StatusBadge, useToast } from '../components/ui.tsx';
@@ -71,7 +71,8 @@ export default function OrderDetail() {
         <Link className="btn btn--quiet" to={`/orders/${d.number}/print/bill`}><Icon name="printer" /> Bill</Link>
         <Link className="btn btn--quiet" to={`/orders/${d.number}/print/slip`}><Icon name="printer" /> Packing slip</Link>
         {can('payments.refund') && d.refundable > 0 && <button className="btn btn--quiet" onClick={() => setRefunding(true)}><Icon name="undo" /> Refund</button>}
-        {write && ['pending_payment', 'new', 'confirmed', 'packed'].includes(d.status) && <button className="btn btn--danger" onClick={() => setCancel(true)}>Cancel</button>}
+        {/* cancelling a paid order is a refund decision, so it needs the refund permission (the API checks too) */}
+        {write && ['pending_payment', 'new', 'confirmed', 'packed'].includes(d.status) && (d.paymentStatus !== 'paid' || can('payments.refund')) && <button className="btn btn--danger" onClick={() => setCancel(true)}>Cancel</button>}
       </div>
 
       <div className="grid2" style={{ alignItems: 'start' }}>
@@ -108,7 +109,7 @@ export default function OrderDetail() {
           </div>
           <PaymentCard d={d} />
           {(d.refundList?.length ?? 0) > 0 && (
-            <RefundsCard list={d.refundList} write={write} busy={refundAct.isPending}
+            <RefundsCard list={d.refundList} write={write} refund={can('payments.refund')} busy={refundAct.isPending}
               onAction={(path, body) => refundAct.mutate({ path, body })} />
           )}
           <div className="card">
@@ -168,7 +169,7 @@ function PaymentCard({ d }: { d: any }) {
       <div className="card__head" style={{ marginBottom: 'var(--sp-3)' }}><h2>Payment</h2>
         <span className={`badge ${d.paymentStatus === 'paid' || d.paymentStatus === 'refunded' ? 'badge--ok' : d.paymentStatus === 'failed' ? 'badge--bad' : 'badge--warn'}`}>{PAY_LABEL[d.paymentStatus]}</span></div>
       <dl className="kv">
-        <div><dt>Method</dt><dd>{METHOD_LABEL[d.paymentMethod]}{p.provider ? ` · ${p.provider === 'razorpay' ? 'Razorpay' : p.provider}` : ''}</dd></div>
+        <div><dt>Method</dt><dd>{instrumentLabel(p.instrument) ? `${instrumentLabel(p.instrument)} · ` : ''}{METHOD_LABEL[d.paymentMethod]}{p.provider ? ` · ${p.provider === 'razorpay' ? 'Razorpay' : p.provider}` : ''}</dd></div>
         <div><dt>Amount</dt><dd>{formatINR(p.amount)}</dd></div>
         {p.reference && <div><dt>Payment ID</dt><dd><a href={rzpPayment(p.reference)} target="_blank" rel="noopener"><code>{p.reference}</code></a> <Copy text={p.reference} /></dd></div>}
         {p.gatewayOrderId && <div><dt>Razorpay order</dt><dd><code>{p.gatewayOrderId}</code> <Copy text={p.gatewayOrderId} /></dd></div>}
@@ -186,7 +187,8 @@ function PaymentCard({ d }: { d: any }) {
 }
 
 /** Every refund on the order with what can be done next: check, retry, or mark a UPI refund as sent. */
-function RefundsCard({ list, write, busy, onAction }: { list: any[]; write: boolean; busy: boolean; onAction: (path: string, body?: object) => void }) {
+/** write: check a refund's status (staff too) · refund: retry or mark sent, which moves money (owner only). */
+function RefundsCard({ list, write, refund, busy, onAction }: { list: any[]; write: boolean; refund: boolean; busy: boolean; onAction: (path: string, body?: object) => void }) {
   const [ref, setRef] = useState<Record<string, string>>({});
   return (
     <div className="card">
@@ -202,11 +204,11 @@ function RefundsCard({ list, write, busy, onAction }: { list: any[]; write: bool
             <p className="small muted">Started {dateTime(r.createdAt)} by {r.requestedBy === 'customer' ? 'the customer (cancelled)' : r.requestedBy === 'system' ? 'the system' : r.requestedBy}{r.processedAt && ` · completed ${dateTime(r.processedAt)}`}</p>
             {(r.providerRefundId || r.reference) && <p className="small"><span className="muted">Reference</span> <code>{r.providerRefundId ?? r.reference}</code> <Copy text={r.providerRefundId ?? r.reference} /></p>}
             {r.error && <p className="small" style={{ color: 'var(--c-danger)' }}>{r.error}</p>}
-            {write && (
+            {(write || refund) && (
               <div className="row no-print" style={{ marginTop: 6 }}>
                 {r.status === 'pending' && <button className="btn btn--quiet btn--sm" disabled={busy} onClick={() => onAction(`/admin/refunds/${r.id}/check`)}>Check status</button>}
-                {r.status === 'failed' && <button className="btn btn--sm" disabled={busy} onClick={() => onAction(`/admin/refunds/${r.id}/retry`)}>Retry refund</button>}
-                {r.status === 'to_send' && (
+                {refund && r.status === 'failed' && <button className="btn btn--sm" disabled={busy} onClick={() => onAction(`/admin/refunds/${r.id}/retry`)}>Retry refund</button>}
+                {refund && r.status === 'to_send' && (
                   <>
                     <input className="input" style={{ flex: 1, minWidth: 180, minHeight: 40 }} placeholder="UPI reference (UTR) after sending" value={ref[r.id] ?? ''} onChange={(e) => setRef({ ...ref, [r.id]: e.target.value })} />
                     <button className="btn btn--sm" disabled={busy || (ref[r.id] ?? '').trim().length < 3} onClick={() => onAction(`/admin/refunds/${r.id}/sent`, { reference: ref[r.id] })}>Mark sent</button>

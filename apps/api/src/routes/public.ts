@@ -10,10 +10,11 @@ import { HttpError, notFound, parse, readJson } from '../lib/http.ts';
 import { safeEqual } from '../lib/crypto.ts';
 import { getProduct, listCategories, listCollections, listProducts, stockForProduct, stockForVariants } from '../services/catalog.ts';
 import { getDraft, getPublished, verifyPreviewToken } from '../services/content.ts';
-import { createOrder, customerCancel, getOrderRow, orderForCustomer, quote, reconcileGatewayOrder, trackOrder } from '../services/orders.ts';
+import { createOrder, customerCancel, getOrderRow, orderForCustomer, quote, reconcileGatewayOrder, releaseForOtherMethod, trackOrder } from '../services/orders.ts';
+import { getProvider } from '../payments/index.ts';
 import { getSettings, toPublicSettings } from '../services/settings.ts';
 import { optionalCustomer } from '../lib/auth.ts';
-import { assertSameOrigin, clientIp, rateLimit } from '../lib/security.ts';
+import { assertSameOrigin, clientIp, edgeLimit, rateLimit, shopLimit } from '../lib/security.ts';
 import { rememberAddress } from '../services/customers.ts';
 
 export const publicRoutes = new Hono<AppEnv>();
@@ -77,8 +78,13 @@ publicRoutes.post('/checkout/pincode', async (c) => {
 
 publicRoutes.post('/orders', async (c) => {
   assertSameOrigin(c);
+  // Each order holds stock: a script placing orders could make the whole shop look sold out.
+  await edgeLimit(c, 'orders');
+  await shopLimit(c, `orders:ip:${clientIp(c)}`, 20, 3600, 'Too many orders from this connection. Please wait a little, or message us on WhatsApp.');
   const shopper = await optionalCustomer(c);
   const body = await c.req.json().catch(() => null);
+  const phone = String((body as { customer?: { phone?: unknown } } | null)?.customer?.phone ?? '').replace(/\D/g, '').slice(-10);
+  if (phone) await shopLimit(c, `orders:phone:${phone}`, 10, 3600, 'Too many orders for this mobile number. Please wait a little, or message us on WhatsApp.');
   const res = await createOrder(c.env, c.executionCtx, body, { customerId: shopper?.id ?? null });
   // Signed-in shoppers can keep the delivery address for next time.
   const b = body as { saveAddress?: boolean; customer?: { name?: string; phone?: string }; address?: Record<string, string> } | null;
@@ -102,7 +108,9 @@ publicRoutes.get('/orders/:number', async (c) => {
  */
 publicRoutes.post('/orders/:number/pay', async (c) => {
   assertSameOrigin(c);
-  const { token } = await readJson(c, z.object({ token: z.string().min(8).max(100) }));
+  await edgeLimit(c, 'pay');
+  // payWith: the shopper closed the payment window and chose UPI or cards this time (same order, same amount)
+  const { token, payWith } = await readJson(c, z.object({ token: z.string().min(8).max(100), payWith: z.enum(['upi', 'other']).nullable().optional() }));
   await rateLimit(c.env.DB, `pay:${clientIp(c)}`, 30, 600);
   const o = await getOrderRow(c.env.DB, { number: c.req.param('number').toUpperCase() });
   if (!o || !safeEqual(o.access_token, token)) throw notFound('Order not found');
@@ -112,12 +120,28 @@ publicRoutes.post('/orders/:number/pay', async (c) => {
   if (o.status !== 'pending_payment') throw new HttpError(409, 'closed', o.status === 'cancelled' ? 'This order was cancelled because the payment didn’t arrive in time. Please place it again.' : 'This order no longer needs payment.');
   const p = await first<{ provider: string; raw: string }>(c.env.DB, "SELECT provider, raw FROM payments WHERE order_id = ? AND status IN ('created','failed') ORDER BY created_at DESC LIMIT 1", o.id);
   if (!p) throw new HttpError(409, 'no_payment', 'Online payment isn’t available for this order. Please contact us.');
-  return c.json({ status: 'pending', provider: p.provider, payload: JSON.parse(p.raw), holdUntil: o.hold_expires_at });
+  const stored = JSON.parse(p.raw) as Record<string, unknown>;
+  const payload = payWith === undefined ? stored : getProvider(p.provider).checkoutFor(stored, payWith);
+  return c.json({ status: 'pending', provider: p.provider, payload, holdUntil: o.hold_expires_at });
+});
+
+/**
+ * Checkout: the shopper closed the online payment window and picked Cash on Delivery or WhatsApp instead. The
+ * unpaid online order steps aside (stock released; refunded automatically if a payment still lands) so the new
+ * order can be placed. Answers { status: 'paid' } if the gateway says it was paid after all.
+ */
+publicRoutes.post('/orders/:number/switch-method', async (c) => {
+  assertSameOrigin(c);
+  await edgeLimit(c, 'switch');
+  const { token } = await readJson(c, z.object({ token: z.string().min(8).max(100) }));
+  c.header('Cache-Control', 'no-store');
+  return c.json(await releaseForOtherMethod(c.env, c.executionCtx, c.req.param('number').toUpperCase(), token));
 });
 
 /** The shopper cancels (until packing). Paid orders are refunded automatically. */
 publicRoutes.post('/orders/:number/cancel', async (c) => {
   assertSameOrigin(c);
+  await edgeLimit(c, 'cancel');
   const v = await readJson(c, CustomerCancel);
   await rateLimit(c.env.DB, `cancel:${clientIp(c)}`, 10, 3600);
   c.header('Cache-Control', 'no-store');
@@ -125,13 +149,20 @@ publicRoutes.post('/orders/:number/cancel', async (c) => {
 });
 
 publicRoutes.post('/orders/track', async (c) => {
+  await edgeLimit(c, 'track');
   const t = await readJson(c, TrackRequest);
+  // Order numbers are sequential: without limits, someone who knows a mobile number could list that person's orders.
+  await shopLimit(c, `track:ip:${clientIp(c)}`, 20, 3600);
+  await shopLimit(c, `track:phone:${t.phone}`, 10, 3600);
   return c.json(await trackOrder(c.env.DB, t.number, t.phone));
 });
 
 publicRoutes.post('/newsletter', async (c) => {
+  await edgeLimit(c, 'newsletter');
   const { email, source } = await readJson(c, NewsletterRequest);
-  await c.env.DB.prepare('INSERT INTO newsletter_subscribers (email, source) VALUES (?, ?) ON CONFLICT(email) DO UPDATE SET unsubscribed_at = NULL').bind(email, source).run();
+  await shopLimit(c, `newsletter:ip:${clientIp(c)}`, 10, 3600);
+  // Anyone can type any email here, so this never re-subscribes someone who unsubscribed.
+  await c.env.DB.prepare('INSERT INTO newsletter_subscribers (email, source) VALUES (?, ?) ON CONFLICT(email) DO NOTHING').bind(email, source).run();
   return c.json({ ok: true });
 });
 
@@ -153,6 +184,7 @@ publicRoutes.get('/settings/public', async (c) => {
 });
 
 publicRoutes.post('/events', async (c) => {
+  await edgeLimit(c, 'events');
   const { events } = await readJson(c, AnalyticsBatch);
   await c.env.DB.batch(events.map((e) => c.env.DB.prepare(
     'INSERT INTO analytics_events (name, session_id, path, product_id, variant_id, value, meta) VALUES (?,?,?,?,?,?,?)',

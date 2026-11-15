@@ -119,7 +119,7 @@ async function main() {
     await crop('home-bottom.png', [458, 180, 234, 195], 'Woman in a maroon festive kurta with jasmine in her hair'),
     await crop('home-bottom.png', [767, 180, 212, 177], 'Woman in an olive kurta at work'),
   ];
-  const boutique = await crop('home-bottom.png', [82, 513, 363, 260], 'Inside the Femia boutique on MG Road, Kochi');
+  const boutique = await crop('home-bottom.png', [82, 513, 363, 260], 'Inside the Femia boutique at Choice Mall, Sreekandapuram');
   const social = [];
   for (const [x, alt] of [[81, 'Customer in a lavender kurta'], [295, 'Customer in a mustard kurta'], [506, 'Customer in a cream chikankari kurta'], [720, 'Customer in a maroon embroidered kurta']]) {
     social.push(await crop('home-bottom.png', [x, 862, 196, 205], alt));
@@ -205,10 +205,10 @@ async function main() {
 
   const settings = {
     store: {
-      name: 'Femia', tagline: 'Elegant Ethnicwear for Every Occasion', email: 'hello@femia.example', phone: '+91 98470 00000', whatsapp: '9847000000',
-      address: { line1: 'MG Road', line2: '', city: 'Kochi', state: 'Kerala', pincode: '682035' },
-      mapUrl: 'https://maps.google.com/?q=MG+Road+Kochi', geo: { lat: 9.9706, lng: 76.2856 }, hoursSummary: 'Open daily · 10 AM – 9 PM', hours: Array.from({ length: 7 }, () => ({ open: '10:00', close: '21:00', closed: false })),
-      socials: { instagram: 'https://instagram.com/femia', facebook: '', youtube: '' },
+      name: 'Femia Boutique', tagline: 'Elegance, made for her', email: '', phone: '+91 73068 93072', whatsapp: '7306893072',
+      address: { line1: 'Choice Mall', line2: 'Sreekandapuram', city: 'Kannur', state: 'Kerala', pincode: '670631' },
+      mapUrl: 'https://www.google.com/maps/search/?api=1&query=Choice+Mall+Sreekandapuram+Kannur', geo: null, hoursSummary: 'Open daily · 10 AM – 9 PM', hours: Array.from({ length: 7 }, () => ({ open: '10:00', close: '21:00', closed: false })),
+      socials: { instagram: 'https://www.instagram.com/femia__boutique/', facebook: '', youtube: '', whatsappGroup: 'https://chat.whatsapp.com/EtcoWrkENCkBHxtfppsO7U' },
     },
     shipping: { freeShippingThreshold: 99900, flatFee: 7900, shipToStates: ['KL'], cod: { enabled: true, maxOrderValue: 500000 } },
     payments: { upi: { enabled: true, vpa: 'femia@okicici', payeeName: 'Femia', holdHours: 12 }, gateway: { enabled: false, provider: 'razorpay', testMode: true }, whatsapp: { enabled: true } },
@@ -232,7 +232,7 @@ async function main() {
         { collection: 'col_everyday', title: 'Everyday Edit', image: occ[0] }, { collection: 'col_festive', title: 'Festive Edit', image: occ[1] }, { collection: 'col_work', title: 'Work Edit', image: occ[2] },
       ] } },
       { id: 'boutique', type: 'boutique', enabled: true, data: { heading: 'Try it on *in person*', body: 'Step into our boutique to explore the full collection, feel the fabrics and find your perfect fit with our stylists.', image: boutique } },
-      { id: 'instagram', type: 'instagram', enabled: true, data: { heading: 'Styled *by you*', handle: '@femia', images: social.map((image) => ({ image, caption: '', link: '' })) } },
+      { id: 'instagram', type: 'instagram', enabled: true, data: { heading: 'Styled *by you*', handle: '@femia__boutique', images: social.map((image) => ({ image, caption: '', link: '' })) } },
     ] },
     // Visit Us page
     boutique: { title: 'Try it on *in person*', body: 'Step into our boutique to explore the full collection, feel the fabrics and find your perfect fit with our stylists.', image: boutique },
@@ -242,7 +242,7 @@ async function main() {
     ] },
     newsletter: { title: 'Get Style Updates', body: 'New arrivals and exclusive offers, straight to your inbox.' },
     about: {
-      title: 'Made for the way you live', intro: 'Femia is a Kochi boutique for contemporary ethnic wear: kurtas, co-ords and dresses you will reach for again and again.',
+      title: 'Made for the way you live', intro: 'Femia is a women\'s wear boutique at Choice Mall, Sreekandapuram, Kannur: kurtas, co-ords and dresses you will reach for again and again.',
       body: 'DRAFT: replace with the owner\'s story before launch.\n\nWe started Femia to make beautiful, comfortable ethnic wear easy to find. Every piece is chosen for its fabric, its fit and how it feels at the end of a long day.',
       image: banner,
     },
@@ -251,7 +251,7 @@ async function main() {
       returns: 'DRAFT for client review.\n\n## Returns within 7 days\nUnworn items with tags attached can be returned within 7 days of delivery. Message us on WhatsApp with your order number to start a return.',
       privacy: 'DRAFT for client review (DPDP Act 2023).\n\nWe collect your name, phone, email and address only to deliver your order and keep you updated. We never sell your data.',
       terms: 'DRAFT for client review.\n\nBy placing an order you agree to these terms.',
-      contact: 'WhatsApp: +91 98470 00000\nEmail: hello@femia.example\nBoutique: MG Road, Kochi. Open daily, 10 AM – 9 PM.',
+      contact: 'Phone & WhatsApp: +91 73068 93072\nInstagram: @femia__boutique\nBoutique: Choice Mall, Sreekandapuram, Kannur, Kerala.',
     },
     sizeGuide: {
       chart: '| Size | Bust (in) | Waist (in) | Hip (in) |\n|---|---|---|---|\n| XS | 32 | 26 | 35 |\n| S | 34 | 28 | 37 |\n| M | 36 | 30 | 39 |\n| L | 38 | 32 | 41 |\n| XL | 40 | 34 | 43 |\n| XXL | 42 | 36 | 45 |',

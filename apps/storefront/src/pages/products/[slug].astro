@@ -4,7 +4,7 @@ import PCard from '../../components/ProductCard.astro';
 import Icon from '../../components/ui/Icon.astro';
 import { api } from '../../lib/api.ts';
 import { getCommon } from '../../lib/content.ts';
-import { formatINR, percentOff, richText, srcset } from '../../lib/format.ts';
+import { formatINR, percentOff, richText, scriptJson, srcset } from '../../lib/format.ts';
 import { ApiError } from '@femia/sdk';
 import { t } from '@femia/i18n';
 
@@ -58,7 +58,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
   </nav>
 
   <div class="container pdp" data-pdp>
-    <script type="application/json" data-pdp-data set:html={JSON.stringify(clientData)} />
+    <script type="application/json" data-pdp-data set:html={scriptJson(clientData)} />
     <section class="gallery" aria-label="Photos">
       <div class="gallery__track" data-track tabindex="0" aria-label="Product photos, swipe or use arrow keys">
         {gallery.map((img, i) => (

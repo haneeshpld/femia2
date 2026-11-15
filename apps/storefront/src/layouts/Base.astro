@@ -11,6 +11,7 @@ import displayItalic from '@fontsource-variable/bodoni-moda/files/bodoni-moda-la
 import bodyFont from '@fontsource-variable/jost/files/jost-latin-wght-normal.woff2?url';
 import AnnouncementBar from '../components/AnnouncementBar.astro';
 import Header from '../components/Header.astro';
+import { scriptJson } from '../lib/format.ts';
 import TrustStrip from '../components/TrustStrip.astro';
 import Footer from '../components/Footer.astro';
 import MobileTabBar from '../components/MobileTabBar.astro';
@@ -101,7 +102,7 @@ const ld = [org, ...(jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [])]
       <script type="module" is:inline set:html={`import RefreshRuntime from "/@react-refresh"; RefreshRuntime.injectIntoGlobalHook(window); window.$RefreshReg$ = () => {}; window.$RefreshSig$ = () => (type) => type; window.__vite_plugin_react_preamble_installed__ = true;`} />
     )}
     <slot name="head" />
-    <script type="application/ld+json" set:html={JSON.stringify(ld.length === 1 ? ld[0] : ld)} />
+    <script type="application/ld+json" set:html={scriptJson(ld.length === 1 ? ld[0] : ld)} />
   </head>
   <body>
     <a class="skip-link" href="#main">{t('nav.skip')}</a>

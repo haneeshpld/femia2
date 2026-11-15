@@ -8,6 +8,9 @@
     { "binding": "DB", "database_name": "femia", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }
   ],
   "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "femia-media" }],
+  // First line of defence for public endpoints: counted in memory at the edge (no D1 writes), per IP and endpoint.
+  // Stops scripted floods (fake orders holding stock, analytics spam using up D1's daily write quota) cheaply.
+  "ratelimits": [{ "name": "EDGE_LIMIT", "namespace_id": "4711", "simple": { "limit": 60, "period": 60 } }],
   "triggers": {
     // every 5 min: release expired holds · 03:30 UTC = 09:00 IST daily summary · 21:30 UTC = 03:00 IST backup
     "crons": ["*/5 * * * *", "30 3 * * *", "30 21 * * *"]

@@ -17,3 +17,12 @@ export function api(): FemiaClient {
   client ??= createClient({ fetch: (input, init) => apiFetch(String(input), init) });
   return client;
 }
+
+/**
+ * A client for calls made on a shopper's behalf from the server (track an order, the no-JS newsletter form). It
+ * passes on the shopper's IP so the API's per-visitor limits apply to them, not to the storefront as a whole.
+ */
+export function apiFor(request: Request): FemiaClient {
+  const ip = request.headers.get('cf-connecting-ip');
+  return createClient({ fetch: (input, init) => apiFetch(String(input), init), headers: ip ? { 'cf-connecting-ip': ip } : {} });
+}

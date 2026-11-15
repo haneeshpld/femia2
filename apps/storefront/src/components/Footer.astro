@@ -11,7 +11,7 @@ const s = settings.store;
 const wa = s.whatsapp ? `https://wa.me/${s.whatsapp.replace(/\D/g, '').replace(/^(\d{10})$/, '91$1')}` : null;
 const tel = s.phone.replace(/[^\d+]/g, '');
 const status = boutiqueStatus(s.hours);
-const place = [s.address.line1, s.address.city].filter(Boolean).join(', ');
+const place = [s.address.line1, s.address.line2, s.address.city].filter(Boolean).join(', ');
 const subscribed = Astro.url.searchParams.get('subscribed') === '1';
 const marquee = categories.map((c) => c.name);
 ---
@@ -36,6 +36,7 @@ const marquee = categories.map((c) => c.name);
       <div class="ft__social">
         {s.socials.instagram && <a class="ft__chip" href={s.socials.instagram} rel="noopener" target="_blank"><Icon name="instagram" size={20} /> Instagram</a>}
         {wa && <a class="ft__chip" href={wa} rel="noopener" target="_blank"><Icon name="whatsapp" size={20} /> WhatsApp</a>}
+        {s.socials.whatsappGroup && <a class="ft__chip" href={s.socials.whatsappGroup} rel="noopener" target="_blank"><Icon name="chat" size={20} /> Join our WhatsApp group</a>}
       </div>
     </div>
 
@@ -72,7 +73,7 @@ const marquee = categories.map((c) => c.name);
   </nav>
 
   <div class="container ft__base">
-    <p>{t('footer.rights', { year: new Date().getFullYear(), name: s.name })} · {s.address.city || 'Kochi'}, Kerala</p>
+    <p>{t('footer.rights', { year: new Date().getFullYear(), name: s.name })} · {[s.address.city, s.address.state || 'Kerala'].filter(Boolean).join(', ')}</p>
     <p><a href="/policies/privacy">Privacy</a><span aria-hidden="true"> · </span><a href="/policies/terms">Terms</a></p>
   </div>
 </footer>

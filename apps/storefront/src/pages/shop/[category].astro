@@ -13,7 +13,7 @@ const list = await api().catalog.products(listQuery(Astro.url, { category: categ
 const banner = heroOf(site).image;
 Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=600');
 ---
-<Base site={site} categories={categories} title={category.name} description={`Shop ${category.name.toLowerCase()} at Femia: contemporary ethnic wear from Kochi.`} noindex={Astro.url.search.length > 0}>
+<Base site={site} categories={categories} title={category.name} description={`Shop ${category.name.toLowerCase()} at Femia: women's wear from ${site.settings.store.name}${site.settings.store.address.city ? `, ${site.settings.store.address.city}` : ''}.`} noindex={Astro.url.search.length > 0}>
   <PageBanner eyebrow="Shop our collections" title={category.name} sub={`${list.total} styles`} image={banner} />
   <Listing list={list} categories={categories} basePath={`/shop/${category.slug}`} activeCategory={category.slug} />
 </Base>

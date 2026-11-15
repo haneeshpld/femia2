@@ -22,8 +22,9 @@ export function toPublicSettings(s: Settings): PublicSettings {
     store: s.store,
     shipping: s.shipping,
     payments: {
-      upi: s.payments.upi.enabled && !!s.payments.upi.vpa,
-      upiVpa: s.payments.upi.enabled ? s.payments.upi.vpa : '',
+      // UPI is offered through Razorpay (Google Pay, PhonePe, Paytm…), so it follows online payments.
+      upi: s.payments.gateway.enabled,
+      upiVpa: '',
       upiPayee: s.payments.upi.payeeName || s.store.name,
       gateway: s.payments.gateway.enabled,
       gatewayProvider: s.payments.gateway.provider,

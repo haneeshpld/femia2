@@ -17,13 +17,13 @@ const { list, categories, basePath, activeCategory, showTabs = true } = Astro.pr
 const url = Astro.url;
 const sp = url.searchParams;
 const selected = (k: string) => (sp.get(k) ?? '').split(',').filter(Boolean);
-const sort = sp.get('sort') ?? 'new';
 const pages = Math.max(1, Math.ceil(list.total / list.pageSize));
 const pageHref = (n: number) => { const u = new URL(url); n === 1 ? u.searchParams.delete('page') : u.searchParams.set('page', String(n)); return u.pathname + u.search; };
 const filtersActive = ['size', 'colour', 'fabric', 'min', 'max'].some((k) => sp.get(k));
 const clearHref = (() => { const u = new URL(url); ['size', 'colour', 'fabric', 'min', 'max', 'page'].forEach((k) => u.searchParams.delete(k)); return u.pathname + u.search; })();
 const bands = [[0, 99900], [99900, 149900], [149900, 199900], [199900, null]] as const;
 const sorts = ['new', 'price-asc', 'price-desc', 'popular'] as const;
+const sort = sorts.find((s) => s === sp.get('sort')) ?? 'new';
 const pageWindow = Array.from({ length: pages }, (_, i) => i + 1).filter((n) => n === 1 || n === pages || Math.abs(n - list.page) <= 1);
 ---
 {showTabs && (
@@ -83,11 +83,16 @@ const pageWindow = Array.from({ length: pages }, (_, i) => i + 1).filter((n) => 
     </details>
     {filtersActive && <a class="filters__clear" href={clearHref}>{t('shop.clear')}</a>}
   </div>
-  <label class="filters__sort">
-    <span>{t('shop.sortBy')}</span>
-    <select name="sort">{sorts.map((s) => <option value={s} selected={s === sort}>{t(`shop.sort.${s}`)}</option>)}</select>
-    <Icon name="chevronDown" size={16} />
-  </label>
+  <details class="dd dd--sort">
+    <summary>{t('shop.sortBy')} <span class="dd__val">{t(`shop.sort.${sort}`)}</span> <Icon name="chevronDown" size={16} /></summary>
+    <div class="dd__panel">
+      <fieldset><legend class="sr-only">{t('shop.sortBy')}</legend>
+        <ul role="list" class="opts">{sorts.map((s) => (
+          <li><label class="chk chk--row"><input type="radio" name="sort" value={s} checked={s === sort} />{t(`shop.sort.${s}`)}</label></li>
+        ))}</ul>
+      </fieldset>
+    </div>
+  </details>
   <noscript><button class="btn btn--sm" type="submit">Apply</button></noscript>
 </form>
 
@@ -147,9 +152,10 @@ const pageWindow = Array.from({ length: pages }, (_, i) => i + 1).filter((n) => 
   .chk--row .muted { margin-left: auto; font-size: .875rem; }
   .dot { width: 18px; height: 18px; border-radius: 50%; background: var(--sw); box-shadow: inset 0 0 0 1px rgba(58, 31, 20, .2); }
   .filters__clear { font-size: .875rem; color: var(--c-maroon); text-decoration: underline; text-underline-offset: 3px; min-height: 44px; display: inline-flex; align-items: center; }
-  .filters__sort { position: relative; display: inline-flex; align-items: center; gap: var(--sp-3); font-size: .8125rem; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: var(--c-ink); }
-  .filters__sort select { appearance: none; border: 0; background: transparent; font-size: 1rem; letter-spacing: 0; text-transform: none; font-weight: 500; min-height: 44px; padding-right: 22px; color: var(--c-ink); cursor: pointer; }
-  .filters__sort :global(svg) { position: absolute; right: 0; pointer-events: none; }
+  .dd__val { font-size: 1rem; font-weight: 500; letter-spacing: 0; text-transform: none; margin-left: var(--sp-1); }
+  .dd--sort { flex: none; }
+  .dd--sort .dd__panel { left: auto; right: 0; min-width: 220px; }
+  .dd summary :global(svg) { transition: transform var(--motion-fast) ease; }
   .listing__count { margin-bottom: var(--sp-4); font-size: .9375rem; }
   .listing__empty { display: grid; justify-items: center; text-align: center; gap: var(--sp-3); padding: var(--sp-16) 0; }
   .listing__empty-icon { display: grid; place-items: center; width: 80px; height: 80px; border-radius: 50%; background: var(--c-blush); color: var(--c-maroon); }
@@ -164,7 +170,8 @@ const pageWindow = Array.from({ length: pages }, (_, i) => i + 1).filter((n) => 
     .filters { flex-direction: column; align-items: stretch; }
     .filters__group { gap: var(--sp-1) var(--sp-5); }
     .dd { position: static; }
-    .dd__panel { left: var(--layout-gutter); right: var(--layout-gutter); }
+    .dd__panel, .dd--sort .dd__panel { left: var(--layout-gutter); right: var(--layout-gutter); }
+    .dd--sort { align-self: flex-start; }
   }
 </style>
 <script>
