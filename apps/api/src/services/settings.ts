@@ -1,4 +1,4 @@
-import { Settings, type PublicSettings } from '@femia/contracts';
+import { activeFestive, Settings, type PublicSettings } from '@femia/contracts';
 import { all } from '../lib/db.ts';
 
 type SettingsKey = keyof Settings;
@@ -31,5 +31,6 @@ export function toPublicSettings(s: Settings): PublicSettings {
       codMax: s.shipping.cod.maxOrderValue,
       whatsapp: s.payments.whatsapp.enabled && !!s.store.whatsapp,
     },
+    festive: activeFestive(s.festive),
   };
 }

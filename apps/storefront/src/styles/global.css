@@ -100,6 +100,14 @@ h3, .h3 { font-size: var(--fs-xl); line-height: 1.12; }
 .link-arrow svg { transition: transform var(--motion-base) var(--motion-ease-out); }
 .link-arrow:hover svg { transform: translateX(4px); }
 
+/* Festive theme preview pill (shown only with ?festive=…) */
+.festive-preview {
+  position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 90; translate: -50% 0;
+  padding: 10px 18px; border-radius: var(--r-pill); background: var(--c-ink); color: var(--c-cream); font-size: .8125rem; font-weight: 500; letter-spacing: .02em;
+  box-shadow: 0 10px 24px -10px rgba(58, 31, 20, .6); white-space: nowrap;
+}
+@media (max-width: 767px) { .festive-preview { bottom: calc(84px + env(safe-area-inset-bottom)); } }
+
 /* Zari lozenge mark (tiny gold diamond) */
 .lozenge { display: inline-block; width: 7px; height: 7px; background: var(--c-zari); transform: rotate(45deg); flex: none; }
 

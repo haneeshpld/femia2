@@ -51,12 +51,54 @@ export const CatalogPresets = z.object({
 });
 export type CatalogPresets = z.infer<typeof CatalogPresets>;
 
+/**
+ * Festive themes: seasonal decorations the owner switches on from Admin. One theme at a time, optionally scheduled.
+ * Each theme keeps its own options so switching between them never loses choices. New festivals add a key here
+ * and a folder in the storefront (src/festive/<id>).
+ */
+export const FESTIVE_THEMES = ['christmas'] as const;
+export const FestiveThemeId = z.enum(FESTIVE_THEMES);
+export type FestiveThemeId = z.infer<typeof FestiveThemeId>;
+export const ChristmasOptions = z.object({
+  /** gold dust and glints, or soft snow */
+  sparkle: z.enum(['gold', 'snow', 'off']).default('gold'),
+  /** embroidered gold pine garland following the logo's arch, with a hanging star */
+  garland: z.boolean().default(true),
+  /** a few zari stars hanging from the header on gold threads */
+  stars: z.boolean().default(true),
+  /** the circular "Christmas Edit" seal on the home page hero */
+  seal: z.boolean().default(true),
+  sealText: z.string().trim().max(32).default('The Christmas Edit'),
+  sealLink: z.string().trim().max(200).regex(/^\//, 'Use a page on your website, like /shop').default('/shop'),
+  /** pine-green announcement bar, the embroidered footer band and stars in place of the gold diamonds */
+  details: z.boolean().default(true),
+  /** on 25 December the seal says Merry Christmas and the sparkle is a little richer */
+  christmasDay: z.boolean().default(true),
+});
+export type ChristmasOptions = z.infer<typeof ChristmasOptions>;
+const when = z.string().datetime({ offset: true }).nullable().default(null);
+export const FestiveSettings = z.object({
+  theme: FestiveThemeId.nullable().default(null),
+  startsAt: when,
+  endsAt: when,
+  themes: z.object({ christmas: ChristmasOptions.prefault({}) }).prefault({}),
+}).refine((f) => !f.startsAt || !f.endsAt || Date.parse(f.endsAt) > Date.parse(f.startsAt), { message: 'The end must be after the start', path: ['endsAt'] });
+export type FestiveSettings = z.infer<typeof FestiveSettings>;
+/** Which theme the website shows right now (schedule applied). */
+export function activeFestive(f: FestiveSettings, now = Date.now()): { theme: FestiveThemeId; options: Record<string, unknown> } | null {
+  if (!f.theme) return null;
+  if (f.startsAt && Date.parse(f.startsAt) > now) return null;
+  if (f.endsAt && Date.parse(f.endsAt) <= now) return null;
+  return { theme: f.theme, options: f.themes[f.theme] };
+}
+
 export const Settings = z.object({
   store: StoreSettings.prefault({}),
   shipping: ShippingSettings.prefault({}),
   payments: PaymentSettings.prefault({}),
   notifications: NotificationSettings.prefault({}),
   catalog: CatalogPresets.prefault({}),
+  festive: FestiveSettings.prefault({}),
 });
 export type Settings = z.infer<typeof Settings>;
 
@@ -67,6 +109,7 @@ export const PublicSettings = z.object({
   payments: z.object({
     upi: z.boolean(), upiVpa: z.string(), upiPayee: z.string(), gateway: z.boolean(), gatewayProvider: z.string(), cod: z.boolean(), codMax: z.number().nullable(), whatsapp: z.boolean(),
   }),
+  festive: z.object({ theme: FestiveThemeId, options: z.record(z.string(), z.unknown()) }).nullable().default(null),
 });
 export type PublicSettings = z.infer<typeof PublicSettings>;
 

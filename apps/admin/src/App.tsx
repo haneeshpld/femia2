@@ -21,6 +21,7 @@ const Media = lazy(() => import('./pages/Media.tsx'));
 const Settings = lazy(() => import('./pages/Settings.tsx'));
 const People = lazy(() => import('./pages/People.tsx'));
 const PromptStudio = lazy(() => import('./pages/PromptStudio.tsx'));
+const Festive = lazy(() => import('./pages/Festive.tsx'));
 const Offers = lazy(() => import('./pages/Offers.tsx'));
 const More = lazy(() => import('./pages/More.tsx'));
 
@@ -52,6 +53,7 @@ export function App() {
     { to: '/offers', label: 'Offers', icon: 'percent', perm: 'catalog.read' },
     { to: '/catalog', label: 'Catalog setup', icon: 'tag', perm: 'catalog.write' },
     { to: '/content', label: 'Homepage', icon: 'edit', perm: 'content.write' },
+    { to: '/festive', label: 'Festive themes', icon: 'sparkle', perm: 'settings.read' },
     { to: '/photos', label: 'Photos', icon: 'image', perm: 'media.write' },
     { to: '/prompt-studio', label: 'Prompt Studio', icon: 'wand', perm: 'media.write' },
     { to: '/settings', label: 'Settings', icon: 'settings', perm: 'settings.read' },
@@ -81,6 +83,7 @@ export function App() {
               <Route path="/stock" element={<Stock />} />
               <Route path="/catalog" element={<Catalog />} />
               <Route path="/offers" element={<Offers />} />
+              <Route path="/festive" element={<Festive />} />
               <Route path="/orders" element={<Orders />} />
               <Route path="/orders/new" element={<NewOrder />} />
               <Route path="/orders/:number" element={<OrderDetail />} />
