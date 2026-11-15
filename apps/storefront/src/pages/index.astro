@@ -3,9 +3,11 @@ import Base from '../layouts/Base.astro';
 import HomeView from '../components/home/HomeView.astro';
 import { getCommon } from '../lib/content.ts';
 import { srcset } from '../lib/format.ts';
+import { homeSections } from '@femia/contracts';
 
 const { site, categories } = await getCommon();
-const heroImg = site.content.hero?.image ? site.media[site.content.hero.image] : undefined;
+const heroSection = homeSections(site.content).find((x) => x.type === 'hero' && x.enabled);
+const heroImg = heroSection?.data.image ? site.media[heroSection.data.image] : undefined;
 Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=600');
 ---
 <Base site={site} categories={categories} image={heroImg?.src['1600']}>

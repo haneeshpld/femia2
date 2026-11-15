@@ -10,3 +10,4 @@ export * from './events.ts';
 export * from './manifest.ts';
 export * from './settings.ts';
 export * from './admin.ts';
+export * from './offers.ts';

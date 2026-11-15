@@ -15,6 +15,7 @@ const { order: o } = Astro.props;
 </ul>
 <dl class="oi__totals">
   <div><dt>Subtotal</dt><dd>{formatINR(o.subtotal)}</dd></div>
+  {(o.discounts ?? []).map((d) => <div class="oi__deal"><dt>{d.label}{d.code && ` · ${d.code}`}</dt><dd>−{formatINR(d.amount)}</dd></div>)}
   <div><dt>Shipping</dt><dd>{o.shipping ? formatINR(o.shipping) : 'Free'}</dd></div>
   <div class="oi__grand"><dt>Total</dt><dd>{formatINR(o.total)}</dd></div>
 </dl>
@@ -30,6 +31,7 @@ const { order: o } = Astro.props;
   .oi__totals { display: grid; gap: var(--sp-1); margin-top: var(--sp-5); padding-top: var(--sp-4); border-top: 1px solid var(--c-line); }
   .oi__totals div { display: flex; justify-content: space-between; }
   .oi__totals dt { color: var(--c-muted); }
+  .oi__deal dt, .oi__deal dd { color: var(--c-maroon) !important; }
   .oi__grand { font-size: 1.125rem; font-weight: 700; color: var(--c-ink); }
   .oi__grand dt { color: var(--c-ink) !important; }
 </style>

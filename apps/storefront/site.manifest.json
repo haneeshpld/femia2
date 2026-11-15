@@ -62,6 +62,13 @@
       "aspect": 1.5,
       "minWidth": 1400,
       "mask": "rect"
+    },
+    {
+      "id": "banner",
+      "label": "Promo banner (wide)",
+      "aspect": 1.6,
+      "minWidth": 1400,
+      "mask": "rect"
     }
   ],
   "sections": [
@@ -100,181 +107,9 @@
       ]
     },
     {
-      "id": "hero",
-      "label": "Hero",
-      "page": "home",
-      "fields": [
-        {
-          "id": "eyebrow",
-          "type": "text",
-          "label": "Tagline under the buttons",
-          "maxLength": 40
-        },
-        {
-          "id": "title",
-          "type": "text",
-          "label": "Headline",
-          "required": true,
-          "maxLength": 40
-        },
-        {
-          "id": "titleAccent",
-          "type": "text",
-          "label": "Headline accent (italic, second line)",
-          "maxLength": 30
-        },
-        {
-          "id": "body",
-          "type": "textarea",
-          "label": "Intro text",
-          "maxLength": 160
-        },
-        {
-          "id": "ctaLabel",
-          "type": "text",
-          "label": "Button text",
-          "required": true,
-          "maxLength": 24
-        },
-        {
-          "id": "ctaLink",
-          "type": "url",
-          "label": "Button link",
-          "required": true
-        },
-        {
-          "id": "secondaryLabel",
-          "type": "text",
-          "label": "Second link text",
-          "maxLength": 24
-        },
-        {
-          "id": "secondaryLink",
-          "type": "url",
-          "label": "Second link"
-        },
-        {
-          "id": "image",
-          "type": "image",
-          "label": "Hero image",
-          "slot": "hero"
-        }
-      ]
-    },
-    {
-      "id": "categories",
-      "label": "Shop by category",
-      "page": "home",
-      "fields": [
-        {
-          "id": "eyebrow",
-          "type": "text",
-          "label": "Heading",
-          "maxLength": 40,
-          "help": "Wrap one word in *asterisks* to set it in italics."
-        },
-        {
-          "id": "items",
-          "type": "list",
-          "label": "Tiles",
-          "itemLabel": "Tile",
-          "min": 2,
-          "max": 8,
-          "fields": [
-            {
-              "id": "category",
-              "type": "category",
-              "label": "Category",
-              "required": true
-            },
-            {
-              "id": "image",
-              "type": "image",
-              "label": "Tile photo",
-              "slot": "arch"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "newArrivals",
-      "label": "New arrivals",
-      "page": "home",
-      "fields": [
-        {
-          "id": "eyebrow",
-          "type": "text",
-          "label": "Link text",
-          "maxLength": 40,
-          "help": "e.g. All new arrivals"
-        },
-        {
-          "id": "title",
-          "type": "text",
-          "label": "Heading",
-          "maxLength": 40,
-          "help": "Wrap one word in *asterisks* to set it in italics."
-        },
-        {
-          "id": "collection",
-          "type": "collection",
-          "label": "Show products from (empty = newest)"
-        },
-        {
-          "id": "count",
-          "type": "number",
-          "label": "How many products"
-        }
-      ]
-    },
-    {
-      "id": "occasions",
-      "label": "Shop by occasion",
-      "page": "home",
-      "fields": [
-        {
-          "id": "title",
-          "type": "text",
-          "label": "Heading",
-          "maxLength": 40,
-          "help": "Wrap one word in *asterisks* to set it in italics."
-        },
-        {
-          "id": "items",
-          "type": "list",
-          "label": "Occasion cards",
-          "itemLabel": "Card",
-          "min": 1,
-          "max": 6,
-          "fields": [
-            {
-              "id": "collection",
-              "type": "collection",
-              "label": "Collection",
-              "required": true
-            },
-            {
-              "id": "title",
-              "type": "text",
-              "label": "Card title",
-              "required": true,
-              "maxLength": 30
-            },
-            {
-              "id": "image",
-              "type": "image",
-              "label": "Photo",
-              "slot": "occasion"
-            }
-          ]
-        }
-      ]
-    },
-    {
       "id": "boutique",
-      "label": "Visit our boutique",
-      "page": "home",
+      "label": "Visit Us page",
+      "page": "visit",
       "fields": [
         {
           "id": "title",
@@ -294,53 +129,6 @@
           "type": "image",
           "label": "Boutique photo",
           "slot": "boutique"
-        }
-      ]
-    },
-    {
-      "id": "styled",
-      "label": "Styled by you (Instagram)",
-      "page": "home",
-      "fields": [
-        {
-          "id": "enabled",
-          "type": "boolean",
-          "label": "Show this section"
-        },
-        {
-          "id": "eyebrow",
-          "type": "text",
-          "label": "Heading",
-          "maxLength": 40,
-          "help": "Wrap one word in *asterisks* to set it in italics."
-        },
-        {
-          "id": "handle",
-          "type": "text",
-          "label": "Instagram handle",
-          "maxLength": 40
-        },
-        {
-          "id": "images",
-          "type": "list",
-          "label": "Photos",
-          "itemLabel": "Photo",
-          "min": 0,
-          "max": 8,
-          "fields": [
-            {
-              "id": "image",
-              "type": "image",
-              "label": "Photo",
-              "slot": "social",
-              "required": true
-            },
-            {
-              "id": "link",
-              "type": "url",
-              "label": "Post link (optional)"
-            }
-          ]
         }
       ]
     },
@@ -518,5 +306,407 @@
     "wishlist": true,
     "search": true,
     "whatsappOrder": true
-  }
+  },
+  "blocks": [
+    {
+      "type": "hero",
+      "label": "Hero banner",
+      "description": "The big opening banner with your headline and main button.",
+      "single": true,
+      "pinned": "first",
+      "defaults": {
+        "title": "Everyday Styles for",
+        "titleAccent": "Modern Women",
+        "ctaLabel": "Shop New Arrivals",
+        "ctaLink": "/shop?sort=new"
+      },
+      "fields": [
+        {
+          "id": "eyebrow",
+          "type": "text",
+          "label": "Tagline under the buttons",
+          "maxLength": 40
+        },
+        {
+          "id": "title",
+          "type": "text",
+          "label": "Headline",
+          "required": true,
+          "maxLength": 40
+        },
+        {
+          "id": "titleAccent",
+          "type": "text",
+          "label": "Headline accent (italic, second line)",
+          "maxLength": 30
+        },
+        {
+          "id": "body",
+          "type": "textarea",
+          "label": "Intro text",
+          "maxLength": 160
+        },
+        {
+          "id": "ctaLabel",
+          "type": "text",
+          "label": "Button text",
+          "required": true,
+          "maxLength": 24
+        },
+        {
+          "id": "ctaLink",
+          "type": "url",
+          "label": "Button link",
+          "required": true
+        },
+        {
+          "id": "secondaryLabel",
+          "type": "text",
+          "label": "Second link text",
+          "maxLength": 24
+        },
+        {
+          "id": "secondaryLink",
+          "type": "url",
+          "label": "Second link"
+        },
+        {
+          "id": "image",
+          "type": "image",
+          "label": "Hero image",
+          "slot": "hero"
+        }
+      ]
+    },
+    {
+      "type": "categories",
+      "label": "Shop by category",
+      "description": "Arched tiles linking to each category.",
+      "defaults": {
+        "heading": "Shop by *category*",
+        "items": []
+      },
+      "fields": [
+        {
+          "id": "heading",
+          "type": "text",
+          "label": "Heading",
+          "help": "Wrap one word in *asterisks* to set it in italics.",
+          "maxLength": 40
+        },
+        {
+          "id": "items",
+          "type": "list",
+          "label": "Tiles",
+          "itemLabel": "Tile",
+          "min": 0,
+          "max": 8,
+          "fields": [
+            {
+              "id": "category",
+              "type": "category",
+              "label": "Category",
+              "required": true
+            },
+            {
+              "id": "image",
+              "type": "image",
+              "label": "Tile photo (optional, uses the category photo otherwise)",
+              "slot": "arch"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "products",
+      "label": "Products row",
+      "description": "A row of products: newest arrivals, a collection or a category. Add as many rows as you like.",
+      "defaults": {
+        "heading": "Just *landed*",
+        "linkLabel": "View all",
+        "source": "newest",
+        "count": 4
+      },
+      "fields": [
+        {
+          "id": "heading",
+          "type": "text",
+          "label": "Heading",
+          "help": "Wrap one word in *asterisks* to set it in italics.",
+          "maxLength": 40
+        },
+        {
+          "id": "linkLabel",
+          "type": "text",
+          "label": "Link text",
+          "help": "e.g. All new arrivals",
+          "maxLength": 30
+        },
+        {
+          "id": "source",
+          "type": "select",
+          "label": "Show products from",
+          "options": [
+            {
+              "value": "newest",
+              "label": "Newest arrivals"
+            },
+            {
+              "value": "collection",
+              "label": "A collection"
+            },
+            {
+              "value": "category",
+              "label": "A category"
+            },
+            {
+              "value": "popular",
+              "label": "Most popular"
+            }
+          ]
+        },
+        {
+          "id": "collection",
+          "type": "collection",
+          "label": "Collection (when showing a collection)"
+        },
+        {
+          "id": "category",
+          "type": "category",
+          "label": "Category (when showing a category)"
+        },
+        {
+          "id": "count",
+          "type": "number",
+          "label": "How many products (4 = one row, 8 = two rows)"
+        }
+      ]
+    },
+    {
+      "type": "occasions",
+      "label": "Shop by occasion",
+      "description": "Photo cards for occasions such as Everyday, Festive and Work.",
+      "defaults": {
+        "heading": "Dressed for every *moment*",
+        "items": []
+      },
+      "fields": [
+        {
+          "id": "heading",
+          "type": "text",
+          "label": "Heading",
+          "help": "Wrap one word in *asterisks* to set it in italics.",
+          "maxLength": 40
+        },
+        {
+          "id": "items",
+          "type": "list",
+          "label": "Cards",
+          "itemLabel": "Card",
+          "min": 0,
+          "max": 6,
+          "fields": [
+            {
+              "id": "collection",
+              "type": "collection",
+              "label": "Collection",
+              "required": true
+            },
+            {
+              "id": "title",
+              "type": "text",
+              "label": "Card title",
+              "required": true,
+              "maxLength": 30
+            },
+            {
+              "id": "image",
+              "type": "image",
+              "label": "Photo",
+              "slot": "occasion"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "boutique",
+      "label": "Visit our boutique",
+      "description": "Your shop photo, address and opening hours, with directions and WhatsApp buttons.",
+      "defaults": {
+        "heading": "Try it on *in person*",
+        "body": "Step into our boutique to explore the full collection, feel the fabrics and find your perfect fit."
+      },
+      "fields": [
+        {
+          "id": "heading",
+          "type": "text",
+          "label": "Heading",
+          "help": "Wrap one word in *asterisks* to set it in italics.",
+          "maxLength": 40
+        },
+        {
+          "id": "body",
+          "type": "textarea",
+          "label": "Text",
+          "maxLength": 220
+        },
+        {
+          "id": "image",
+          "type": "image",
+          "label": "Boutique photo",
+          "slot": "boutique"
+        }
+      ]
+    },
+    {
+      "type": "instagram",
+      "label": "Styled by you (Instagram)",
+      "description": "Customer or Instagram photos shown as printed photos.",
+      "defaults": {
+        "heading": "Styled *by you*",
+        "handle": "@femia",
+        "images": []
+      },
+      "fields": [
+        {
+          "id": "heading",
+          "type": "text",
+          "label": "Heading",
+          "help": "Wrap one word in *asterisks* to set it in italics.",
+          "maxLength": 40
+        },
+        {
+          "id": "handle",
+          "type": "text",
+          "label": "Instagram handle",
+          "maxLength": 40
+        },
+        {
+          "id": "images",
+          "type": "list",
+          "label": "Photos",
+          "itemLabel": "Photo",
+          "min": 0,
+          "max": 8,
+          "fields": [
+            {
+              "id": "image",
+              "type": "image",
+              "label": "Photo",
+              "slot": "social",
+              "required": true
+            },
+            {
+              "id": "caption",
+              "type": "text",
+              "label": "Caption on the print (optional)",
+              "maxLength": 40
+            },
+            {
+              "id": "link",
+              "type": "url",
+              "label": "Post link (optional)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "banner",
+      "label": "Promo banner",
+      "description": "A wide photo with a short message and a button, for a sale, a launch or a festival.",
+      "defaults": {
+        "heading": "The Festive Edit",
+        "ctaLabel": "Shop now",
+        "ctaLink": "/collections",
+        "align": "left"
+      },
+      "fields": [
+        {
+          "id": "heading",
+          "type": "text",
+          "label": "Heading",
+          "help": "Wrap one word in *asterisks* to set it in italics.",
+          "required": true,
+          "maxLength": 50
+        },
+        {
+          "id": "body",
+          "type": "textarea",
+          "label": "Text",
+          "maxLength": 180
+        },
+        {
+          "id": "ctaLabel",
+          "type": "text",
+          "label": "Button text",
+          "maxLength": 24
+        },
+        {
+          "id": "ctaLink",
+          "type": "url",
+          "label": "Button link"
+        },
+        {
+          "id": "image",
+          "type": "image",
+          "label": "Photo",
+          "slot": "banner"
+        },
+        {
+          "id": "align",
+          "type": "select",
+          "label": "Text position",
+          "options": [
+            {
+              "value": "left",
+              "label": "Text on the left"
+            },
+            {
+              "value": "right",
+              "label": "Text on the right"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "story",
+      "label": "Story",
+      "description": "A short paragraph about Femia, centred, with an optional link.",
+      "defaults": {
+        "heading": "Made for the way you live",
+        "linkLabel": "Our story",
+        "link": "/about"
+      },
+      "fields": [
+        {
+          "id": "heading",
+          "type": "text",
+          "label": "Heading",
+          "help": "Wrap one word in *asterisks* to set it in italics.",
+          "maxLength": 60
+        },
+        {
+          "id": "body",
+          "type": "textarea",
+          "label": "Text",
+          "maxLength": 420
+        },
+        {
+          "id": "linkLabel",
+          "type": "text",
+          "label": "Link text",
+          "maxLength": 30
+        },
+        {
+          "id": "link",
+          "type": "url",
+          "label": "Link"
+        }
+      ]
+    }
+  ]
 }

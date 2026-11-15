@@ -75,6 +75,9 @@ export default function OrderDetail() {
           </div>
           <dl style={{ display: 'grid', gap: 4, marginTop: 'var(--sp-4)', paddingTop: 'var(--sp-3)', borderTop: '1px solid var(--c-line)' }}>
             <div className="row" style={{ justifyContent: 'space-between' }}><dt className="muted">Subtotal</dt><dd>{formatINR(d.subtotal)}</dd></div>
+            {(d.discounts ?? []).map((x: { label: string; code: string | null; amount: number }, k: number) => (
+              <div key={k} className="row" style={{ justifyContent: 'space-between', color: 'var(--c-maroon)' }}><dt>{x.label}{x.code && ` · ${x.code}`}</dt><dd>−{formatINR(x.amount)}</dd></div>
+            ))}
             <div className="row" style={{ justifyContent: 'space-between' }}><dt className="muted">Shipping</dt><dd>{d.shipping ? formatINR(d.shipping) : 'Free'}</dd></div>
             <div className="row" style={{ justifyContent: 'space-between', fontWeight: 700, fontSize: '1.125rem' }}><dt>Total</dt><dd>{formatINR(d.total)}</dd></div>
           </dl>

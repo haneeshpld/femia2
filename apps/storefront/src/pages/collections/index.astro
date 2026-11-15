@@ -3,13 +3,13 @@ import Base from '../../layouts/Base.astro';
 import PageBanner from '../../components/shop/PageBanner.astro';
 import Icon from '../../components/ui/Icon.astro';
 import { api } from '../../lib/api.ts';
-import { getCommon } from '../../lib/content.ts';
+import { getCommon, heroOf } from '../../lib/content.ts';
 import { srcset } from '../../lib/format.ts';
 const { site, categories } = await getCommon();
 const collections = await api().catalog.collections();
 const occasions = collections.filter((c) => c.kind === 'occasion');
 const edits = collections.filter((c) => c.kind === 'collection');
-const banner = site.content.hero?.image ? site.media[site.content.hero.image] : null;
+const banner = heroOf(site).image;
 Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=600');
 ---
 <Base site={site} categories={categories} title="Collections" description="Curated Femia edits for every day, every celebration and every workday.">

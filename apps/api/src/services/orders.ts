@@ -1,5 +1,5 @@
 import {
-  canShipTo, canTransition, CheckoutRequest, formatINR, quoteCart, STATE_PINCODES,
+  bestSale, canShipTo, canTransition, CheckoutRequest, formatINR, quoteCart, STATE_PINCODES, type ScopeItem,
   type CheckoutResult, type OrderChannel, type OrderStatus, type PaymentMethod, type PricedVariant, type PublicOrder, type Quote,
 } from '@femia/contracts';
 import type { Env } from '../env.ts';
@@ -8,6 +8,7 @@ import { conflict, HttpError, notFound, parse } from '../lib/http.ts';
 import { notifyLowStock, notifyOrder } from '../notify/index.ts';
 import { getGatewayKeys, getProvider, upiUri } from '../payments/index.ts';
 import { getSettings } from './settings.ts';
+import { automaticOffers, checkCoupon } from './offers.ts';
 import {
   commitDirectStatements, commitHeldStatements, holdStatements, releaseHeldStatements, restockStatements, type StockLine,
 } from './stock.ts';
@@ -21,9 +22,9 @@ export async function loadPricedVariants(db: D1Database, ids: string[]): Promise
   if (!unique.length) return new Map();
   const rows = await all<{
     id: string; product_id: string; slug: string; title: string; option1: string | null; option2: string | null; option2_label: string | null;
-    price: number; compare_at_price: number | null; available: number; purchasable: number; image_key: string | null;
+    price: number; compare_at_price: number | null; available: number; purchasable: number; image_key: string | null; category_id: string;
   }>(db,
-    `SELECT v.id, v.product_id, p.slug, p.title, v.option1, v.option2,
+    `SELECT v.id, v.product_id, p.slug, p.title, v.option1, v.option2, p.category_id,
             (SELECT label FROM product_options po WHERE po.product_id = p.id AND po.option = 2 AND po.value = v.option2) AS option2_label,
             COALESCE(v.price, p.price) AS price, COALESCE(v.compare_at_price, p.compare_at_price) AS compare_at_price,
             MAX(v.on_hand - v.reserved, 0) AS available,
@@ -32,17 +33,34 @@ export async function loadPricedVariants(db: D1Database, ids: string[]): Promise
               WHERE pm.product_id = p.id AND (pm.option2 = v.option2 OR pm.option2 IS NULL)
               ORDER BY (pm.option2 IS NULL), (pm.role != 'main'), pm.sort LIMIT 1) AS image_key
      FROM variants v JOIN products p ON p.id = v.product_id WHERE v.id IN (${placeholders(unique.length)})`, ...unique);
-  return new Map(rows.map((r) => [r.id, {
-    variantId: r.id, productId: r.product_id, slug: r.slug, title: r.title, option1: r.option1, option2: r.option2,
-    optionLabel: [r.option1, r.option2_label ?? r.option2].filter(Boolean).join(' / '),
-    imageUrl: r.image_key ? `/media/${r.image_key}/480.webp` : null,
-    price: r.price, compareAtPrice: r.compare_at_price, available: r.available, purchasable: r.purchasable === 1,
-  }]));
+  const productIds = [...new Set(rows.map((r) => r.product_id))];
+  const [colls, offers] = await Promise.all([
+    productIds.length ? all<{ product_id: string; collection_id: string }>(db, `SELECT product_id, collection_id FROM product_collections WHERE product_id IN (${placeholders(productIds.length)})`, ...productIds) : [],
+    automaticOffers(db),
+  ]);
+  const collsBy = new Map<string, string[]>();
+  for (const c of colls) (collsBy.get(c.product_id) ?? collsBy.set(c.product_id, []).get(c.product_id)!).push(c.collection_id);
+  return new Map(rows.map((r) => {
+    const scope: ScopeItem = { productId: r.product_id, categoryId: r.category_id, collectionIds: collsBy.get(r.product_id) ?? [] };
+    const sale = bestSale(r.price, scope, offers);
+    return [r.id, {
+      variantId: r.id, productId: r.product_id, slug: r.slug, title: r.title, option1: r.option1, option2: r.option2,
+      optionLabel: [r.option1, r.option2_label ?? r.option2].filter(Boolean).join(' / '),
+      imageUrl: r.image_key ? `/media/${r.image_key}/480.webp` : null,
+      price: sale ? sale.price : r.price,
+      compareAtPrice: sale ? Math.max(r.compare_at_price ?? 0, r.price) : r.compare_at_price,
+      listPrice: r.price, saleLabel: sale?.offer.label ?? null, scope,
+      available: r.available, purchasable: r.purchasable === 1,
+    }];
+  }));
 }
 
-export async function quote(db: D1Database, lines: { variantId: string; qty: number }[]): Promise<Quote> {
-  const [variants, settings] = await Promise.all([loadPricedVariants(db, lines.map((l) => l.variantId)), getSettings(db)]);
-  return quoteCart(lines, variants, settings.shipping);
+/** Server-side quote: sale prices, the best bundle, and a coupon (checked against usage and first-order rules). */
+export async function quote(db: D1Database, lines: { variantId: string; qty: number }[], opts: { coupon?: string | null; phone?: string | null } = {}): Promise<Quote> {
+  const [variants, settings, offers, c] = await Promise.all([
+    loadPricedVariants(db, lines.map((l) => l.variantId)), getSettings(db), automaticOffers(db), checkCoupon(db, opts.coupon, opts.phone),
+  ]);
+  return quoteCart(lines, variants, settings.shipping, { offers, coupon: c.coupon, couponCode: c.code, couponError: c.error });
 }
 
 // ──────────────────────────────── reading ────────────────────────────────
@@ -51,7 +69,7 @@ interface OrderRow {
   id: string; number: string; access_token: string; status: OrderStatus; payment_method: PaymentMethod; payment_status: PublicOrder['paymentStatus'];
   channel: OrderChannel; stock_state: 'held' | 'committed' | 'released'; hold_expires_at: string | null;
   customer_name: string; phone: string; email: string; line1: string; line2: string; landmark: string; city: string; state: string; pincode: string;
-  subtotal: number; shipping: number; total: number; courier: string | null; tracking_number: string | null; tracking_url: string | null;
+  subtotal: number; discount: number; shipping: number; total: number; courier: string | null; tracking_number: string | null; tracking_url: string | null;
   notes: string; cancel_reason: string | null; created_at: string; paid_at: string | null;
 }
 
@@ -67,9 +85,10 @@ export async function orderItems(db: D1Database, orderId: string) {
 }
 
 export async function toPublicOrder(db: D1Database, o: OrderRow): Promise<PublicOrder & { email: string; phone: string }> {
-  const [items, events] = await Promise.all([
+  const [items, events, discounts] = await Promise.all([
     orderItems(db, o.id),
     all<{ status: string; note: string | null; created_at: string }>(db, 'SELECT status, note, created_at FROM order_events WHERE order_id = ? AND public = 1 ORDER BY id', o.id),
+    all<{ label: string; code: string | null; amount: number }>(db, 'SELECT label, code, amount FROM order_discounts WHERE order_id = ? ORDER BY id', o.id),
   ]);
   return {
     number: o.number, status: o.status, paymentMethod: o.payment_method, paymentStatus: o.payment_status,
@@ -77,7 +96,7 @@ export async function toPublicOrder(db: D1Database, o: OrderRow): Promise<Public
       variantId: i.variant_id, productId: i.product_id, slug: i.slug, title: i.title, optionLabel: i.option_label, sku: i.sku,
       imageUrl: i.image_url, unitPrice: i.unit_price, qty: i.qty, lineTotal: i.line_total,
     })),
-    subtotal: o.subtotal, shipping: o.shipping, total: o.total, customerName: o.customer_name, city: o.city, pincode: o.pincode,
+    subtotal: o.subtotal, discount: o.discount ?? 0, discounts, shipping: o.shipping, total: o.total, customerName: o.customer_name, city: o.city, pincode: o.pincode,
     courier: o.courier, trackingNumber: o.tracking_number, trackingUrl: o.tracking_url,
     timeline: events.map((e) => ({ status: e.status, note: e.note, at: e.created_at })),
     createdAt: o.created_at, email: o.email, phone: o.phone,
@@ -137,8 +156,9 @@ export async function createOrder(env: Env, ctx: Ctx, input: unknown, opts: Crea
     if (!enabled) throw new HttpError(422, 'method_unavailable', 'That payment option is not available right now. Please choose another.');
   }
 
-  const q = await quote(db, req.lines);
+  const q = await quote(db, req.lines, { coupon: req.coupon, phone: req.customer.phone });
   if (q.issues.length || !q.lines.length) throw conflict('cart_changed', 'Some items in your bag have changed. Please review and try again.', { quote: q });
+  if (q.coupon && !q.coupon.applied) throw new HttpError(422, 'coupon_invalid', q.coupon.message, { quote: q });
   if (!opts.manual && method === 'cod' && settings.shipping.cod.maxOrderValue !== null && q.total > settings.shipping.cod.maxOrderValue) {
     throw new HttpError(422, 'cod_limit', `Cash on Delivery is available for orders up to ${formatINR(settings.shipping.cod.maxOrderValue)}. Please choose another payment option.`);
   }
@@ -166,18 +186,23 @@ export async function createOrder(env: Env, ctx: Ctx, input: unknown, opts: Crea
     db.prepare("UPDATE counters SET value = value + 1 WHERE name = 'order_number'"),
     db.prepare(
       `INSERT INTO orders (id, number, access_token, client_ref, status, payment_method, payment_status, channel, stock_state, hold_expires_at,
-         customer_name, phone, email, line1, line2, landmark, city, state, pincode, subtotal, shipping, total, notes, created_by, paid_at)
-       VALUES (?, 'FEM' || (SELECT value FROM counters WHERE name = 'order_number'), ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+         customer_name, phone, email, line1, line2, landmark, city, state, pincode, subtotal, discount, shipping, total, notes, created_by, paid_at)
+       VALUES (?, 'FEM' || (SELECT value FROM counters WHERE name = 'order_number'), ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     ).bind(
       orderId, token(), req.clientRef, status, method, paymentStatus, opts.channel ?? 'web', stockState, holdUntil,
       req.customer.name, req.customer.phone, req.customer.email, req.address.line1, req.address.line2, req.address.landmark,
-      req.address.city, req.address.state, req.address.pincode, q.subtotal, q.shipping, q.total, opts.manual?.note ?? '',
+      req.address.city, req.address.state, req.address.pincode, q.subtotal, q.discountTotal, q.shipping, q.total, opts.manual?.note ?? '',
       opts.createdBy ?? null, paymentStatus === 'paid' ? new Date(now).toISOString() : null,
     ),
     ...q.lines.map((l) => db.prepare(
-      `INSERT INTO order_items (order_id, variant_id, product_id, slug, sku, title, option_label, image_url, unit_price, qty, line_total)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-    ).bind(orderId, l.variantId, l.productId, l.slug, skuOf.get(l.variantId) ?? '', l.title, l.optionLabel, l.imageUrl, l.price, l.qty, l.lineTotal)),
+      `INSERT INTO order_items (order_id, variant_id, product_id, slug, sku, title, option_label, image_url, unit_price, list_price, qty, line_total)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+    ).bind(orderId, l.variantId, l.productId, l.slug, skuOf.get(l.variantId) ?? '', l.title, l.optionLabel, l.imageUrl, l.price, l.listPrice ?? l.price, l.qty, l.lineTotal)),
+    // What the shopper got, kept with the order; coupons count a use.
+    ...q.discounts.flatMap((d) => [
+      db.prepare('INSERT INTO order_discounts (order_id, offer_id, kind, label, code, amount) VALUES (?,?,?,?,?,?)').bind(orderId, d.offerId, d.kind, d.label, d.code, d.amount),
+      ...(d.kind === 'coupon' ? [db.prepare('UPDATE offers SET used_count = used_count + 1 WHERE id = ?').bind(d.offerId)] : []),
+    ]),
     ...(stockState === 'held' ? holdStatements(db, orderId, lines, actor) : commitDirectStatements(db, orderId, lines, actor)),
     event(db, orderId, status, status === 'pending_payment' ? 'Awaiting payment' : 'Order placed', actor),
     ...(req.newsletter ? [db.prepare('INSERT OR IGNORE INTO newsletter_subscribers (email, source) VALUES (?, ?)').bind(req.customer.email, 'checkout')] : []),
@@ -190,7 +215,9 @@ export async function createOrder(env: Env, ctx: Ctx, input: unknown, opts: Crea
     if (isConstraintError(e)) {
       const again = await first<OrderRow>(db, 'SELECT * FROM orders WHERE client_ref = ?', req.clientRef);
       if (again) return checkoutResult(env, again, settings); // double submit raced
-      throw conflict('cart_changed', 'Someone just bought the last piece of an item in your bag. Please review and try again.', { quote: await quote(db, req.lines) });
+      const q2 = await quote(db, req.lines, { coupon: req.coupon, phone: req.customer.phone });
+      if (q2.coupon && !q2.coupon.applied) throw new HttpError(422, 'coupon_invalid', q2.coupon.message, { quote: q2 }); // last use just went
+      throw conflict('cart_changed', 'Someone just bought the last piece of an item in your bag. Please review and try again.', { quote: q2 });
     }
     throw e;
   }
@@ -332,6 +359,9 @@ export async function cancelOrder(env: Env, ctx: Ctx, o: OrderRow, actor: string
     : o.stock_state === 'committed' ? restockStatements(db, o.id, lines, actor, reason) : [];
   await db.batch([
     ...stock,
+    // a cancelled order gives its coupon use back
+    db.prepare(`UPDATE offers SET used_count = MAX(used_count - 1, 0) WHERE id IN (SELECT offer_id FROM order_discounts WHERE order_id = ? AND kind = 'coupon')
+      AND EXISTS (SELECT 1 FROM orders WHERE id = ? AND status != 'cancelled' AND stock_state = ?)`).bind(o.id, o.id, o.stock_state),
     db.prepare("UPDATE orders SET status = 'cancelled', stock_state = 'released', hold_expires_at = NULL, cancel_reason = ?, updated_at = ? WHERE id = ? AND stock_state = ?")
       .bind(reason, nowIso(), o.id, o.stock_state),
     event(db, o.id, 'cancelled', isPublic ? reason : null, actor),

@@ -15,6 +15,11 @@ const SAVED = 'femia.checkout.v1';
 const FIELDS = ['name', 'phone', 'email', 'line1', 'line2', 'landmark', 'city', 'pincode'] as const;
 type Form = Record<(typeof FIELDS)[number], string>;
 
+const COUPON = 'femia.coupon.v1';
+const readCoupon = () => { try { return sessionStorage.getItem(COUPON); } catch { return null; } };
+const keepCoupon = (c: string | null) => { try { if (c) sessionStorage.setItem(COUPON, c); else sessionStorage.removeItem(COUPON); } catch { /* ignore */ } };
+const phoneDigits = (p: string) => { const d = p.replace(/\D/g, '').slice(-10); return /^[6-9]\d{9}$/.test(d) ? d : null; };
+
 function loadSaved(): Partial<Form> { try { return JSON.parse(localStorage.getItem(SAVED) ?? '{}'); } catch { return {}; } }
 
 declare global { interface Window { Razorpay?: new (o: Record<string, unknown>) => { open(): void; on(e: string, cb: (r: unknown) => void): void } } }
@@ -47,12 +52,30 @@ export default function Checkout({ payments }: { payments: PublicSettings['payme
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => setHydrated(true), []);
 
+  // Coupon: typed here, checked by the server with every quote (usage, first order and minimums need the phone).
+  const [coupon, setCoupon] = useState<string | null>(() => (typeof window === 'undefined' ? null : readCoupon()));
+  const [codeOpen, setCodeOpen] = useState(false);
+  const [codeInput, setCodeInput] = useState('');
+  const [checking, setChecking] = useState(false);
+  const phone = phoneDigits(form.phone);
+
   const key = lines.map((l) => `${l.variantId}:${l.qty}`).join('|');
   useEffect(() => {
     if (!lines.length) { setQuote(null); return; }
-    fetch('/api/cart/quote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lines: lines.map((l) => ({ variantId: l.variantId, qty: l.qty })) }) })
-      .then((r) => json<Quote>(r)).then((q: Quote) => { setQuote(q); applyIssues(q); }).catch(() => {});
-  }, [key]);
+    const ctrl = new AbortController();
+    fetch('/api/cart/quote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal,
+      body: JSON.stringify({ lines: lines.map((l) => ({ variantId: l.variantId, qty: l.qty })), coupon, phone }) })
+      .then((r) => json<Quote>(r)).then((q: Quote) => { setQuote(q); applyIssues(q); setChecking(false); }).catch(() => setChecking(false));
+    return () => ctrl.abort();
+  }, [key, coupon, phone]);
+
+  const applyCode = () => {
+    const c = codeInput.trim().toUpperCase();
+    if (!c) return;
+    setChecking(true); setCoupon(c); keepCoupon(c);
+  };
+  const removeCode = () => { setCoupon(null); keepCoupon(null); setCodeInput(''); setCodeOpen(true); };
+  const couponState = quote?.coupon && quote.coupon.code === coupon ? quote.coupon : null;
 
   function applyIssues(q: Quote) {
     if (!q.issues.length) return;
@@ -93,11 +116,13 @@ export default function Checkout({ payments }: { payments: PublicSettings['payme
     if (Object.keys(e).length) { document.getElementById(`co-${Object.keys(e)[0]}`)?.focus(); return; }
     setBusy(true);
     try { localStorage.setItem(SAVED, JSON.stringify(form)); } catch { /* ignore */ }
+    if (!couponState?.applied) keepCoupon(null);
     const body = {
       lines: lines.map((l) => ({ variantId: l.variantId, qty: l.qty })),
       customer: { name: form.name, phone: form.phone, email: form.email },
       address: { line1: form.line1, line2: form.line2, landmark: form.landmark, city: form.city, pincode: form.pincode.trim() },
       paymentMethod: method, newsletter, clientRef: clientRef.current,
+      coupon: couponState?.applied ? coupon : null,
     };
     const res = await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => null);
     const data = res ? await json<any>(res).catch(() => null) : null;
@@ -109,6 +134,7 @@ export default function Checkout({ payments }: { payments: PublicSettings['payme
         for (const [k, v] of Object.entries(err.details?.fields ?? {})) map[k.replace(/^(customer|address)\./, '')] = String(v);
         setErrors(map); setBanner(err.message);
       } else if (err?.code === 'cart_changed' && err.details?.quote) { setQuote(err.details.quote); applyIssues(err.details.quote); setBanner(err.message); clientRef.current = crypto.randomUUID?.() ?? clientRef.current + '1'; }
+      else if (err?.code === 'coupon_invalid') { if (err.details?.quote) setQuote(err.details.quote); setBanner(err.message); clientRef.current = crypto.randomUUID?.() ?? clientRef.current + '1'; }
       else if (err?.code === 'pincode_blocked') { setErrors({ pincode: err.message }); setPin({ ok: false, message: err.message }); }
       else setBanner(err?.message ?? t('error.generic'));
       return;
@@ -203,11 +229,37 @@ export default function Checkout({ payments }: { payments: PublicSettings['payme
               </li>
             ))}
           </ul>
+          {quote?.nudge && <p className="deal-nudge"><Icon name="tag" size={18} /> <span>{quote.nudge}</span></p>}
+          <div className="code">
+            {couponState?.applied ? (
+              <div className="code__ticket" role="status">
+                <span className="code__seal"><Icon name="check" size={18} /></span>
+                <span className="code__what"><strong>{couponState.code}</strong><span>{t('checkout.code.saved', { amount: formatINR(quote!.discounts.find((d) => d.kind === 'coupon')?.amount ?? 0) })}</span></span>
+                <button type="button" className="code__remove" onClick={removeCode}>{t('checkout.code.remove')}</button>
+              </div>
+            ) : codeOpen || coupon ? (
+              <div className="code__form">
+                <label htmlFor="co-code" className="sr-only">{t('checkout.code.label')}</label>
+                <div className="code__row">
+                  <input id="co-code" className="input code__input" value={codeInput || coupon || ''} placeholder={t('checkout.code.placeholder')} autoCapitalize="characters" autoComplete="off" spellCheck={false} maxLength={20}
+                    onChange={(e) => { setCodeInput(e.target.value.toUpperCase()); if (coupon) { setCoupon(null); keepCoupon(null); } }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyCode(); } }}
+                    aria-invalid={!!(couponState && !couponState.applied)} aria-describedby="co-code-msg" />
+                  <button type="button" className="btn btn--outline code__apply" onClick={applyCode} disabled={checking || !(codeInput || '').trim()}>{checking ? '…' : t('checkout.code.apply')}</button>
+                </div>
+                <p id="co-code-msg" className="field-error" aria-live="polite">{couponState && !couponState.applied ? couponState.message : ''}</p>
+              </div>
+            ) : (
+              <button type="button" className="code__open" onClick={() => setCodeOpen(true)}><Icon name="tag" size={18} /> {t('checkout.code.open')}</button>
+            )}
+          </div>
           <dl className="totals">
             <div><dt>{t('bag.subtotal')}</dt><dd>{formatINR(quote?.subtotal ?? total)}</dd></div>
+            {quote?.discounts.map((d) => <div key={d.offerId} className="totals__deal"><dt>{d.label}{d.code && ` · ${d.code}`}</dt><dd>−{formatINR(d.amount)}</dd></div>)}
             <div><dt>{t('bag.shipping')}</dt><dd>{quote ? (quote.shipping ? formatINR(quote.shipping) : t('bag.free')) : '—'}</dd></div>
             {quote && quote.freeShippingRemaining > 0 && <p className="co__hint">Add {formatINR(quote.freeShippingRemaining)} more for free shipping.</p>}
             <div className="totals__grand"><dt>{t('bag.total')}</dt><dd>{formatINR(total)}</dd></div>
+            {quote && quote.savings > 0 && <div className="totals__save"><dt>{t('checkout.youSave')}</dt><dd>{formatINR(quote.savings)}</dd></div>}
           </dl>
           <button className="btn btn--block co__place" type="submit" disabled={busy || !methods.length}>
             {busy ? t('common.loading') : t('checkout.place', { total: formatINR(total) })}

@@ -3,15 +3,15 @@ import type { Collection, MediaRef } from '@femia/contracts';
 import Icon from '../ui/Icon.astro';
 import { emph, srcset } from '../../lib/format.ts';
 import { t } from '@femia/i18n';
-interface Props { title: string; items: { collection: Collection; title: string; image: MediaRef | null }[] }
-const { title, items } = Astro.props;
+interface Props { title: string; items: { collection: Collection; title: string; image: MediaRef | null }[]; uid?: string }
+const { title, items, uid = 'occ' } = Astro.props;
 const pad = (n: number) => String(n).padStart(2, '0');
 ---
 {items.length > 0 && (
-  <section class="section occ" aria-labelledby="occ-title" data-carousel>
+  <section class="section occ" aria-labelledby={`${uid}-title`} data-carousel>
     <div class="container">
       <div class="section-head">
-        <h2 id="occ-title" data-split set:html={emph(title)} />
+        <h2 id={`${uid}-title`} data-split set:html={emph(title)} />
         <span class="thread-rule" aria-hidden="true"></span>
         <div class="occ__ctrl">
           <p class="occ__count" aria-hidden="true"><span data-current>01</span> / {pad(items.length)}</p>

@@ -54,6 +54,24 @@ export const ManifestSection = z.object({
 });
 export type ManifestSection = z.infer<typeof ManifestSection>;
 
+/**
+ * Home page builder: section types the owner can add, hide, reorder and remove.
+ * `single` = at most one; `pinned: 'first'` = must stay at the top. `defaults` seed a new section.
+ */
+export const ManifestBlock = z.object({
+  type: z.string().regex(/^[a-z][a-zA-Z0-9]*$/),
+  label: z.string(),
+  description: z.string().default(''),
+  single: z.boolean().default(false),
+  pinned: z.enum(['first']).optional(),
+  defaults: z.record(z.string(), z.unknown()).default({}),
+  fields: z.array(ManifestFieldSchema),
+});
+export type ManifestBlock = z.infer<typeof ManifestBlock>;
+
+export type { HomeSection } from './home.ts';
+export { homeSections } from './home.ts';
+
 export const SiteManifest = z.object({
   $schema: z.string().optional(),
   manifestVersion: z.literal(1),
@@ -63,6 +81,7 @@ export const SiteManifest = z.object({
   imageSizes: z.array(z.number().int()).default([480, 960, 1600]),
   imageSlots: z.array(ImageSlot),
   sections: z.array(ManifestSection),
+  blocks: z.array(ManifestBlock).default([]),
   flags: z.record(z.string(), z.boolean()).default({}),
 });
 export type SiteManifest = z.infer<typeof SiteManifest>;
@@ -81,7 +100,7 @@ export function contentSchemaFor(manifest: SiteManifest) {
       case 'image': s = f.required ? z.string().min(1) : z.string().nullable().default(null); break;
       case 'boolean': s = z.boolean().default(false); break;
       case 'number': s = z.number().default(0); break;
-      case 'select': s = z.enum(f.options.map((o) => o.value) as [string, ...string[]]); break;
+      case 'select': { const vals = f.options.map((o) => o.value) as [string, ...string[]]; s = z.enum(vals).default(vals[0]); break; }
       case 'collection': case 'category': s = f.required ? z.string().min(1) : z.string().nullable().default(null); break;
       case 'list': {
         let arr = z.array(z.object(Object.fromEntries(f.fields.map((c) => [c.id, forField(c)]))));
@@ -93,7 +112,32 @@ export function contentSchemaFor(manifest: SiteManifest) {
     }
     return s;
   };
-  return z.object(
-    Object.fromEntries(manifest.sections.map((sec) => [sec.id, z.object(Object.fromEntries(sec.fields.map((f) => [f.id, forField(f)])))])),
+  const shape: Record<string, z.ZodType> = Object.fromEntries(
+    manifest.sections.map((sec) => [sec.id, z.object(Object.fromEntries(sec.fields.map((f) => [f.id, forField(f)])))]),
   );
+  if (manifest.blocks.length) {
+    const variants = manifest.blocks.map((b) => z.object({
+      id: z.string().regex(/^[a-zA-Z0-9_-]{2,40}$/),
+      type: z.literal(b.type),
+      enabled: z.boolean().default(true),
+      data: z.object(Object.fromEntries(b.fields.map((f) => [f.id, forField(f)]))).prefault({}),
+    }));
+    const byType = new Map(manifest.blocks.map((b) => [b.type, b]));
+    shape.home = z.object({
+      sections: z.array(z.discriminatedUnion('type', variants as [typeof variants[number], ...typeof variants])).max(24),
+    }).superRefine((home, ctx) => {
+      const seen = new Map<string, number>();
+      const ids = new Set<string>();
+      home.sections.forEach((s, i) => {
+        const b = byType.get(s.type)!;
+        seen.set(s.type, (seen.get(s.type) ?? 0) + 1);
+        if (b.single && seen.get(s.type)! > 1) ctx.addIssue({ code: 'custom', path: ['sections', i], message: `Only one "${b.label}" section is allowed` });
+        if (b.pinned === 'first' && i !== 0) ctx.addIssue({ code: 'custom', path: ['sections', i], message: `"${b.label}" must stay at the top` });
+        if (ids.has(s.id)) ctx.addIssue({ code: 'custom', path: ['sections', i, 'id'], message: 'Duplicate section id' });
+        ids.add(s.id);
+      });
+    });
+  }
+  return z.object(shape);
 }
+

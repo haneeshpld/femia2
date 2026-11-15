@@ -1,4 +1,4 @@
-import type { Category, MediaRef, PublicSettings } from '@femia/contracts';
+import { homeSections, type Category, type MediaRef, type PublicSettings } from '@femia/contracts';
 import type { PublishedContent } from '@femia/sdk';
 import { api } from './api.ts';
 
@@ -19,4 +19,10 @@ export async function getSiteData(): Promise<SiteData> {
 export async function getCommon(): Promise<{ site: SiteData; categories: Category[] }> {
   const [site, categories] = await Promise.all([getSiteData(), api().catalog.categories()]);
   return { site, categories };
+}
+
+/** The home page's hero section (wherever the owner's section list keeps it), with its resolved image. */
+export function heroOf(site: SiteData): { data: Record<string, any>; image: MediaRef | null } {
+  const s = homeSections(site.content).find((x) => x.type === 'hero');
+  return { data: s?.data ?? {}, image: s?.data.image ? site.media[s.data.image] ?? null : null };
 }

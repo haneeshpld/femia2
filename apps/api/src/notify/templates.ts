@@ -36,6 +36,8 @@ export function orderEmail(kind: OrderEmailKind, o: PublicOrder, ctx: { storeNam
         <p style="margin:0;color:${color.muted};font-size:14px">Order <b>${o.number}</b></p>
         ${tracking}
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;font-size:15px">${rows}
+${(o.discounts ?? []).map((d) => `
+          <tr><td style="padding:8px 0;color:${color.maroon}">${esc(d.label)}${d.code ? ` (${esc(d.code)})` : ''}</td><td align="right" style="color:${color.maroon}">−${formatINR(d.amount)}</td></tr>`).join('')}
           <tr><td style="padding:8px 0;color:${color.muted}">Shipping</td><td align="right">${o.shipping ? formatINR(o.shipping) : 'Free'}</td></tr>
           <tr><td style="padding:8px 0;font-weight:700">Total</td><td align="right" style="font-weight:700">${formatINR(o.total)}</td></tr>
         </table>
@@ -48,6 +50,7 @@ export function orderEmail(kind: OrderEmailKind, o: PublicOrder, ctx: { storeNam
   const text = [
     c.title, '', `Hi ${o.customerName}, ${c.body}`, `Order ${o.number}`, '',
     ...o.items.map((i) => `${i.title} (${i.optionLabel}) x${i.qty}  ${formatINR(i.lineTotal)}`),
+    ...(o.discounts ?? []).map((d) => `${d.label}${d.code ? ` (${d.code})` : ''}: −${formatINR(d.amount)}`),
     `Shipping: ${o.shipping ? formatINR(o.shipping) : 'Free'}`, `Total: ${formatINR(o.total)}`, '',
     ...(kind === 'shipped' && o.trackingUrl ? [`Track: ${o.trackingUrl}`] : []), `Order status: ${trackUrl}`,
   ].join('\n');

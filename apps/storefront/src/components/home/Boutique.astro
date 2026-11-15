@@ -3,19 +3,19 @@ import type { MediaRef, PublicSettings } from '@femia/contracts';
 import Icon from '../ui/Icon.astro';
 import { emph, srcset } from '../../lib/format.ts';
 import { t } from '@femia/i18n';
-interface Props { block: Record<string, any>; image?: MediaRef; store: PublicSettings['store']; headingLevel?: 'h1' | 'h2' }
-const { block: b, image, store, headingLevel = 'h2' } = Astro.props;
+interface Props { block: Record<string, any>; image?: MediaRef; store: PublicSettings['store']; headingLevel?: 'h1' | 'h2'; uid?: string }
+const { block: b, image, store, headingLevel = 'h2', uid = 'boutique' } = Astro.props;
 const H = headingLevel;
 const wa = store.whatsapp ? `https://wa.me/${store.whatsapp.replace(/\D/g, '').replace(/^(\d{10})$/, '91$1')}?text=${encodeURIComponent('Hi Femia! I would like to visit the boutique.')}` : null;
 const place = [store.address.line1, store.address.city].filter(Boolean).join(', ');
 ---
-<section class="boutique" aria-labelledby="boutique-title">
+<section class="boutique" aria-labelledby={`${uid}-title`}>
   <div class="container boutique__inner">
     <div class="boutique__media arch ph" data-doorway>
       {image && <img data-doorway-img src={image.src['960']} srcset={srcset(image)} sizes="(min-width: 768px) 42vw, 92vw" width={image.width} height={image.height} alt={image.alt} loading="lazy" decoding="async" />}
     </div>
     <div class="boutique__copy" data-reveal style="--delay:120ms">
-      <H id="boutique-title" class="h2" set:html={emph(b.title)} />
+      <H id={`${uid}-title`} class="h2" set:html={emph(b.title)} />
       <p>{b.body}</p>
       <ul role="list" class="boutique__facts">
         {place && <li><Icon name="pin" /> <strong>{place}</strong></li>}

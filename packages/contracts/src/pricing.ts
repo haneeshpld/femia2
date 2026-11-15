@@ -1,5 +1,6 @@
 import type { Paise } from './common.ts';
 import type { ShippingSettings } from './shipping.ts';
+import { cartDiscounts, type AppliedDiscount, type Offer, type ScopeItem } from './offers.ts';
 
 /** What the server knows about a variant when quoting. Never trust client prices. */
 export interface PricedVariant {
@@ -15,6 +16,10 @@ export interface PricedVariant {
   compareAtPrice: Paise | null;
   available: number;
   purchasable: boolean;
+  /** price before any automatic sale (sale price is `price`) */
+  listPrice?: Paise;
+  saleLabel?: string | null;
+  scope?: ScopeItem;
 }
 
 export type QuoteIssue =
@@ -34,6 +39,21 @@ export interface Quote {
   freeShippingThreshold: Paise;
   freeShippingRemaining: Paise;
   issues: QuoteIssue[];
+  /** cart-level deals (bundle, coupon) */
+  discounts: AppliedDiscount[];
+  discountTotal: Paise;
+  /** "Add 1 more piece to get 10% off" */
+  nudge: string | null;
+  coupon: { code: string; applied: boolean; message: string } | null;
+}
+
+export interface QuoteOffers {
+  offers: Offer[];
+  /** a coupon the server has already checked for usage limits and first-order rules */
+  coupon?: Offer | null;
+  couponCode?: string | null;
+  couponError?: string | null;
+  now?: number;
 }
 
 export const MAX_QTY_PER_LINE = 10;
@@ -46,6 +66,7 @@ export function quoteCart(
   requested: { variantId: string; qty: number }[],
   variants: Map<string, PricedVariant>,
   shipping: Pick<ShippingSettings, 'freeShippingThreshold' | 'flatFee'>,
+  deals?: QuoteOffers,
 ): Quote {
   const merged = new Map<string, number>();
   for (const r of requested) merged.set(r.variantId, (merged.get(r.variantId) ?? 0) + Math.max(0, Math.floor(r.qty)));
@@ -64,8 +85,21 @@ export function quoteCart(
   }
 
   const subtotal = lines.reduce((s, l) => s + l.lineTotal, 0);
-  const savings = lines.reduce((s, l) => s + (l.compareAtPrice && l.compareAtPrice > l.price ? (l.compareAtPrice - l.price) * l.qty : 0), 0);
-  const free = subtotal >= shipping.freeShippingThreshold;
+  const cart = deals && lines.length
+    ? cartDiscounts(lines.map((l) => ({ qty: l.qty, lineTotal: l.lineTotal, scope: l.scope ?? { productId: l.productId, categoryId: '', collectionIds: [] } })), deals.offers, deals.coupon ?? null, deals.now)
+    : { applied: [], discountTotal: 0, nudge: null, couponError: null };
+  const couponMsg = deals?.couponError ?? cart.couponError;
+  const coupon = deals?.couponCode
+    ? (couponMsg || !cart.applied.some((a) => a.kind === 'coupon')
+      ? { code: deals.couponCode, applied: false, message: couponMsg ?? `${deals.couponCode} doesn't apply to the items in your bag` }
+      : { code: deals.couponCode, applied: true, message: `${deals.couponCode} applied` })
+    : null;
+  const afterDiscounts = subtotal - cart.discountTotal;
+  const savings = lines.reduce((s, l) => {
+    const was = Math.max(l.compareAtPrice ?? 0, l.listPrice ?? 0);
+    return s + (was > l.price ? (was - l.price) * l.qty : 0);
+  }, 0) + cart.discountTotal;
+  const free = afterDiscounts >= shipping.freeShippingThreshold;
   const shippingFee = subtotal === 0 || free ? 0 : shipping.flatFee;
   return {
     lines,
@@ -73,9 +107,13 @@ export function quoteCart(
     subtotal,
     savings,
     shipping: shippingFee,
-    total: subtotal + shippingFee,
+    total: afterDiscounts + shippingFee,
     freeShippingThreshold: shipping.freeShippingThreshold,
-    freeShippingRemaining: Math.max(0, shipping.freeShippingThreshold - subtotal),
+    freeShippingRemaining: Math.max(0, shipping.freeShippingThreshold - afterDiscounts),
     issues,
+    discounts: cart.applied,
+    discountTotal: cart.discountTotal,
+    nudge: cart.nudge,
+    coupon,
   };
 }

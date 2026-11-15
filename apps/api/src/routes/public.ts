@@ -51,7 +51,7 @@ publicRoutes.get('/catalog/stock', async (c) => {
 
 publicRoutes.post('/cart/quote', async (c) => {
   const body = await readJson(c, CartQuoteRequest);
-  return c.json(await quote(c.env.DB, body.lines));
+  return c.json(await quote(c.env.DB, body.lines, { coupon: body.coupon, phone: body.phone }));
 });
 
 publicRoutes.post('/checkout/pincode', async (c) => {

@@ -3,13 +3,13 @@ import type { Category, MediaRef } from '@femia/contracts';
 import Icon from '../ui/Icon.astro';
 import { emph, srcset } from '../../lib/format.ts';
 import { t } from '@femia/i18n';
-interface Props { heading: string; tiles: { category: Category; image: MediaRef | null }[] }
-const { heading, tiles } = Astro.props;
+interface Props { heading: string; tiles: { category: Category; image: MediaRef | null }[]; uid?: string }
+const { heading, tiles, uid = 'cats' } = Astro.props;
 ---
-<section class="section cats" aria-labelledby="cats-title">
+<section class="section cats" aria-labelledby={`${uid}-title`}>
   <div class="container">
     <div class="section-head">
-      <h2 id="cats-title" data-split set:html={emph(heading)} />
+      <h2 id={`${uid}-title`} data-split set:html={emph(heading)} />
       <span class="thread-rule" aria-hidden="true"></span>
       <a class="link-arrow" href="/shop">{t('common.viewAll')} <Icon name="arrowRight" size={18} /></a>
     </div>

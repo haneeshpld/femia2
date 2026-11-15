@@ -44,14 +44,18 @@ export function CartDrawer({ open, onClose, threshold }: { open: boolean; onClos
   useEffect(() => { if (!open) setNotices([]); }, [open]);
 
   const subtotal = quote?.subtotal ?? lines.reduce((s, l) => s + l.price * l.qty, 0);
-  const remaining = Math.max(0, threshold - subtotal);
-  const progress = Math.min(100, (subtotal / threshold) * 100);
+  const afterDeals = subtotal - (quote?.discountTotal ?? 0);
+  const remaining = quote ? quote.freeShippingRemaining : Math.max(0, threshold - subtotal);
+  const progress = Math.min(100, (afterDeals / threshold) * 100);
+  const saleOf = new Map(quote?.lines.map((l) => [l.variantId, l.saleLabel]) ?? []);
+  const bundle = quote?.discounts.find((d) => d.kind === 'bundle');
   const count = lines.reduce((n, l) => n + l.qty, 0);
 
   const footer = lines.length > 0 && (
     <>
       <dl className="totals">
         <div><dt>{t('bag.subtotal')}</dt><dd>{formatINR(subtotal)}</dd></div>
+        {quote?.discounts.map((d) => <div key={d.offerId} className="totals__deal"><dt>{d.label}{d.code && ` · ${d.code}`}</dt><dd>−{formatINR(d.amount)}</dd></div>)}
         <div><dt>{t('bag.shipping')}</dt><dd>{remaining === 0 ? t('bag.free') : quote ? formatINR(quote.shipping) : '—'}</dd></div>
         {quote && quote.savings > 0 && <div className="totals__save"><dt>You save</dt><dd>{formatINR(quote.savings)}</dd></div>}
       </dl>
@@ -76,6 +80,11 @@ export function CartDrawer({ open, onClose, threshold }: { open: boolean; onClos
             <p>{remaining === 0 ? <><Icon name="truck" size={18} /> {t('bag.freeShipping.unlocked')}</> : t('bag.freeShipping.remaining', { amount: formatINR(remaining) })}</p>
             <div className="ship-progress__bar"><span style={{ width: `${progress}%` }} /></div>
           </div>
+          {bundle ? (
+            <p className="deal-nudge deal-nudge--won" role="status"><Icon name="sparkle" size={18} /> <span><strong>Deal unlocked:</strong> {bundle.label}. You save {formatINR(bundle.amount)}.</span></p>
+          ) : quote?.nudge ? (
+            <p className="deal-nudge" role="status"><Icon name="tag" size={18} /> <span>{quote.nudge}</span></p>
+          ) : null}
           {notices.length > 0 && <ul className="notices" role="alert">{notices.map((n) => <li key={n}><Icon name="info" size={18} /> {n}</li>)}</ul>}
           <ul className="lines" role="list">
             {lines.map((l) => (
@@ -84,7 +93,8 @@ export function CartDrawer({ open, onClose, threshold }: { open: boolean; onClos
                 <div className="line__info">
                   <a href={`/products/${l.slug}`} className="line__title">{l.title}</a>
                   <p className="line__opt">{l.optionLabel}</p>
-                  <p className="price">{formatINR(l.price)}{l.compareAtPrice && l.compareAtPrice > l.price && <s>{formatINR(l.compareAtPrice)}</s>}</p>
+                  <p className={`price${saleOf.get(l.variantId) ? ' price--sale' : ''}`}>{formatINR(l.price)}{l.compareAtPrice && l.compareAtPrice > l.price && <s>{formatINR(l.compareAtPrice)}</s>}</p>
+                  {saleOf.get(l.variantId) && <span className="offer-tag offer-tag--gold line__tag">{saleOf.get(l.variantId)}</span>}
                   <div className="line__row">
                     <div className="qty" role="group" aria-label={`${t('bag.qty')}: ${l.title}`}>
                       <button type="button" onClick={() => setQty(l.variantId, l.qty - 1)} aria-label="Decrease quantity"><Icon name="minus" size={18} /></button>

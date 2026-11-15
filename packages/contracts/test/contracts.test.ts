@@ -80,3 +80,34 @@ describe('settings defaults', () => {
     expect(s.shipping.cod.enabled).toBe(true);
   });
 });
+
+describe('home page builder', async () => {
+  const { SiteManifest, contentSchemaFor, homeSections } = await import('../src/index.ts');
+  const fs = await import('node:fs');
+  const manifest = SiteManifest.parse(JSON.parse(fs.readFileSync(new URL('../../../apps/storefront/site.manifest.json', import.meta.url), 'utf8')));
+  const schema = contentSchemaFor(manifest);
+  const base = {
+    announcement: { enabled: false, messages: [] }, boutique: {}, trust: { items: [{ icon: 'truck', title: 'a' }, { icon: 'chat', title: 'b' }] }, newsletter: {},
+    about: { title: 'About' }, policies: { shipping: 's', returns: 'r', privacy: 'p', terms: 't', contact: 'c' }, sizeGuide: {},
+  };
+  const hero = (id = 'hero') => ({ id, type: 'hero', data: { title: 'T', ctaLabel: 'Shop', ctaLink: '/shop' } });
+
+  it('accepts hidden, repeated and new sections with defaults filled', () => {
+    const r = schema.safeParse({ ...base, home: { sections: [hero(), { id: 'p1', type: 'products', enabled: false, data: {} }, { id: 'p2', type: 'products', data: { source: 'collection' } }, { id: 'b1', type: 'banner', data: { heading: 'Sale' } }] } });
+    expect(r.success).toBe(true);
+    const sections = (r.data as { home: { sections: { data: Record<string, unknown>; enabled: boolean }[] } }).home.sections;
+    expect(sections[1]).toMatchObject({ enabled: false, data: { source: 'newest' } });
+  });
+  it('keeps the hero first and single, and ids unique', () => {
+    const r = schema.safeParse({ ...base, home: { sections: [{ id: 'p1', type: 'products', data: {} }, hero(), hero('h2'), { id: 'p1', type: 'story', data: {} }] } });
+    expect(r.success).toBe(false);
+    const msgs = r.error!.issues.map((i) => i.message).join(' | ');
+    expect(msgs).toContain('must stay at the top');
+    expect(msgs).toContain('Only one');
+    expect(msgs).toContain('Duplicate section id');
+  });
+  it('reads content saved before the builder as sections', () => {
+    const s = homeSections({ hero: { title: 'T' }, categories: { eyebrow: 'Shop', items: [] }, newArrivals: { title: 'Just', count: 8 }, occasions: { title: 'O', items: [] }, styled: { enabled: false, images: [] } });
+    expect(s.map((x) => `${x.type}:${x.enabled}`)).toEqual(['hero:true', 'categories:true', 'products:true', 'occasions:true', 'instagram:false']);
+  });
+});

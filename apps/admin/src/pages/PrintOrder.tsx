@@ -30,6 +30,9 @@ export default function PrintOrder() {
       {!slip && (
         <div style={{ marginLeft: 'auto', width: 260, marginTop: 12 }}>
           <div className="row" style={{ justifyContent: 'space-between' }}><span>Subtotal</span><span>{formatINR(o.subtotal)}</span></div>
+          {(q.data.discounts ?? []).map((x: { label: string; code: string | null; amount: number }, k: number) => (
+            <div key={k} className="row" style={{ justifyContent: 'space-between' }}><span>{x.label}{x.code && ` (${x.code})`}</span><span>−{formatINR(x.amount)}</span></div>
+          ))}
           <div className="row" style={{ justifyContent: 'space-between' }}><span>Shipping</span><span>{o.shipping ? formatINR(o.shipping) : 'Free'}</span></div>
           <div className="row" style={{ justifyContent: 'space-between', fontWeight: 700, fontSize: 16 }}><span>Total</span><span>{formatINR(o.total)}</span></div>
           <p className="muted small" style={{ marginTop: 6 }}>Payment: {({ upi: 'UPI', gateway: 'Online', cod: 'Cash on delivery', whatsapp: 'WhatsApp order' } as Record<string, string>)[o.payment_method]} · {o.payment_status === 'paid' ? 'Paid' : o.payment_status === 'cod' ? 'To collect' : 'Unpaid'}</p>

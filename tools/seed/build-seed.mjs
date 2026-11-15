@@ -219,18 +219,23 @@ async function main() {
 
   const content = {
     announcement: { enabled: true, messages: [{ text: 'Free shipping above ₹999', link: '/shop' }, { text: 'Easy returns within 7 days', link: '/policies/returns' }] },
-    hero: {
-      eyebrow: 'Contemporary Ethnic Wear', title: 'Everyday Styles for', titleAccent: 'Modern Women',
-      body: 'Kurtas, co-ord sets and dresses, thoughtfully curated for your everyday story.',
-      ctaLabel: 'Shop New Arrivals', ctaLink: '/shop?sort=new', secondaryLabel: 'Visit our boutique', secondaryLink: '/visit', image: hero,
-    },
-    categories: { eyebrow: 'Shop by *category*', items: cats.map(([id, , , img]) => ({ category: id, image: img })) },
-    newArrivals: { eyebrow: 'All new arrivals', title: 'Just *landed*', collection: null, count: 8 },
-    occasions: { title: 'Dressed for every *moment*', items: [
-      { collection: 'col_everyday', title: 'Everyday Edit', image: occ[0] }, { collection: 'col_festive', title: 'Festive Edit', image: occ[1] }, { collection: 'col_work', title: 'Work Edit', image: occ[2] },
+    // Home page = an ordered list of sections the owner can add, hide, reorder and remove in Admin.
+    home: { sections: [
+      { id: 'hero', type: 'hero', enabled: true, data: {
+        eyebrow: 'Contemporary Ethnic Wear', title: 'Everyday Styles for', titleAccent: 'Modern Women',
+        body: 'Kurtas, co-ord sets and dresses, thoughtfully curated for your everyday story.',
+        ctaLabel: 'Shop New Arrivals', ctaLink: '/shop?sort=new', secondaryLabel: 'Visit our boutique', secondaryLink: '/visit', image: hero,
+      } },
+      { id: 'categories', type: 'categories', enabled: true, data: { heading: 'Shop by *category*', items: cats.map(([id, , , img]) => ({ category: id, image: img })) } },
+      { id: 'new-arrivals', type: 'products', enabled: true, data: { heading: 'Just *landed*', linkLabel: 'All new arrivals', source: 'newest', collection: null, category: null, count: 8 } },
+      { id: 'occasions', type: 'occasions', enabled: true, data: { heading: 'Dressed for every *moment*', items: [
+        { collection: 'col_everyday', title: 'Everyday Edit', image: occ[0] }, { collection: 'col_festive', title: 'Festive Edit', image: occ[1] }, { collection: 'col_work', title: 'Work Edit', image: occ[2] },
+      ] } },
+      { id: 'boutique', type: 'boutique', enabled: true, data: { heading: 'Try it on *in person*', body: 'Step into our boutique to explore the full collection, feel the fabrics and find your perfect fit with our stylists.', image: boutique } },
+      { id: 'instagram', type: 'instagram', enabled: true, data: { heading: 'Styled *by you*', handle: '@femia', images: social.map((image) => ({ image, caption: '', link: '' })) } },
     ] },
+    // Visit Us page
     boutique: { title: 'Try it on *in person*', body: 'Step into our boutique to explore the full collection, feel the fabrics and find your perfect fit with our stylists.', image: boutique },
-    styled: { enabled: true, eyebrow: 'Styled *by you*', handle: '@femia', images: social.map((image) => ({ image, link: '' })) },
     trust: { items: [
       { icon: 'truck', title: 'Free Shipping', body: 'Above ₹999' }, { icon: 'returns', title: 'Easy Returns', body: 'Within 7 days' },
       { icon: 'shield', title: 'Secure Payments', body: 'UPI, Cards & more' }, { icon: 'chat', title: 'Need Help?', body: 'Chat on WhatsApp' },

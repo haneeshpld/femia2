@@ -1,6 +1,7 @@
 export const PERMISSIONS = [
   'dashboard.view',
   'catalog.read', 'catalog.write',
+  'offers.write',
   'stock.write',
   'media.write',
   'orders.read', 'orders.write',

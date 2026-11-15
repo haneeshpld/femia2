@@ -1,7 +1,8 @@
 import type {
   Category, Collection, Facets, MediaRef, OptionValue, ProductCard, ProductDetail, ProductImage, ProductList, ProductListQuery,
 } from '@femia/contracts';
-import { ProductListQuery as ListQuerySchema } from '@femia/contracts';
+import { ProductListQuery as ListQuerySchema, bestSale, bundleText, inScope, isLive, tagsFor, type ScopeItem } from '@femia/contracts';
+import { automaticOffers } from './offers.ts';
 import type { z } from 'zod';
 import { all, first, placeholders } from '../lib/db.ts';
 
@@ -55,7 +56,7 @@ function unprefix(r: Record<string, unknown>): MediaRow {
 
 interface ProductRow {
   id: string; slug: string; title: string; price: number; compare_at_price: number | null; published_at: string | null;
-  category_slug: string; category_name: string;
+  category_id: string; category_slug: string; category_name: string;
 }
 
 const AVAILABLE = '(v.on_hand - v.reserved)';
@@ -105,7 +106,7 @@ export async function listProducts(db: D1Database, input: ProductListQuery): Pro
     first<{ n: number }>(db, `SELECT COUNT(*) AS n ${from} WHERE ${sql}`, ...binds),
     all<ProductRow>(
       db,
-      `SELECT p.id, p.slug, p.title, p.price, p.compare_at_price, p.published_at, c.slug AS category_slug, c.name AS category_name
+      `SELECT p.id, p.slug, p.title, p.price, p.compare_at_price, p.published_at, p.category_id, c.slug AS category_slug, c.name AS category_name
        ${from} WHERE ${sql} ORDER BY ${ORDER_BY[q.sort]} LIMIT ? OFFSET ?`,
       ...binds, q.pageSize, offset,
     ),
@@ -144,7 +145,7 @@ async function hydrateCards(db: D1Database, rows: ProductRow[]): Promise<Product
   if (rows.length === 0) return [];
   const ids = rows.map((r) => r.id);
   const ph = placeholders(ids.length);
-  const [opts, imgs, stock] = await Promise.all([
+  const [opts, imgs, stock, colls, offers] = await Promise.all([
     all<{ product_id: string; value: string; label: string; swatch: string | null }>(db,
       `SELECT product_id, value, label, swatch FROM product_options WHERE option = 2 AND product_id IN (${ph}) ORDER BY product_id, sort`, ...ids),
     all<MediaRow & { product_id: string; role: 'main' | 'alt' | 'detail'; option2: string | null }>(db,
@@ -152,7 +153,12 @@ async function hydrateCards(db: D1Database, rows: ProductRow[]): Promise<Product
        WHERE pm.product_id IN (${ph}) AND pm.role IN ('main','alt') ORDER BY pm.product_id, pm.sort`, ...ids),
     all<{ product_id: string; available: number }>(db,
       `SELECT product_id, SUM(MAX(on_hand - reserved, 0)) AS available FROM variants WHERE active = 1 AND product_id IN (${ph}) GROUP BY product_id`, ...ids),
+    all<{ product_id: string; collection_id: string }>(db, `SELECT product_id, collection_id FROM product_collections WHERE product_id IN (${ph})`, ...ids),
+    automaticOffers(db),
   ]);
+  const collsBy = new Map<string, string[]>();
+  for (const c of colls) (collsBy.get(c.product_id) ?? collsBy.set(c.product_id, []).get(c.product_id)!).push(c.collection_id);
+  const now = Date.now();
   const by = <T extends { product_id: string }>(xs: T[]) => {
     const m = new Map<string, T[]>();
     for (const x of xs) (m.get(x.product_id) ?? m.set(x.product_id, []).get(x.product_id)!).push(x);
@@ -181,12 +187,23 @@ async function hydrateCards(db: D1Database, rows: ProductRow[]): Promise<Product
       // No colour-specific or shared photos matched: fall back to the first photos so a card is never blank.
       all.slice(0, 2).forEach((i, n) => images.push({ ...mediaRef(i, r.title), role: n === 0 ? 'main' : 'alt', option2: i.option2 }));
     }
+    // Offers: the best live sale sets the price (old price struck through); tags are labels only.
+    const scope: ScopeItem = { productId: r.id, categoryId: r.category_id, collectionIds: collsBy.get(r.id) ?? [] };
+    const sale = bestSale(r.price, scope, offers, now);
+    const badges: ProductCard['badges'] = [
+      ...(sale ? [{ label: sale.offer.label, style: sale.offer.style, kind: 'sale' as const }] : []),
+      ...tagsFor(scope, offers, now).map((t) => ({ ...t, kind: 'tag' as const })),
+    ];
     return {
-      id: r.id, slug: r.slug, title: r.title, price: r.price, compareAtPrice: r.compare_at_price,
+      id: r.id, slug: r.slug, title: r.title,
+      price: sale ? sale.price : r.price,
+      compareAtPrice: sale ? Math.max(r.compare_at_price ?? 0, r.price) : r.compare_at_price,
       category: { slug: r.category_slug, name: r.category_name },
       colours, images,
       soldOut: (stockBy.get(r.id) ?? 0) <= 0,
       isNew: !!r.published_at && Date.parse(r.published_at) > cutoff,
+      badges,
+      saleEndsAt: sale?.offer.endsAt ?? null,
     };
   });
 }
@@ -201,6 +218,11 @@ export async function getProduct(db: D1Database, slug: string, opts: { includeDr
   if (!p) return null;
 
   const [card] = await hydrateCards(db, [p]);
+  const [offers, collIds] = await Promise.all([
+    automaticOffers(db),
+    all<{ collection_id: string }>(db, 'SELECT collection_id FROM product_collections WHERE product_id = ?', p.id),
+  ]);
+  const scope: ScopeItem = { productId: p.id, categoryId: p.category_id, collectionIds: collIds.map((c) => c.collection_id) };
   const [options, variants, images, collections, relatedRows] = await Promise.all([
     all<{ option: 1 | 2; value: string; label: string; swatch: string | null }>(db,
       'SELECT option, value, label, swatch FROM product_options WHERE product_id = ? ORDER BY option, sort', p.id),
@@ -212,7 +234,7 @@ export async function getProduct(db: D1Database, slug: string, opts: { includeDr
     all<{ slug: string; name: string }>(db,
       `SELECT co.slug, co.name FROM product_collections pc JOIN collections co ON co.id = pc.collection_id WHERE pc.product_id = ? AND co.active = 1 ORDER BY co.sort`, p.id),
     all<ProductRow>(db,
-      `SELECT p.id, p.slug, p.title, p.price, p.compare_at_price, p.published_at, c.slug AS category_slug, c.name AS category_name
+      `SELECT p.id, p.slug, p.title, p.price, p.compare_at_price, p.published_at, p.category_id, c.slug AS category_slug, c.name AS category_name
        FROM products p JOIN categories c ON c.id = p.category_id
        WHERE p.status = 'active' AND p.id != ? ORDER BY (p.category_id = ?) DESC, p.popularity DESC, p.published_at DESC LIMIT 4`, p.id, p.category_id),
   ]);
@@ -229,11 +251,17 @@ export async function getProduct(db: D1Database, slug: string, opts: { includeDr
     option2Name: p.option2_name,
     option1Values: sortSizes(options.filter((o) => o.option === 1).map(toOv)),
     option2Values: options.filter((o) => o.option === 2).map(toOv),
-    variants: variants.map((v) => ({
-      id: v.id, sku: v.sku, option1: v.option1, option2: v.option2,
-      price: v.price ?? p.price, compareAtPrice: v.compare_at_price ?? p.compare_at_price, available: v.available,
-    })),
+    variants: variants.map((v) => {
+      const list = v.price ?? p.price;
+      const sale = bestSale(list, scope, offers);
+      const cap = v.compare_at_price ?? p.compare_at_price;
+      return {
+        id: v.id, sku: v.sku, option1: v.option1, option2: v.option2,
+        price: sale ? sale.price : list, compareAtPrice: sale ? Math.max(cap ?? 0, list) : cap, available: v.available,
+      };
+    }),
     collections,
+    deals: offers.filter((o) => o.kind === 'bundle' && isLive(o) && inScope(o, scope)).map((o) => ({ label: o.label, text: bundleText(o), style: o.style })),
     related: await hydrateCards(db, relatedRows),
     seo: { title: p.seo_title || p.title, description: p.seo_description || p.description.slice(0, 155) },
   };

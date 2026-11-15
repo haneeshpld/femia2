@@ -62,6 +62,10 @@ export const ProductCard = z.object({
   images: z.array(ProductImage),
   soldOut: z.boolean(),
   isNew: z.boolean(),
+  /** offer tags shown on the photo: the live sale first, then price-neutral tags */
+  badges: z.array(z.object({ label: z.string(), style: z.string(), kind: z.enum(['sale', 'tag']) })).default([]),
+  /** when the current sale ends (for a countdown), if it has an end */
+  saleEndsAt: z.string().nullable().default(null),
 });
 export type ProductCard = z.infer<typeof ProductCard>;
 
@@ -77,6 +81,8 @@ export const ProductDetail = ProductCard.extend({
   variants: z.array(Variant),
   collections: z.array(z.object({ slug: Slug, name: z.string() })),
   related: z.array(ProductCard),
+  /** Live bundle deals this product counts towards, e.g. "Buy 2, get 10% off". */
+  deals: z.array(z.object({ label: z.string(), text: z.string(), style: z.string() })).default([]),
   seo: z.object({ title: z.string(), description: z.string() }),
 });
 export type ProductDetail = z.infer<typeof ProductDetail>;

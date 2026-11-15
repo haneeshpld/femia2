@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useBlocker } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError, get, post, put } from '../lib/api.ts';
 import { dateTime } from '../lib/format.ts';
@@ -7,12 +8,14 @@ import { useCan } from '../lib/me.ts';
 import { Icon } from '../components/Icon.tsx';
 import { MediaPicker } from '../components/MediaPicker.tsx';
 import type { Slot } from '../components/PhotoUpload.tsx';
-import { ErrorBox, Field, Skeleton, useToast } from '../components/ui.tsx';
+import { ErrorBox, Field, Sheet, Skeleton, useToast } from '../components/ui.tsx';
 import { AddInline } from '../components/AddInline.tsx';
 import { useCatalogMutations } from '../lib/catalog.ts';
+import { HomeSections, type Block } from '../components/HomeSections.tsx';
+import { homeSections, type HomeSection } from '@femia/contracts/home';
 
 type F = { id: string; type: string; label: string; help?: string; required?: boolean; maxLength?: number; slot?: string; options?: { value: string; label: string }[]; itemLabel?: string; min?: number; max?: number; fields?: F[] };
-interface Manifest { sections: { id: string; label: string; page: string; fields: F[] }[]; imageSlots: Slot[] }
+interface Manifest { sections: { id: string; label: string; page: string; fields: F[] }[]; blocks?: (Block & { fields: F[] })[]; imageSlots: Slot[] }
 const STOREFRONT = import.meta.env.VITE_STOREFRONT_URL ?? 'http://localhost:4321';
 
 /** Homepage & content: forms generated from the storefront's site.manifest.json. */
@@ -31,11 +34,23 @@ export default function Content() {
   const [dirty, setDirty] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  useEffect(() => { if (draft.data && !dirty) { setData(structuredClone(draft.data.data)); setMedia(draft.data.media); } }, [draft.data]);
   useEffect(() => {
+    if (!draft.data || dirty) return;
+    const d = structuredClone(draft.data.data);
+    if (!Array.isArray(d.home?.sections)) d.home = { sections: homeSections(d) };
+    setData(d); setMedia(draft.data.media);
+  }, [draft.data]);
+  useEffect(() => {
+    // Refresh / close tab / leave Admin with unsaved edits: the browser's own "Leave site?" prompt.
     const h = (e: BeforeUnloadEvent) => { if (dirty) e.preventDefault(); };
     addEventListener('beforeunload', h); return () => removeEventListener('beforeunload', h);
   }, [dirty]);
+
+  // Moving to another Admin page (menu, back button): ask first if edits are unsaved, or saved but not live.
+  const canPublish = can('content.publish');
+  const unpublished = (draft.data?.draftId ?? null) !== null;
+  const blocker = useBlocker(({ currentLocation, nextLocation }) =>
+    currentLocation.pathname !== nextLocation.pathname && (dirty || (unpublished && canPublish)));
 
   const refresh = () => { qc.invalidateQueries({ queryKey: ['content-draft'] }); qc.invalidateQueries({ queryKey: ['content-versions'] }); };
   const onErr = (e: unknown) => { if (e instanceof ApiError && e.code === 'validation') { setErrors(e.fields); setOpen(Object.keys(e.fields)[0]?.split('.')[0] ?? open); } toast({ text: (e as Error).message, bad: true }); };
@@ -52,6 +67,14 @@ export default function Content() {
     onError: onErr,
   });
 
+  const leave = {
+    // On failure the error toast explains why and the dialog stays, so nothing is lost.
+    saveDraft: async () => { try { await save.mutateAsync(); blocker.proceed?.(); } catch { /* stay */ } },
+    publish: async () => { try { await publish.mutateAsync(); blocker.proceed?.(); } catch { /* stay */ } },
+    discard: () => { setDirty(false); blocker.proceed?.(); },
+    stay: () => blocker.reset?.(),
+  };
+
   if (manifest.isPending || draft.isPending || !data) return <Skeleton n={5} h={70} />;
   if (manifest.error || draft.error) return <ErrorBox error={manifest.error ?? draft.error} />;
   const slots = Object.fromEntries(manifest.data.imageSlots.map((s) => [s.id, s]));
@@ -64,16 +87,50 @@ export default function Content() {
 
   return (
     <>
-      <div className="page-head">
-        <div><h1>Homepage & content</h1><p className="muted">{dirty ? 'Unsaved changes' : hasDraft ? `Draft saved ${draft.data.savedAt ? dateTime(draft.data.savedAt) : ''} · not live yet` : 'Everything is live'}</p></div>
-        <div className="row">
+      {/* Pinned action bar: always visible while scrolling, so the next step (save / publish) is never out of sight. */}
+      <div className="editor-bar">
+        <div className="editor-bar__title">
+          <h1>Homepage & content</h1>
+          <span className={`status-pill status-pill--${dirty ? 'unsaved' : hasDraft ? 'draft' : 'live'}`} role="status">
+            {dirty ? 'Unsaved changes' : hasDraft ? `Draft saved${draft.data.savedAt ? ` ${dateTime(draft.data.savedAt)}` : ''} · not live yet` : 'Everything is live'}
+          </span>
+        </div>
+        <div className="row editor-bar__actions">
           <button className="btn btn--quiet" onClick={() => save.mutate()} disabled={!dirty || save.isPending}>{save.isPending ? 'Saving…' : 'Save draft'}</button>
           <button className="btn btn--quiet" onClick={() => preview.mutate()} disabled={preview.isPending}><Icon name="eye" /> Preview</button>
-          {can('content.publish') ? <button className="btn" onClick={() => publish.mutate()} disabled={!hasDraft || publish.isPending}>{publish.isPending ? 'Publishing…' : 'Publish'}</button>
+          {canPublish ? <button className={`btn${hasDraft ? ' btn--pulse' : ''}`} onClick={() => publish.mutate()} disabled={!hasDraft || publish.isPending}>{publish.isPending ? 'Publishing…' : 'Publish'}</button>
             : <span className="badge badge--warn">The owner publishes changes</span>}
         </div>
       </div>
+
+      {blocker.state === 'blocked' && (
+        <Sheet title={dirty ? 'Save your changes?' : 'Your changes aren’t live yet'} onClose={leave.stay}
+          footer={<>
+            <button className="btn btn--quiet" onClick={leave.stay}>Stay on this page</button>
+            <span className="spacer" />
+            {dirty && <button className="btn btn--danger" onClick={leave.discard}>Discard changes</button>}
+            {dirty ? <button className={canPublish ? 'btn btn--quiet' : 'btn'} onClick={leave.saveDraft} disabled={save.isPending}>{save.isPending ? 'Saving…' : 'Save draft & leave'}</button>
+              : <button className="btn btn--quiet" onClick={() => blocker.proceed?.()}>Leave, keep draft</button>}
+            {canPublish && <button className="btn" onClick={leave.publish} disabled={publish.isPending}>{publish.isPending ? 'Publishing…' : dirty ? 'Save & publish' : 'Publish & leave'}</button>}
+          </>}>
+          <p>{dirty
+            ? 'You’ve changed the homepage but haven’t saved. If you leave now, those changes will be lost.'
+            : 'Your changes are saved as a draft, but shoppers won’t see them until you publish.'}</p>
+        </Sheet>
+      )}
       <div className="stack">
+        {(manifest.data.blocks?.length ?? 0) > 0 && (
+          <HomeSections
+            blocks={manifest.data.blocks!}
+            sections={(data.home?.sections ?? []) as HomeSection[]}
+            errors={errors}
+            onChange={(next) => update(['home', 'sections'], next)}
+            renderFields={(block, i) => (block as Block & { fields: F[] }).fields.map((f) => (
+              <FieldEditor key={f.id} f={f} value={data.home.sections[i]?.data?.[f.id]} path={['home', 'sections', i, 'data', f.id]} onChange={update} ctx={ctx} />
+            ))}
+          />
+        )}
+        <h2 style={{ marginTop: 'var(--sp-4)' }}>Every page & other pages</h2>
         {manifest.data.sections.map((sec) => (
           <details key={sec.id} className="card" open={open === sec.id} onToggle={(e) => (e.currentTarget as HTMLDetailsElement).open && setOpen(sec.id)}>
             <summary style={{ cursor: 'pointer', listStyle: 'none', display: 'flex', alignItems: 'center', gap: 12, minHeight: 44 }}>

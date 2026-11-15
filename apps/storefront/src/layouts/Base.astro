@@ -13,7 +13,7 @@ import Footer from '../components/Footer.astro';
 import MobileTabBar from '../components/MobileTabBar.astro';
 import ShellLoader from '../components/ShellLoader.astro';
 import { ClientRouter } from 'astro:transitions';
-import type { SiteData } from '../lib/content.ts';
+import { heroOf, type SiteData } from '../lib/content.ts';
 import type { Category } from '@femia/contracts';
 import { t } from '@femia/i18n';
 
@@ -32,7 +32,7 @@ const { site, categories, title, description, image, jsonLd, noindex = false, mi
 const { content: c, settings } = site;
 const store = settings.store;
 const fullTitle = title ? `${title} | ${store.name}` : `${store.name} | ${store.tagline}`;
-const desc = description ?? c.hero?.body ?? store.tagline;
+const desc = description ?? heroOf(site).data.body ?? store.tagline;
 const canonical = new URL(Astro.url.pathname, Astro.site).toString();
 const ogImage = image ? new URL(image, Astro.site).toString() : new URL('/og-default.jpg', Astro.site).toString();
 const announcement = c.announcement?.enabled ? (c.announcement.messages ?? []) : [];

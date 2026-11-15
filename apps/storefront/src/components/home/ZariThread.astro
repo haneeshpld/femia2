@@ -108,14 +108,16 @@
       else if (hero) pts.push([W * 0.4, hero.bottom - 60]);
       const add = (x: number, y: number | undefined) => { if (y !== undefined && y > (pts.at(-1)?.[1] ?? -1) + 40) pts.push([x, y]); };
       if (hero) add(R, hero.bottom + 24);
-      add(R, q('.cats .section-head')?.cy);
-      add(L, q('[data-arches]') ? q('[data-arches]')!.bottom + 36 : undefined);
-      add(R, q('.rail .section-head')?.cy);
-      add(L, q('.rail__track') ? q('.rail__track')!.bottom + 24 : undefined);
-      add(R, q('.occ .section-head')?.cy);
-      add(L, q('.occ__track') ? q('.occ__track')!.bottom + 30 : undefined);
-      add(R, q('.boutique') ? q('.boutique')!.top + 60 : undefined);
-      add(L, q('.styled .section-head')?.cy);
+      // Weave through whatever sections the owner has on the page, alternating sides:
+      // past each section's heading on one side, out under its content on the other.
+      let side = 1;
+      main!.querySelectorAll(':scope > section:not(.hero)').forEach((sec) => {
+        const r = rel(sec)!;
+        const head = rel(sec.querySelector('.section-head, h2'));
+        add(side > 0 ? R : L, head ? head.cy : r.top + 60);
+        side = -side;
+        add(side > 0 ? R : L, r.bottom - 30);
+      });
       const tr = rel(trust);
       if (tr) add(narrow ? L : L - 8, tr.bottom);
       add(W / 2, end + 2);

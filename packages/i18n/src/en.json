@@ -11,7 +11,6 @@
   "nav.menu": "Menu",
   "nav.close": "Close",
   "nav.skip": "Skip to content",
-
   "common.viewAll": "View all",
   "common.explore": "Explore",
   "common.addToBag": "Add to Bag",
@@ -28,14 +27,12 @@
   "common.prev": "Previous",
   "common.next": "Next",
   "common.page": "Page {n}",
-
   "home.boutique.directions": "Get Directions",
   "home.boutique.whatsapp": "Chat on WhatsApp",
   "home.newsletter.placeholder": "Enter your email address",
   "home.newsletter.cta": "Subscribe",
   "home.newsletter.thanks": "You're on the list. Watch your inbox for new arrivals.",
   "home.newsletter.error": "That didn't work. Please check the email and try again.",
-
   "shop.filters": "Filters",
   "shop.size": "Size",
   "shop.colour": "Colour",
@@ -52,7 +49,6 @@
   "shop.results": "{count} styles",
   "shop.empty.title": "Nothing matches those filters",
   "shop.empty.body": "Try removing a filter or two. New pieces arrive every week.",
-
   "product.size": "Size",
   "product.colour": "Colour",
   "product.sizeChart": "Size chart",
@@ -65,7 +61,6 @@
   "product.zoom": "Zoom image",
   "product.share": "Share",
   "product.askWhatsApp": "Ask about this on WhatsApp",
-
   "bag.title": "Your Bag",
   "bag.empty.title": "Your bag is empty",
   "bag.empty.body": "Find something you love. New arrivals land every week.",
@@ -82,10 +77,8 @@
   "bag.issue.sold_out": "Sold out and removed from your bag",
   "bag.issue.unavailable": "No longer available",
   "bag.issue.reduced": "Only {available} available, so we updated the quantity",
-
   "wishlist.title": "Wishlist",
   "wishlist.empty": "Tap the heart on any piece to save it here.",
-
   "checkout.title": "Checkout",
   "checkout.contact": "Contact",
   "checkout.name": "Full name",
@@ -107,20 +100,17 @@
   "checkout.place": "Place order · {total}",
   "checkout.newsletter": "Send me new arrivals and offers",
   "checkout.summary": "Order summary",
-
   "order.thanks": "Thank you, {name}!",
   "order.placed": "Your order {number} is placed.",
   "order.upi.title": "Pay {amount} by UPI",
   "order.upi.body": "Scan the QR or tap the button to pay. We'll confirm your order as soon as we see the payment.",
   "order.upi.open": "Open UPI app",
   "order.whatsapp.cta": "Send order on WhatsApp",
-
   "track.title": "Track your order",
   "track.number": "Order number",
   "track.phone": "Mobile number used at checkout",
   "track.submit": "Track order",
   "track.notFound": "We couldn't find that order. Check the number and the mobile used at checkout.",
-
   "status.pending_payment": "Awaiting payment",
   "status.new": "Order placed",
   "status.confirmed": "Confirmed",
@@ -128,7 +118,6 @@
   "status.shipped": "Shipped",
   "status.delivered": "Delivered",
   "status.cancelled": "Cancelled",
-
   "trust.shipping.title": "Free Shipping",
   "trust.shipping.body": "Above ₹999",
   "trust.returns.title": "Easy Returns",
@@ -137,13 +126,18 @@
   "trust.payments.body": "UPI, Cards & more",
   "trust.help.title": "Need Help?",
   "trust.help.body": "Chat on WhatsApp",
-
   "footer.shop": "Shop",
   "footer.help": "Help",
   "footer.visit": "Visit",
   "footer.rights": "© {year} {name}. All rights reserved.",
-
   "error.404.title": "This page wandered off",
   "error.404.body": "The page you're looking for isn't here. Let's get you back to the good stuff.",
-  "error.generic": "Something went wrong. Please try again."
+  "error.generic": "Something went wrong. Please try again.",
+  "checkout.code.open": "Have an offer code?",
+  "checkout.code.label": "Offer code",
+  "checkout.code.placeholder": "Enter code",
+  "checkout.code.apply": "Apply",
+  "checkout.code.remove": "Remove",
+  "checkout.code.saved": "Applied · you save {amount}",
+  "checkout.youSave": "You save"
 }

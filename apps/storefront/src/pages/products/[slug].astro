@@ -81,11 +81,27 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
 
     <section class="info" aria-labelledby="p-title">
       <h1 id="p-title" class="info__title">{p.title}</h1>
-      <p class="price info__price" data-price>
+      <p class:list={['price info__price', { 'price--sale': p.badges.some((b) => b.kind === 'sale') }]} data-price>
         <span data-price-now>{formatINR(p.price)}</span>
         {pct > 0 && <><s data-price-was><span class="sr-only">MRP </span>{formatINR(p.compareAtPrice!)}</s><span class="off" data-price-off>{t('common.off', { pct })}</span></>}
       </p>
       <p class="muted info__tax">Inclusive of all taxes. Free shipping above ₹999.</p>
+      {(p.badges.length > 0 || p.saleEndsAt) && (
+        <div class="info__offers">
+          {p.badges.map((b) => <span class={`offer-tag offer-tag--${b.style} offer-tag--shine`}>{b.label}</span>)}
+          {p.saleEndsAt && <p class="sale-ends" data-sale-ends={p.saleEndsAt} hidden />}
+        </div>
+      )}
+      {p.deals.length > 0 && (
+        <ul role="list" class="deals">
+          {p.deals.map((d) => (
+            <li class={`deal deal--${d.style}`}>
+              <span class="deal__mark"><Icon name="tag" size={20} /></span>
+              <span class="deal__text"><strong>{d.label || d.text}</strong><span>{d.label && !/\d/.test(d.label) ? `${d.text} · mix and match in your bag` : 'Mix and match in your bag'}</span></span>
+            </li>
+          ))}
+        </ul>
+      )}
 
       {p.option2Values.length > 0 && (
         <fieldset class="opt">
@@ -175,6 +191,20 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
   .info__title + .info__price { margin-top: var(--sp-1); }
   .info__price { font-size: 1.375rem; margin-top: calc(var(--sp-2) * -1); }
   .info__tax { font-size: .875rem; margin-top: calc(var(--sp-4) * -1); }
+  .info__offers { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); margin-top: calc(var(--sp-2) * -1); }
+  .deals { display: grid; gap: var(--sp-2); }
+  .deal {
+    display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4);
+    background: linear-gradient(100deg, rgba(235, 203, 130, .16), rgba(255, 253, 250, .6) 60%);
+    border: 1px dashed color-mix(in srgb, var(--c-zari) 70%, transparent); border-radius: 12px;
+  }
+  .deal__mark { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: var(--c-maroon); color: var(--c-zari-light); box-shadow: inset 0 0 0 2px rgba(235, 203, 130, .45); }
+  .deal--gold .deal__mark { background: linear-gradient(135deg, #F1D99A, var(--c-zari) 50%, var(--c-zari-deep)); color: var(--c-ink); }
+  .deal--ink .deal__mark { background: var(--c-ink); color: var(--c-cream); }
+  .deal--rose .deal__mark { background: var(--c-blush); color: var(--c-maroon); }
+  .deal--green .deal__mark { background: #24533F; color: #E9F1E4; }
+  .deal__text { display: grid; gap: 1px; font-size: .875rem; color: var(--c-muted); }
+  .deal__text strong { font-size: 1rem; font-weight: 600; color: var(--c-ink); }
   .opt { border: 0; padding: 0; display: grid; gap: var(--sp-3); }
   .opt legend { font-size: .9375rem; color: var(--c-muted); margin-bottom: var(--sp-3); width: 100%; }
   .opt legend strong, .opt__head > span { color: var(--c-ink); }
@@ -229,6 +259,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
   import { track } from '../../lib/analytics.ts';
   import { formatINR, percentOff } from '@femia/contracts/money';
   import { onPage } from '../../lib/lifecycle.ts';
+  import { showSaleEnds } from '../../lib/sale-ends.ts';
 
   type Img = { id: string; alt: string; w: number; h: number; src: Record<string, string> };
   type Data = {
@@ -238,6 +269,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
     galleries: Record<string, Img[]>;
   };
   onPage(() => {
+    showSaleEnds();
   const root = document.querySelector<HTMLElement>('[data-pdp]');
   if (root) {
     const d = JSON.parse(root.querySelector('[data-pdp-data]')!.textContent!) as Data;

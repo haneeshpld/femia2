@@ -2,22 +2,23 @@
 import type { MediaRef } from '@femia/contracts';
 import Icon from '../ui/Icon.astro';
 import { emph, srcset } from '../../lib/format.ts';
-interface Props { block: Record<string, any>; media: Record<string, MediaRef>; instagram: string }
-const { block: b, media, instagram } = Astro.props;
-const imgs = (b.images ?? []).map((i: { image: string; link?: string }) => ({ ...i, m: media[i.image] })).filter((i: { m?: MediaRef }) => i.m);
+interface Props { block: Record<string, any>; media: Record<string, MediaRef>; instagram: string; uid?: string }
+const { block: b, media, instagram, uid = 'styled' } = Astro.props;
+const imgs = (b.images ?? []).map((i: { image: string; link?: string; caption?: string }) => ({ ...i, m: media[i.image] })).filter((i: { m?: MediaRef }) => i.m);
 ---
 {b.enabled && imgs.length > 0 && (
-  <section class="section styled" aria-labelledby="styled-title">
+  <section class="section styled" aria-labelledby={`${uid}-title`}>
     <div class="container section-head">
-      <h2 id="styled-title" data-split set:html={emph(b.eyebrow)} />
+      <h2 id={`${uid}-title`} data-split set:html={emph(b.eyebrow)} />
       <span class="thread-rule" aria-hidden="true"></span>
       {b.handle && instagram && <a class="link-arrow styled__handle" href={instagram} target="_blank" rel="noopener"><Icon name="instagram" /> {b.handle}</a>}
     </div>
     <ul role="list" class="styled__track" data-polaroids>
-      {imgs.map((i: { m: MediaRef; link?: string }) => (
+      {imgs.map((i: { m: MediaRef; link?: string; caption?: string }) => (
         <li>
           {i.link ? <a href={i.link} target="_blank" rel="noopener"><img src={i.m.src['480']} srcset={srcset(i.m)} sizes="(min-width: 1024px) 20vw, 44vw" width={i.m.width} height={i.m.height} alt={i.m.alt} loading="lazy" decoding="async" /></a>
                   : <img src={i.m.src['480']} srcset={srcset(i.m)} sizes="(min-width: 1024px) 20vw, 44vw" width={i.m.width} height={i.m.height} alt={i.m.alt} loading="lazy" decoding="async" />}
+          {i.caption && <p class="print__caption">{i.caption}</p>}
         </li>
       ))}
     </ul>
@@ -34,4 +35,5 @@ const imgs = (b.images ?? []).map((i: { image: string; link?: string }) => ({ ..
   .styled__track li:nth-child(odd) { transform: rotate(-1.2deg); } .styled__track li:nth-child(even) { transform: rotate(1deg) translateY(10px); }
   .styled__track img { width: 100%; aspect-ratio: 0.95; object-fit: cover; border-radius: 2px; background: var(--c-sand); }
   .styled__track { padding-block: var(--sp-4) var(--sp-8); }
+  .print__caption { font-family: var(--font-display); font-style: italic; font-size: .9375rem; color: var(--c-ink); text-align: center; margin-top: 6px; line-height: 1.2; }
 </style>

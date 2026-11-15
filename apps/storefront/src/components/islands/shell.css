@@ -55,6 +55,19 @@
 .totals div { display: flex; justify-content: space-between; }
 .totals dt { color: var(--c-muted); }
 .totals dd { font-weight: 600; color: var(--c-ink); }
+.totals__deal dt, .totals__deal dd { color: var(--c-maroon) !important; }
+.line__tag { justify-self: start; margin-top: 4px; padding: 4px 15px 4px 9px; }
+.deal-nudge {
+  display: flex; align-items: flex-start; gap: var(--sp-2); margin-bottom: var(--sp-4); padding: var(--sp-3) var(--sp-4);
+  font-size: .9375rem; color: var(--c-ink); line-height: 1.4;
+  background: linear-gradient(100deg, rgba(235, 203, 130, .22), rgba(255, 253, 250, .7) 70%);
+  border: 1px dashed color-mix(in srgb, var(--c-zari) 70%, transparent); border-radius: var(--r-md);
+}
+.deal-nudge svg { flex: none; margin-top: 2px; color: var(--c-zari-deep); }
+.deal-nudge--won { border-style: solid; border-color: color-mix(in srgb, var(--c-zari) 55%, transparent); animation: deal-in 600ms var(--motion-ease-out); }
+.deal-nudge--won svg { color: var(--c-maroon); }
+@keyframes deal-in { from { opacity: 0; transform: translateY(6px) scale(.98); } }
+@media (prefers-reduced-motion: reduce) { .deal-nudge--won { animation: none; } }
 .totals__save dd { color: var(--c-success); }
 
 .qa { display: grid; grid-template-columns: 120px 1fr; gap: var(--sp-5); }

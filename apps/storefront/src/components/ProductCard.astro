@@ -21,17 +21,23 @@ const wish = JSON.stringify({ productId: p.id, slug: p.slug, title: p.title, pri
         alt={main.alt} loading={eager ? 'eager' : 'lazy'} decoding="async" fetchpriority={eager ? 'high' : undefined}
         style={main.placeholder ? `background:${main.placeholder}` : undefined} />
     )}
-    {p.soldOut ? <span class="pcard__tag pcard__tag--soldout">{t('common.soldOut')}</span> : p.isNew ? <span class="pcard__tag">{t('common.new')}</span> : null}
+    {p.soldOut ? <span class="pcard__tag pcard__tag--soldout">{t('common.soldOut')}</span> : (
+      <div class="pcard__tags">
+        {p.badges.slice(0, 2).map((b) => <span class={`offer-tag offer-tag--${b.style}`}>{b.label}</span>)}
+        {p.isNew && p.badges.length < 2 && <span class="pcard__tag">{t('common.new')}</span>}
+      </div>
+    )}
     <button class="icon-btn pcard__wish" type="button" data-wish={wish} aria-pressed="false" aria-label={t('common.saveToWishlist', { title: p.title })}>
       <Icon name="heart" size={20} />
     </button>
   </div>
   <div class="pcard__body">
     <h3 class="pcard__title"><a href={`/products/${p.slug}`}>{p.title}</a></h3>
-    <p class="price">
+    <p class:list={['price', { 'price--sale': p.badges.some((b) => b.kind === 'sale') }]}>
       <span>{formatINR(p.price)}</span>
       {pct > 0 && <><s><span class="sr-only">Was </span>{formatINR(p.compareAtPrice!)}</s><span class="off">{t('common.off', { pct })}</span></>}
     </p>
+    {p.saleEndsAt && !p.soldOut && <p class="sale-ends" data-sale-ends={p.saleEndsAt} hidden />}
     {p.colours.length > 1 && (
       <div class="swatches" role="group" aria-label="Colours">
         {p.colours.map((c, i) => (
@@ -50,6 +56,7 @@ const wish = JSON.stringify({ productId: p.id, slug: p.slug, title: p.title, pri
   import { $wishlist, toggleWish } from '../lib/stores.ts';
   import { emit } from '../lib/ui-events.ts';
   import { onPage } from '../lib/lifecycle.ts';
+  import { showSaleEnds } from '../lib/sale-ends.ts';
 
   // Name this card's photo before the router snapshots the page, so it morphs into the product page's image.
   const nameForMorph = (e: Event) => {
@@ -97,5 +104,5 @@ const wish = JSON.stringify({ productId: p.id, slug: p.slug, title: p.title, pri
     });
   };
   $wishlist.listen((list) => syncHearts([...list]));
-  onPage(() => syncHearts());
+  onPage(() => { syncHearts(); showSaleEnds(); });
 </script>

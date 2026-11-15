@@ -1,35 +1,72 @@
 ---
+/**
+ * Home page = the owner's list of sections (Admin → Homepage → Page sections), drawn in order.
+ * Hidden sections are skipped; the same type can appear more than once (e.g. two product rows).
+ */
 import Hero from './Hero.astro';
 import CategoryArches from './CategoryArches.astro';
 import ProductRail from './ProductRail.astro';
 import Occasions from './Occasions.astro';
 import Boutique from './Boutique.astro';
 import StyledByYou from './StyledByYou.astro';
+import PromoBanner from './PromoBanner.astro';
+import Story from './Story.astro';
 import ZariThread from './ZariThread.astro';
 import { api } from '../../lib/api.ts';
 import type { SiteData } from '../../lib/content.ts';
-import type { Category } from '@femia/contracts';
+import { homeSections, type Category, type HomeSection, type ProductCard } from '@femia/contracts';
 
 interface Props { site: SiteData; categories: Category[] }
 const { site, categories } = Astro.props;
-const c = site.content;
-const collections = await api().catalog.collections();
-const newArrivalColl = c.newArrivals?.collection ? collections.find((x) => x.id === c.newArrivals.collection) : undefined;
-const arrivals = await api().catalog.products({ sort: 'new', pageSize: Math.min(Math.max(c.newArrivals?.count ?? 8, 4), 12), collection: newArrivalColl?.slug });
+const sections = homeSections(site.content).filter((s) => s.enabled);
+const media = (id?: string | null) => (id ? site.media[id] : undefined);
+
+const needsCollections = sections.some((s) => s.type === 'occasions' || (s.type === 'products' && s.data.source === 'collection'));
+const collections = needsCollections ? await api().catalog.collections() : [];
 const catById = new Map(categories.map((x) => [x.id, x]));
-const tiles = (c.categories?.items ?? [])
-  .map((i: { category: string; image?: string }) => ({ category: catById.get(i.category)!, image: (i.image && site.media[i.image]) || catById.get(i.category)?.image || null }))
-  .filter((x: { category?: unknown }) => x.category);
 const collById = new Map(collections.map((x) => [x.id, x]));
-const occasions = (c.occasions?.items ?? [])
-  .map((i: { collection: string; title: string; image?: string }) => ({ collection: collById.get(i.collection)!, title: i.title, image: (i.image && site.media[i.image]) || collById.get(i.collection)?.image || null }))
-  .filter((x: { collection?: unknown }) => x.collection);
-const heroImg = c.hero?.image ? site.media[c.hero.image] : undefined;
+
+// Fetch every products row in parallel.
+type Row = { products: ProductCard[]; viewAll: string };
+const rows = new Map<string, Row>(await Promise.all(sections.filter((s) => s.type === 'products').map(async (s): Promise<[string, Row]> => {
+  const d = s.data;
+  const count = Math.min(Math.max(Number(d.count) || 4, 4), 12);
+  const coll = d.source === 'collection' ? collById.get(d.collection) : undefined;
+  const cat = d.source === 'category' ? catById.get(d.category) : undefined;
+  const list = await api().catalog.products({ sort: d.source === 'popular' ? 'popular' : 'new', pageSize: count, collection: coll?.slug, category: cat?.slug });
+  return [s.id, { products: list.items, viewAll: coll ? `/collections/${coll.slug}` : cat ? `/shop/${cat.slug}` : d.source === 'popular' ? '/shop?sort=popular' : '/shop?sort=new' }];
+})));
+
+const uid = (s: HomeSection) => `sec-${s.id}`.replace(/[^a-zA-Z0-9_-]/g, '');
 ---
-<Hero hero={c.hero ?? {}} image={heroImg} city={site.settings.store.address.city} />
-<CategoryArches heading={c.categories?.eyebrow ?? 'Shop by *category*'} tiles={tiles} />
-<ProductRail id="arrivals-title" linkLabel={c.newArrivals?.eyebrow || 'View all'} title={c.newArrivals?.title ?? 'Just *landed*'} products={arrivals.items} viewAll={newArrivalColl ? `/collections/${newArrivalColl.slug}` : '/shop?sort=new'} />
-<Occasions title={c.occasions?.title ?? ''} items={occasions} />
-<Boutique block={c.boutique ?? {}} image={c.boutique?.image ? site.media[c.boutique.image] : undefined} store={site.settings.store} />
-<StyledByYou block={c.styled ?? {}} media={site.media} instagram={site.settings.store.socials.instagram} />
+{sections.map((s) => {
+  const d = s.data;
+  switch (s.type) {
+    case 'hero':
+      return <Hero hero={d} image={media(d.image)} city={site.settings.store.address.city} />;
+    case 'categories': {
+      const items = (d.items ?? []).length ? d.items : categories.map((c) => ({ category: c.id }));
+      const tiles = items.map((i: { category: string; image?: string }) => ({ category: catById.get(i.category)!, image: media(i.image) ?? catById.get(i.category)?.image ?? null })).filter((x: { category?: unknown }) => x.category);
+      return tiles.length > 0 && <CategoryArches heading={d.heading || 'Shop by *category*'} tiles={tiles} uid={uid(s)} />;
+    }
+    case 'products': {
+      const row = rows.get(s.id);
+      return row && <ProductRail id={`${uid(s)}-title`} title={d.heading || 'Just *landed*'} linkLabel={d.linkLabel || 'View all'} products={row.products} viewAll={row.viewAll} />;
+    }
+    case 'occasions': {
+      const items = (d.items ?? []).map((i: { collection: string; title: string; image?: string }) => ({ collection: collById.get(i.collection)!, title: i.title, image: media(i.image) ?? collById.get(i.collection)?.image ?? null })).filter((x: { collection?: unknown }) => x.collection);
+      return items.length > 0 && <Occasions title={d.heading ?? ''} items={items} uid={uid(s)} />;
+    }
+    case 'boutique':
+      return <Boutique block={{ ...d, title: d.heading }} image={media(d.image)} store={site.settings.store} uid={uid(s)} />;
+    case 'instagram':
+      return <StyledByYou block={{ enabled: true, eyebrow: d.heading, handle: d.handle, images: d.images }} media={site.media} instagram={site.settings.store.socials.instagram} uid={uid(s)} />;
+    case 'banner':
+      return <PromoBanner block={d} image={media(d.image)} uid={uid(s)} />;
+    case 'story':
+      return <Story block={d} uid={uid(s)} />;
+    default:
+      return null;
+  }
+})}
 <ZariThread />

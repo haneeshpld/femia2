@@ -1,0 +1,21 @@
+---
+import Icon from '../ui/Icon.astro';
+import { emph } from '../../lib/format.ts';
+interface Props { block: Record<string, any>; uid: string }
+const { block: b, uid } = Astro.props;
+---
+<section class="section story" aria-labelledby={`${uid}-title`}>
+  <div class="container story__inner" data-reveal>
+    <span class="story__mark" aria-hidden="true"><i class="lozenge"></i></span>
+    {b.heading && <h2 id={`${uid}-title`} data-split set:html={emph(b.heading)} />}
+    {b.body && <p class="story__body">{b.body}</p>}
+    {b.linkLabel && b.link && <a class="link-arrow" href={b.link}>{b.linkLabel} <Icon name="arrowRight" size={18} /></a>}
+  </div>
+</section>
+<style>
+  .story__inner { display: grid; justify-items: center; text-align: center; gap: var(--sp-5); max-width: 760px; }
+  .story__mark { display: flex; align-items: center; gap: var(--sp-3); width: 160px; }
+  .story__mark::before, .story__mark::after { content: ''; flex: 1; height: 1px; background: var(--c-zari); opacity: .7; }
+  .story__inner h2 :global(em) { font-style: italic; color: var(--c-maroon); font-weight: 450; }
+  .story__body { font-family: var(--font-display); font-size: clamp(1.25rem, 1.1rem + .6vw, 1.6rem); line-height: 1.5; color: var(--c-text); text-wrap: balance; }
+</style>

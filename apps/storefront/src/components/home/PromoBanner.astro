@@ -1,0 +1,33 @@
+---
+import type { MediaRef } from '@femia/contracts';
+import Icon from '../ui/Icon.astro';
+import { emph, srcset } from '../../lib/format.ts';
+interface Props { block: Record<string, any>; image?: MediaRef; uid: string }
+const { block: b, image, uid } = Astro.props;
+const right = b.align === 'right';
+---
+<section class:list={['section promo', { 'promo--right': right }]} aria-labelledby={`${uid}-title`}>
+  <div class="container promo__inner">
+    <div class="promo__media arch ph" data-reveal>
+      {image && <img src={image.src['960']} srcset={srcset(image)} sizes="(min-width: 900px) 55vw, 100vw" width={image.width} height={image.height} alt={image.alt} loading="lazy" decoding="async" />}
+    </div>
+    <div class="promo__copy" data-reveal style="--delay:120ms">
+      <h2 id={`${uid}-title`} data-split set:html={emph(b.heading)} />
+      {b.body && <p>{b.body}</p>}
+      {b.ctaLabel && b.ctaLink && <a class="btn" href={b.ctaLink} data-magnetic>{b.ctaLabel} <Icon name="arrowRight" size={18} class="arrow" /></a>}
+    </div>
+  </div>
+</section>
+<style>
+  .promo__inner { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: clamp(var(--sp-8), 6vw, var(--sp-20)); align-items: center; }
+  .promo--right .promo__media { order: 2; }
+  .promo__media { aspect-ratio: 1.6; border-radius: var(--r-card); box-shadow: var(--shadow-card-hover); }
+  .promo__media img { width: 100%; height: 100%; object-fit: cover; }
+  .promo__copy { display: grid; gap: var(--sp-5); justify-items: start; }
+  .promo__copy h2 :global(em) { font-style: italic; color: var(--c-maroon); font-weight: 450; }
+  .promo__copy p { font-size: var(--fs-md); max-width: 40ch; }
+  @media (max-width: 899px) {
+    .promo__inner { grid-template-columns: 1fr; }
+    .promo--right .promo__media { order: 0; }
+  }
+</style>

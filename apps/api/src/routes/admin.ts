@@ -14,6 +14,7 @@ import * as content from '../services/content.ts';
 import { deleteMedia, listMedia, mediaUsages, uploadMedia } from '../services/media.ts';
 import { createOrder, getOrderRow, markPaid, orderItems, toPublicOrder, transitionOrder } from '../services/orders.ts';
 import { duplicateProduct, getAdminProduct, listAdminProducts, lowStock, saveProduct, setProductStatus } from '../services/products.ts';
+import { deleteOffer, listOffers, saveOffer, setOfferActive } from '../services/offers.ts';
 import { getSettings, putSettingStatement } from '../services/settings.ts';
 import { adjustStock, stockHistory } from '../services/stock.ts';
 
@@ -37,6 +38,35 @@ adminRoutes.get('/dashboard', can('dashboard.view'), async (c) => {
   const startToday = new Date(Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate()) - 5.5 * 3600e3).toISOString();
   const start7 = new Date(Date.parse(startToday) - 6 * 864e5).toISOString();
   const sales = `SELECT COUNT(*) AS orders, COALESCE(SUM(total),0) AS revenue FROM orders WHERE status NOT IN ('cancelled','pending_payment') AND created_at >= ?`;
+  const now = Date.now();
+  const iso = (msAgo: number) => new Date(now - msAgo).toISOString();
+  const start14 = new Date(Date.parse(startToday) - 13 * 864e5).toISOString();
+  const start30 = iso(30 * 864e5);
+  const counted = "o.status NOT IN ('cancelled','pending_payment')";
+  const [stages, closed, stalled, cod, expiring, top, offers, given, prev] = await Promise.all([
+    all<{ status: string; n: number; oldest: string }>(db,
+      "SELECT status, COUNT(*) AS n, MIN(updated_at) AS oldest FROM orders WHERE status IN ('pending_payment','new','confirmed','packed','shipped') GROUP BY status"),
+    all<{ status: string; n: number }>(db, "SELECT status, COUNT(*) AS n FROM orders WHERE status IN ('delivered','cancelled') AND updated_at >= ? GROUP BY status", start30),
+    // sitting too long: new > 1 day, confirmed / packed > 2 days, shipped > 7 days
+    all<{ status: string; n: number }>(db,
+      `SELECT status, COUNT(*) AS n FROM orders WHERE (status = 'new' AND updated_at < ?) OR (status IN ('confirmed','packed') AND updated_at < ?) OR (status = 'shipped' AND updated_at < ?) GROUP BY status`,
+      iso(864e5), iso(2 * 864e5), iso(7 * 864e5)),
+    first<{ n: number; total: number }>(db, "SELECT COUNT(*) AS n, COALESCE(SUM(total),0) AS total FROM orders WHERE payment_method = 'cod' AND payment_status != 'paid' AND status IN ('new','confirmed','packed','shipped')"),
+    first<{ n: number }>(db, "SELECT COUNT(*) AS n FROM orders WHERE status = 'pending_payment' AND hold_expires_at IS NOT NULL AND hold_expires_at < ?", new Date(now + 2 * 3600e3).toISOString()),
+    all<{ title: string; slug: string; qty: number; revenue: number }>(db,
+      `SELECT oi.title, oi.slug, SUM(oi.qty) AS qty, SUM(oi.line_total) AS revenue FROM order_items oi JOIN orders o ON o.id = oi.order_id
+       WHERE ${counted} AND o.created_at >= ? GROUP BY oi.product_id ORDER BY qty DESC, revenue DESC LIMIT 3`, start7),
+    listOffers(db),
+    first<{ total: number }>(db, `SELECT COALESCE(SUM(d.amount),0) AS total FROM order_discounts d JOIN orders o ON o.id = d.order_id WHERE ${counted} AND o.created_at >= ?`, start7),
+    first<{ orders: number; revenue: number }>(db, `SELECT COUNT(*) AS orders, COALESCE(SUM(total),0) AS revenue FROM orders o WHERE ${counted} AND o.created_at >= ? AND o.created_at < ?`, start14, start7),
+  ]);
+  const pipeline = Object.fromEntries(['pending_payment', 'new', 'confirmed', 'packed', 'shipped', 'delivered', 'cancelled'].map((st) => {
+    const open = stages.find((x) => x.status === st);
+    return [st, { count: open?.n ?? closed.find((x) => x.status === st)?.n ?? 0, oldestAt: open?.oldest ?? null, stalled: stalled.find((x) => x.status === st)?.n ?? 0 }];
+  }));
+  const live = offers.filter((o) => o.status === 'live');
+  const endingNext = live.filter((o) => o.endsAt).sort((x, y) => Date.parse(x.endsAt!) - Date.parse(y.endsAt!))[0];
+
   const [today, week, waiting, awaitingPayment, low, daily] = await Promise.all([
     first<{ orders: number; revenue: number }>(db, sales, startToday),
     first<{ orders: number; revenue: number }>(db, sales, start7),
@@ -50,6 +80,11 @@ adminRoutes.get('/dashboard', can('dashboard.view'), async (c) => {
   return c.json({
     today: today ?? { orders: 0, revenue: 0 }, last7Days: week ?? { orders: 0, revenue: 0 }, daily,
     ordersWaiting: waiting?.n ?? 0, upiAwaitingVerification: awaitingPayment?.n ?? 0, lowStock: low,
+    pipeline, holdsExpiringSoon: expiring?.n ?? 0,
+    previous7Days: prev ?? { orders: 0, revenue: 0 },
+    codToCollect: { orders: cod?.n ?? 0, amount: cod?.total ?? 0 },
+    topProducts: top,
+    offers: { live: live.length, names: live.slice(0, 3).map((o) => o.code ?? (o.label || o.name)), endingNext: endingNext ? { name: endingNext.name, endsAt: endingNext.endsAt } : null, given7Days: given?.total ?? 0 },
   });
 });
 
@@ -64,6 +99,20 @@ async function freeSlug(db: D1Database, table: 'categories' | 'collections', bas
   while (await first(db, `SELECT 1 FROM ${table} WHERE slug = ? AND id != ?`, slug, exceptId)) slug = `${base}-${n++}`;
   return slug;
 }
+
+// ── offers: sales, bundles, coupons, tags ──
+adminRoutes.get('/offers', can('catalog.read'), async (c) => c.json(await listOffers(c.env.DB)));
+adminRoutes.post('/offers', can('offers.write'), async (c) => c.json(await saveOffer(c.env.DB, await readJson(c, z.unknown()), actorOf(c)), 201));
+adminRoutes.put('/offers/:id', can('offers.write'), async (c) => c.json(await saveOffer(c.env.DB, await readJson(c, z.unknown()), actorOf(c), c.req.param('id'))));
+adminRoutes.post('/offers/:id/active', can('offers.write'), async (c) => {
+  const { active } = await readJson(c, z.object({ active: z.boolean() }));
+  await setOfferActive(c.env.DB, c.req.param('id'), active, actorOf(c));
+  return c.json({ ok: true });
+});
+adminRoutes.delete('/offers/:id', can('offers.write'), async (c) => {
+  await deleteOffer(c.env.DB, c.req.param('id'), actorOf(c));
+  return c.json({ ok: true });
+});
 
 adminRoutes.post('/categories', can('catalog.write'), async (c) => {
   const b = await readJson(c, CategoryInput);
@@ -132,8 +181,8 @@ adminRoutes.get('/storefront/collections', can('catalog.read'), async (c) => c.j
 
 adminRoutes.get('/products', can('catalog.read'), async (c) => c.json(await listAdminProducts(c.env.DB, parse(AdminProductListQuery, c.req.query()))));
 adminRoutes.get('/products/:id', can('catalog.read'), async (c) => c.json(await getAdminProduct(c.env.DB, c.req.param('id'))));
-adminRoutes.post('/products', can('catalog.write'), async (c) => c.json(await saveProduct(c.env.DB, await c.req.json(), actorOf(c)), 201));
-adminRoutes.put('/products/:id', can('catalog.write'), async (c) => c.json(await saveProduct(c.env.DB, await c.req.json(), actorOf(c), c.req.param('id'))));
+adminRoutes.post('/products', can('catalog.write'), async (c) => c.json(await saveProduct(c.env.DB, await readJson(c, z.unknown()), actorOf(c)), 201));
+adminRoutes.put('/products/:id', can('catalog.write'), async (c) => c.json(await saveProduct(c.env.DB, await readJson(c, z.unknown()), actorOf(c), c.req.param('id'))));
 adminRoutes.post('/products/:id/status', can('catalog.write'), async (c) => {
   const { status } = await readJson(c, ProductStatusInput);
   return c.json(await setProductStatus(c.env.DB, c.req.param('id'), status, actorOf(c)));
@@ -249,8 +298,9 @@ adminRoutes.post('/orders', can('orders.write'), async (c) => {
 adminRoutes.get('/orders/:number/document', can('orders.read'), async (c) => {
   const o = await getOrderRow(c.env.DB, { number: c.req.param('number').toUpperCase() });
   if (!o) throw notFound('Order not found');
-  const [items, settings] = await Promise.all([orderItems(c.env.DB, o.id), getSettings(c.env.DB)]);
-  return c.json({ order: o, items, store: settings.store }); // Admin renders bill / packing slip for print
+  const [items, settings, discounts] = await Promise.all([orderItems(c.env.DB, o.id), getSettings(c.env.DB),
+    all(c.env.DB, 'SELECT label, code, amount FROM order_discounts WHERE order_id = ? ORDER BY id', o.id)]);
+  return c.json({ order: o, items, store: settings.store, discounts }); // Admin renders bill / packing slip for print
 });
 
 // ── content ──

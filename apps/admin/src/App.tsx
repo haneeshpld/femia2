@@ -21,6 +21,7 @@ const Media = lazy(() => import('./pages/Media.tsx'));
 const Settings = lazy(() => import('./pages/Settings.tsx'));
 const People = lazy(() => import('./pages/People.tsx'));
 const PromptStudio = lazy(() => import('./pages/PromptStudio.tsx'));
+const Offers = lazy(() => import('./pages/Offers.tsx'));
 const More = lazy(() => import('./pages/More.tsx'));
 
 type NavItem = { to: string; label: string; icon: IconName; perm?: string; badge?: number; end?: boolean };
@@ -48,6 +49,7 @@ export function App() {
     { to: '/orders', label: 'Orders', icon: 'bag', perm: 'orders.read', badge: waiting },
     { to: '/products', label: 'Products', icon: 'box', perm: 'catalog.read' },
     { to: '/stock', label: 'Stock', icon: 'layers', perm: 'stock.write' },
+    { to: '/offers', label: 'Offers', icon: 'percent', perm: 'catalog.read' },
     { to: '/catalog', label: 'Catalog setup', icon: 'tag', perm: 'catalog.write' },
     { to: '/content', label: 'Homepage', icon: 'edit', perm: 'content.write' },
     { to: '/photos', label: 'Photos', icon: 'image', perm: 'media.write' },
@@ -78,6 +80,7 @@ export function App() {
               <Route path="/products/:id" element={<ProductWizard />} />
               <Route path="/stock" element={<Stock />} />
               <Route path="/catalog" element={<Catalog />} />
+              <Route path="/offers" element={<Offers />} />
               <Route path="/orders" element={<Orders />} />
               <Route path="/orders/new" element={<NewOrder />} />
               <Route path="/orders/:number" element={<OrderDetail />} />
