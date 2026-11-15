@@ -3,17 +3,19 @@ import Base from '../layouts/Base.astro';
 import HomeView from '../components/home/HomeView.astro';
 import { getCommon } from '../lib/content.ts';
 import { srcset } from '../lib/format.ts';
-import { heroImages, PHONE, WIDE } from '../lib/hero.ts';
+import { deviceImages, DESKTOP, PHONE, TABLET } from '../lib/hero.ts';
 import { homeSections } from '@femia/contracts';
 
 const { site, categories } = await getCommon();
 const heroSection = homeSections(site.content).find((x) => x.type === 'hero' && x.enabled);
-const hero = heroSection ? heroImages(heroSection.data, site.media) : undefined;
-const heroImg = hero?.desktop ?? hero?.mobile;
+const hero = heroSection ? deviceImages(heroSection.data, site.media) : undefined;
+const heroImg = hero?.desktop;
 Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=600');
 ---
 <Base site={site} categories={categories} image={heroImg?.src['1600']}>
-  {hero?.desktop && <link slot="head" rel="preload" as="image" href={hero.desktop.src['960']} imagesrcset={srcset(hero.desktop)} imagesizes={hero.desktopSizes} media={hero.mobile ? WIDE : undefined} fetchpriority="high" />}
-  {hero?.mobile && <link slot="head" rel="preload" as="image" href={hero.mobile.src['960']} imagesrcset={srcset(hero.mobile)} imagesizes="100vw" media={hero.desktop ? PHONE : undefined} fetchpriority="high" />}
+  {/* Preload only the photo this screen will show. */}
+  {hero?.desktop && <link slot="head" rel="preload" as="image" href={hero.desktop.src['960']} imagesrcset={srcset(hero.desktop)} imagesizes="58vw" media={DESKTOP} fetchpriority="high" />}
+  {hero?.tablet && <link slot="head" rel="preload" as="image" href={hero.tablet.src['960']} imagesrcset={srcset(hero.tablet)} imagesizes="58vw" media={TABLET} fetchpriority="high" />}
+  {hero?.mobile && <link slot="head" rel="preload" as="image" href={hero.mobile.src['960']} imagesrcset={srcset(hero.mobile)} imagesizes="calc(100vw - 32px)" media={PHONE} fetchpriority="high" />}
   <HomeView site={site} categories={categories} />
 </Base>

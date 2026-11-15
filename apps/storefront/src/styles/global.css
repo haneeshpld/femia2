@@ -32,6 +32,9 @@ p { text-wrap: pretty; }
 ul[role='list'], ol[role='list'] { list-style: none; padding: 0; }
 [hidden] { display: none !important; }
 
+/* No grey/blue flash when tapping links and icons on phones; keyboard focus keeps its maroon ring. */
+html { -webkit-tap-highlight-color: transparent; }
+:focus:not(:focus-visible) { outline: none; }
 :focus-visible { outline: 2px solid var(--c-maroon); outline-offset: 3px; border-radius: 4px; }
 ::selection { background: var(--c-maroon); color: var(--c-zari-light); }
 ::-webkit-scrollbar { width: 10px; height: 10px; }

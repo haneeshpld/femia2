@@ -12,8 +12,6 @@ const BaseField = z.object({
   label: z.string(),
   help: z.string().optional(),
   required: z.boolean().default(false),
-  /** Show this field only when a sibling select field has one of these values (Admin hides it otherwise). */
-  when: z.object({ field: z.string(), is: z.array(z.string()).min(1) }).optional(),
 });
 
 export type ManifestField =

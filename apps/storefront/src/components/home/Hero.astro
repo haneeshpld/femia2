@@ -1,20 +1,27 @@
 ---
-import type { MediaRef } from '@femia/contracts';
 import Icon from '../ui/Icon.astro';
 import { srcset } from '../../lib/format.ts';
+import { PHONE, TABLET, type DeviceImages } from '../../lib/hero.ts';
 import { t } from '@femia/i18n';
-interface Props { hero: Record<string, any>; image?: MediaRef; city?: string }
-const { hero: h, image, city } = Astro.props;
+interface Props { hero: Record<string, any>; images: DeviceImages; city?: string }
+const { hero: h, images, city } = Astro.props;
+// Desktop / tablet / phone photos from Admin; each falls back to the next larger one.
+const { desktop: image, tablet, mobile } = images;
 ---
 <section class="hero" aria-labelledby="hero-title" data-hero>
   {image && (
     <div class="hero__art" aria-hidden="true" data-hero-art>
       <div class="hero__art-inner" data-parallax="12">
-        <img src={image.src['960']} srcset={srcset(image)} sizes="(min-width: 768px) 58vw, 100vw" width={image.width} height={image.height}
-          alt="" fetchpriority="high" decoding="async" data-hero-img />
+        <picture>
+          {mobile && mobile !== image && <source media={PHONE} srcset={srcset(mobile)} sizes="100vw" width={mobile.width} height={mobile.height} />}
+          {tablet && tablet !== image && <source media={TABLET} srcset={srcset(tablet)} sizes="58vw" width={tablet.width} height={tablet.height} />}
+          <img src={image.src['960']} srcset={srcset(image)} sizes={`${PHONE} 100vw, 58vw`} width={image.width} height={image.height}
+            alt="" fetchpriority="high" decoding="async" data-hero-img />
+        </picture>
       </div>
     </div>
   )}
+  {image && <span class="hero__frame" aria-hidden="true" data-hero-fade><i /></span>}
   <div class="container hero__inner">
     <div class="hero__copy">
       <h1 id="hero-title" class="hero__title">
@@ -53,6 +60,7 @@ const { hero: h, image, city } = Astro.props;
   .hero__art { position: absolute; z-index: -1; inset: 0 0 0 auto; width: 60%;
     -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 30%); mask-image: linear-gradient(90deg, transparent 0%, #000 30%); }
   .hero__art-inner { position: absolute; inset: -8% 0; }
+  .hero__art picture { display: contents; }
   .hero__art img { width: 100%; height: 100%; object-fit: cover; object-position: 30% 50%; transform-origin: 70% 40%; }
   .hero__inner { align-self: center; padding-block: var(--sp-16) var(--sp-10); }
   .hero__copy { max-width: 640px; }
@@ -80,13 +88,41 @@ const { hero: h, image, city } = Astro.props;
   :global(.hero-pending) [data-hero-art] { opacity: 0; }
   :global(.hero-pending) [data-stitch-mask] { stroke-dashoffset: 1; }
 
+  .hero__frame { display: none; }
+
+  /* Phones: a magazine cover. The photo fills the first screen, seen through a gold arch;
+     the tagline sits under the arch's crown and the headline rests on a cream fade at the bottom. */
   @media (max-width: 767px) {
-    .hero { min-height: auto; }
-    .hero__art { inset: auto -12% 0 12%; width: auto; height: 52%; -webkit-mask-image: linear-gradient(170deg, transparent 18%, #000 62%); mask-image: linear-gradient(170deg, transparent 18%, #000 62%); }
-    .hero__inner { align-self: start; padding-block: var(--sp-12) 240px; }
-    .hero__ctas { flex-direction: column; align-items: flex-start; gap: var(--sp-3); margin-top: var(--sp-8); }
+    .hero { min-height: clamp(560px, calc(100svh - 130px), 780px); grid-template-rows: auto 1fr; }
+    .hero__art { inset: 0; width: auto; height: auto; -webkit-mask-image: none; mask-image: none; }
+    .hero__art-inner { inset: -6% 0; }
+    .hero__art img { object-position: 50% 30%; }
+    .hero__art::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+      background: linear-gradient(180deg, rgba(251, 241, 233, .82) 0%, rgba(251, 241, 233, 0) 17%, rgba(251, 241, 233, 0) 36%,
+        rgba(251, 241, 233, .78) 56%, rgba(251, 241, 233, .96) 72%, var(--c-cream) 100%); }
+
+    .hero__frame { display: block; position: absolute; z-index: 0; inset: 12px 12px 0; pointer-events: none;
+      border: 1px solid rgba(199, 154, 62, .9); border-bottom: 0; border-radius: 999px 999px 0 0;
+      -webkit-mask-image: linear-gradient(180deg, #000 48%, transparent 66%); mask-image: linear-gradient(180deg, #000 48%, transparent 66%); }
+    .hero__frame i { position: absolute; inset: 7px 7px 0; border: 1px dashed rgba(199, 154, 62, .6); border-bottom: 0; border-radius: inherit; }
+
+    .hero__foot { order: 1; position: relative; z-index: 1; display: flex; justify-content: center; padding-top: 92px; padding-bottom: 0; }
+    .hero__tag { font-size: .625rem; letter-spacing: .2em; padding: 7px 14px; border-radius: 999px; background: rgba(251, 241, 233, .78);
+      -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
     .hero__scroll { display: none; }
-    .hero__foot { display: none; }
+
+    .hero__inner { order: 2; align-self: end; position: relative; z-index: 1; padding-block: var(--sp-6) var(--sp-8); }
+    .hero__title { font-size: clamp(2.1rem, .9rem + 6vw, 3.1rem); }
+    .hero__accent-wrap { display: inline-block; }
+    .hero__stitch { width: 100%; }
+    .hero__body { font-size: 1rem; margin-top: var(--sp-4); max-width: 32ch; }
+    .hero__ctas { flex-wrap: nowrap; gap: var(--sp-5); margin-top: var(--sp-6); }
+    .hero__ctas .btn { flex: none; }
+    .hero__link { font-size: .72rem; letter-spacing: .14em; white-space: nowrap; }
+    .hero :global(.xm-seal) { top: 150px; bottom: auto; right: 24px; width: 84px; }
+  }
+  @media (max-width: 429px) {
+    .hero__ctas { flex-wrap: wrap; gap: var(--sp-2) var(--sp-5); }
   }
 </style>
 

@@ -3,7 +3,7 @@ import { useBlocker } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError, get, post, put } from '../lib/api.ts';
 import { dateTime } from '../lib/format.ts';
-import type { MediaRef } from '../lib/image.ts';
+import { ratioLabel, recommendedSize, type MediaRef } from '../lib/image.ts';
 import { useCan } from '../lib/me.ts';
 import { Icon } from '../components/Icon.tsx';
 import { MediaPicker } from '../components/MediaPicker.tsx';
@@ -186,8 +186,9 @@ function FieldEditor({ f, value, path, onChange, ctx }: { f: F; value: any; path
     case 'image': {
       const slot = ctx.slots[f.slot ?? 'page'] ?? { id: 'page', label: 'Photo', aspect: 1.5, minWidth: 1200, mask: 'rect' as const };
       const m = value ? ctx.media[value] : null;
+      const rec = recommendedSize(slot);
       return (
-        <Field label={label} hint={slot.label} error={err}>
+        <Field label={label} hint={`Best at ${rec.width} × ${rec.height} px (${ratioLabel(slot.aspect)}). ${f.help ?? ''}`.trim()} error={err}>
           <div className="row">
             <div style={{ width: 120, aspectRatio: String(slot.aspect), borderRadius: slot.mask === 'arch' ? '999px 999px 8px 8px' : 8, overflow: 'hidden', background: 'var(--c-sand)' }}>
               {m && <img src={m.src['480']} alt={m.alt} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}

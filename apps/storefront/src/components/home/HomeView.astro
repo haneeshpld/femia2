@@ -4,6 +4,7 @@
  * Hidden sections are skipped; the same type can appear more than once (e.g. two product rows).
  */
 import Hero from './Hero.astro';
+import { deviceImages } from '../../lib/hero.ts';
 import CategoryArches from './CategoryArches.astro';
 import ProductRail from './ProductRail.astro';
 import Occasions from './Occasions.astro';
@@ -43,7 +44,7 @@ const uid = (s: HomeSection) => `sec-${s.id}`.replace(/[^a-zA-Z0-9_-]/g, '');
   const d = s.data;
   switch (s.type) {
     case 'hero':
-      return <Hero hero={d} media={site.media} city={site.settings.store.address.city} />;
+      return <Hero hero={d} images={deviceImages(d, site.media)} city={site.settings.store.address.city} />;
     case 'categories': {
       const items = (d.items ?? []).length ? d.items : categories.map((c) => ({ category: c.id }));
       const tiles = items.map((i: { category: string; image?: string }) => ({ category: catById.get(i.category)!, image: media(i.image) ?? catById.get(i.category)?.image ?? null })).filter((x: { category?: unknown }) => x.category);
@@ -62,7 +63,7 @@ const uid = (s: HomeSection) => `sec-${s.id}`.replace(/[^a-zA-Z0-9_-]/g, '');
     case 'instagram':
       return <StyledByYou block={{ enabled: true, eyebrow: d.heading, handle: d.handle, images: d.images }} media={site.media} instagram={site.settings.store.socials.instagram} uid={uid(s)} />;
     case 'banner':
-      return <PromoBanner block={d} image={media(d.image)} mobile={media(d.imageMobile)} uid={uid(s)} />;
+      return <PromoBanner block={d} images={deviceImages(d, site.media)} uid={uid(s)} />;
     case 'story':
       return <Story block={d} uid={uid(s)} />;
     default:

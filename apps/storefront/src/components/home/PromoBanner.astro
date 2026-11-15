@@ -1,15 +1,23 @@
 ---
-import type { MediaRef } from '@femia/contracts';
 import Icon from '../ui/Icon.astro';
 import { emph, srcset } from '../../lib/format.ts';
-interface Props { block: Record<string, any>; image?: MediaRef; uid: string }
-const { block: b, image, uid } = Astro.props;
+import { PHONE, TABLET, type DeviceImages } from '../../lib/hero.ts';
+interface Props { block: Record<string, any>; images: DeviceImages; uid: string }
+const { block: b, images, uid } = Astro.props;
+// Desktop / tablet / phone photos; the frame takes each photo's own shape when the owner uploaded one.
+const { desktop: image, tablet, mobile, ownTablet, ownMobile } = images;
 const right = b.align === 'right';
 ---
 <section class:list={['section promo', { 'promo--right': right }]} aria-labelledby={`${uid}-title`}>
   <div class="container promo__inner">
-    <div class="promo__media arch ph" data-reveal>
-      {image && <img src={image.src['960']} srcset={srcset(image)} sizes="(min-width: 900px) 55vw, 100vw" width={image.width} height={image.height} alt={image.alt} loading="lazy" decoding="async" />}
+    <div class:list={['promo__media arch ph', { 'has-tablet': ownTablet, 'has-phone': ownMobile }]} data-reveal>
+      {image && (
+        <picture>
+          {mobile && mobile !== image && <source media={PHONE} srcset={srcset(mobile)} sizes="100vw" width={mobile.width} height={mobile.height} />}
+          {tablet && tablet !== image && <source media={TABLET} srcset={srcset(tablet)} sizes="(min-width: 900px) 55vw, 100vw" width={tablet.width} height={tablet.height} />}
+          <img src={image.src['960']} srcset={srcset(image)} sizes="(min-width: 900px) 55vw, 100vw" width={image.width} height={image.height} alt={image.alt} loading="lazy" decoding="async" />
+        </picture>
+      )}
     </div>
     <div class="promo__copy" data-reveal style="--delay:120ms">
       <h2 id={`${uid}-title`} data-split set:html={emph(b.heading)} />
@@ -22,7 +30,9 @@ const right = b.align === 'right';
   .promo__inner { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: clamp(var(--sp-8), 6vw, var(--sp-20)); align-items: center; }
   .promo--right .promo__media { order: 2; }
   .promo__media { aspect-ratio: 1.6; border-radius: var(--r-card); box-shadow: var(--shadow-card-hover); }
-  .promo__media img { width: 100%; height: 100%; object-fit: cover; }
+  .promo__media picture, .promo__media img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  @media (min-width: 768px) and (max-width: 1199px) { .promo__media.has-tablet { aspect-ratio: 4 / 3; } }
+  @media (max-width: 767px) { .promo__media.has-phone { aspect-ratio: 4 / 5; } }
   .promo__copy { display: grid; gap: var(--sp-5); justify-items: start; }
   .promo__copy h2 :global(em) { font-style: italic; color: var(--c-maroon); font-weight: 450; }
   .promo__copy p { font-size: var(--fs-md); max-width: 40ch; }
