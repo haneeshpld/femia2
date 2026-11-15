@@ -11,3 +11,5 @@ export * from './manifest.ts';
 export * from './settings.ts';
 export * from './admin.ts';
 export * from './offers.ts';
+export * from './accounts.ts';
+export * from './password.ts';

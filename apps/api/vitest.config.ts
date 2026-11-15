@@ -11,6 +11,9 @@ export default defineConfig(async () => {
           bindings: {
             TEST_MIGRATIONS: migrations,
             DEV_ADMIN_EMAIL: 'owner@test.local',
+            DEV_AUTH_BYPASS: '1',
+            // tests choose their own payment keys; never use the local .dev.vars ones
+            RAZORPAY_KEY_ID: '', RAZORPAY_KEY_SECRET: '', RAZORPAY_WEBHOOK_SECRET: '',
             SECRETS_KEY: 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=',
           },
         },

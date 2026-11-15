@@ -2,7 +2,9 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import type { AppEnv, Env } from './env.ts';
 import { errorResponse } from './lib/http.ts';
+import { accountRoutes } from './routes/account.ts';
 import { adminRoutes } from './routes/admin.ts';
+import { authRoutes } from './routes/auth.ts';
 import { paymentRoutes } from './routes/payments.ts';
 import { publicRoutes } from './routes/public.ts';
 import { scheduled } from './cron.ts';
@@ -23,6 +25,8 @@ app.use('*', async (c, next) => {
 app.route('/', publicRoutes);
 app.route('/', paymentRoutes);
 app.route('/admin', adminRoutes);
+app.route('/auth', authRoutes);
+app.route('/account', accountRoutes);
 app.notFound((c) => c.json({ error: { code: 'not_found', message: 'Not found' } }, 404));
 app.onError(errorResponse);
 

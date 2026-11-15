@@ -16,12 +16,23 @@ export default function OrderDetail() {
   const can = useCan();
   const [ship, setShip] = useState(false);
   const [cancel, setCancel] = useState(false);
+  const [refunding, setRefunding] = useState(false);
   const [note, setNote] = useState('');
   const o = useQuery({ queryKey: ['order', number], queryFn: () => get(`/admin/orders/${number}`) });
   const done = (msg: string) => { qc.invalidateQueries({ queryKey: ['order', number] }); qc.invalidateQueries({ queryKey: ['orders'] }); qc.invalidateQueries({ queryKey: ['dashboard'] }); toast({ text: msg }); };
   const fail = (e: unknown) => toast({ text: (e as Error).message, bad: true });
   const move = useMutation({ mutationFn: (b: Record<string, unknown>) => post(`/admin/orders/${number}/transition`, b), onSuccess: (r: { status: string }) => { done(`Order ${STATUS_LABEL[r.status]?.toLowerCase()}`); setShip(false); setCancel(false); }, onError: fail });
   const paid = useMutation({ mutationFn: () => post(`/admin/orders/${number}/mark-paid`), onSuccess: () => done('Marked as paid. The customer has been emailed.'), onError: fail });
+  const checkPay = useMutation({ mutationFn: () => post<{ status: string }>(`/admin/orders/${number}/check-payment`), onSuccess: (r) => (r.status === 'paid' ? done('Razorpay confirms the payment. The order is now paid.') : toast({ text: 'Razorpay has no completed payment for this order yet.' })), onError: fail });
+  const refundAct = useMutation({
+    mutationFn: ({ path, body }: { path: string; body?: object }) => post<{ status?: string; error?: string }>(path, body),
+    onSuccess: (r, v) => {
+      if (r?.status === 'failed') { toast({ text: `Refund didn’t go through: ${r.error ?? 'gateway error'}. You can retry.`, bad: true }); qc.invalidateQueries({ queryKey: ['order', number] }); return; }
+      done(v.path.endsWith('/sent') ? 'Refund marked as sent' : v.path.endsWith('/check') ? `Refund is ${r?.status ?? 'updated'}` : v.path.endsWith('/retry') ? 'Refund sent to Razorpay again' : 'Refund started');
+      setRefunding(false);
+    },
+    onError: fail,
+  });
   const addNote = useMutation({ mutationFn: () => post(`/admin/orders/${number}/notes`, { note }), onSuccess: () => { setNote(''); done('Note added'); }, onError: fail });
 
   if (o.isPending) return <Skeleton n={4} h={90} />;
@@ -34,6 +45,7 @@ export default function OrderDetail() {
 
   const primary = (() => {
     if (!write) return null;
+    if (d.status === 'pending_payment' && d.paymentMethod === 'gateway') return <button className="btn btn--lg" disabled={checkPay.isPending} onClick={() => checkPay.mutate()}>{checkPay.isPending ? 'Checking…' : 'Check payment with Razorpay'}</button>;
     if (d.status === 'pending_payment' && d.paymentMethod === 'upi') return <button className="btn btn--lg" disabled={paid.isPending} onClick={() => confirm(`Have you received ${formatINR(d.total)} by UPI for ${d.number}? Check your UPI app first.`) && paid.mutate()}>Mark UPI paid · {formatINR(d.total)}</button>;
     if (d.status === 'new') return <button className="btn btn--lg" onClick={() => move.mutate({ to: 'confirmed' })}>Confirm order</button>;
     if (d.status === 'confirmed') return <button className="btn btn--lg" onClick={() => move.mutate({ to: 'packed' })}>Mark packed</button>;
@@ -58,6 +70,7 @@ export default function OrderDetail() {
         <span className="spacer" />
         <Link className="btn btn--quiet" to={`/orders/${d.number}/print/bill`}><Icon name="printer" /> Bill</Link>
         <Link className="btn btn--quiet" to={`/orders/${d.number}/print/slip`}><Icon name="printer" /> Packing slip</Link>
+        {can('payments.refund') && d.refundable > 0 && <button className="btn btn--quiet" onClick={() => setRefunding(true)}><Icon name="undo" /> Refund</button>}
         {write && ['pending_payment', 'new', 'confirmed', 'packed'].includes(d.status) && <button className="btn btn--danger" onClick={() => setCancel(true)}>Cancel</button>}
       </div>
 
@@ -93,6 +106,11 @@ export default function OrderDetail() {
             </div>
             {d.courier && <p style={{ marginTop: 'var(--sp-3)' }}><strong>Shipped:</strong> {d.courier} {d.trackingNumber} {d.trackingUrl && <a href={d.trackingUrl} target="_blank" rel="noopener">Track</a>}</p>}
           </div>
+          <PaymentCard d={d} />
+          {(d.refundList?.length ?? 0) > 0 && (
+            <RefundsCard list={d.refundList} write={write} busy={refundAct.isPending}
+              onAction={(path, body) => refundAct.mutate({ path, body })} />
+          )}
           <div className="card">
             <h2 style={{ marginBottom: 'var(--sp-3)' }}>Timeline</h2>
             <ol className="stack" style={{ listStyle: 'none', padding: 0, gap: 8 }}>
@@ -106,7 +124,10 @@ export default function OrderDetail() {
       </div>
 
       {ship && <ShipSheet onClose={() => setShip(false)} busy={move.isPending} onShip={(b) => move.mutate({ to: 'shipped', ...b })} />}
-      {cancel && <CancelSheet onClose={() => setCancel(false)} busy={move.isPending} paid={d.paymentStatus === 'paid'} onCancel={(reason) => move.mutate({ to: 'cancelled', reason })} />}
+      {cancel && <CancelSheet onClose={() => setCancel(false)} busy={move.isPending} paid={d.paymentStatus === 'paid'} amount={d.refundable} online={d.paymentMethod === 'gateway' && !!d.payment?.reference}
+        onCancel={(reason, refund) => move.mutate({ to: 'cancelled', reason, refund })} />}
+      {refunding && <RefundSheet max={d.refundable} online={d.paymentMethod === 'gateway' && !!d.payment?.reference} busy={refundAct.isPending} onClose={() => setRefunding(false)}
+        onRefund={(amount, reason) => refundAct.mutate({ path: `/admin/orders/${d.number}/refunds`, body: { amount, reason } })} />}
     </>
   );
 }
@@ -127,13 +148,112 @@ function ShipSheet({ onClose, onShip, busy }: { onClose: () => void; onShip: (b:
   );
 }
 
-function CancelSheet({ onClose, onCancel, busy, paid }: { onClose: () => void; onCancel: (reason: string) => void; busy: boolean; paid: boolean }) {
-  const [reason, setReason] = useState('Customer asked to cancel');
+const PAY_LABEL: Record<string, string> = { paid: 'Paid', unpaid: 'Not paid', cod: 'Collect on delivery', failed: 'Payment failed', refunded: 'Refunded' };
+const REFUND_LABEL: Record<string, [string, string]> = {
+  pending: ['In progress', 'badge--warn'], processed: ['Refunded', 'badge--ok'], failed: ['Failed', 'badge--bad'], to_send: ['To send by UPI', 'badge--maroon'], sent: ['Sent', 'badge--ok'],
+};
+const rzpPayment = (id: string) => `https://dashboard.razorpay.com/app/payments/${encodeURIComponent(id)}`;
+
+function Copy({ text }: { text: string }) {
+  const [ok, setOk] = useState(false);
+  return <button type="button" className="copy-btn" onClick={() => { navigator.clipboard?.writeText(text); setOk(true); setTimeout(() => setOk(false), 1500); }} aria-label={`Copy ${text}`}>{ok ? 'Copied' : 'Copy'}</button>;
+}
+
+/** How the order was paid: method, state, gateway ids (linked to Razorpay), when, and every gateway attempt. */
+function PaymentCard({ d }: { d: any }) {
+  const p = d.payment;
+  if (!p) return null;
   return (
-    <Sheet title="Cancel order" onClose={onClose} footer={<><button className="btn btn--quiet" onClick={onClose}>Keep order</button><span className="spacer" /><button className="btn btn--danger" disabled={busy} onClick={() => onCancel(reason)}>Cancel order</button></>}>
+    <div className="card pay-card">
+      <div className="card__head" style={{ marginBottom: 'var(--sp-3)' }}><h2>Payment</h2>
+        <span className={`badge ${d.paymentStatus === 'paid' || d.paymentStatus === 'refunded' ? 'badge--ok' : d.paymentStatus === 'failed' ? 'badge--bad' : 'badge--warn'}`}>{PAY_LABEL[d.paymentStatus]}</span></div>
+      <dl className="kv">
+        <div><dt>Method</dt><dd>{METHOD_LABEL[d.paymentMethod]}{p.provider ? ` · ${p.provider === 'razorpay' ? 'Razorpay' : p.provider}` : ''}</dd></div>
+        <div><dt>Amount</dt><dd>{formatINR(p.amount)}</dd></div>
+        {p.reference && <div><dt>Payment ID</dt><dd><a href={rzpPayment(p.reference)} target="_blank" rel="noopener"><code>{p.reference}</code></a> <Copy text={p.reference} /></dd></div>}
+        {p.gatewayOrderId && <div><dt>Razorpay order</dt><dd><code>{p.gatewayOrderId}</code> <Copy text={p.gatewayOrderId} /></dd></div>}
+        {d.paidAt && <div><dt>Paid</dt><dd>{dateTime(d.paidAt)}</dd></div>}
+        {d.refundable > 0 && d.refundable < d.total && <div><dt>Left to refund</dt><dd>{formatINR(d.refundable)}</dd></div>}
+        {d.status === 'cancelled' && <div><dt>Cancelled by</dt><dd>{d.cancelledBy === 'customer' ? 'Customer' : d.cancelledBy === 'system' ? 'Automatically (not paid in time)' : 'Store'}{d.cancelReason && ` · ${String(d.cancelReason).replace(/^Cancelled by you: /, '')}`}</dd></div>}
+      </dl>
+      {(d.gatewayAttempts?.length ?? 0) > 1 && (
+        <details className="attempts"><summary className="small">{d.gatewayAttempts.length} payment attempts</summary>
+          <ul>{d.gatewayAttempts.map((a: any) => <li key={a.orderId} className="small"><code>{a.orderId}</code> · {a.status}{a.paymentId && <> · <code>{a.paymentId}</code></>} · {dateTime(a.createdAt)}</li>)}</ul>
+        </details>
+      )}
+    </div>
+  );
+}
+
+/** Every refund on the order with what can be done next: check, retry, or mark a UPI refund as sent. */
+function RefundsCard({ list, write, busy, onAction }: { list: any[]; write: boolean; busy: boolean; onAction: (path: string, body?: object) => void }) {
+  const [ref, setRef] = useState<Record<string, string>>({});
+  return (
+    <div className="card">
+      <h2 style={{ marginBottom: 'var(--sp-3)' }}>Refunds</h2>
+      <ul className="refunds">
+        {list.map((r) => (
+          <li key={r.id} className="refund">
+            <div className="row" style={{ justifyContent: 'space-between' }}>
+              <strong className="refund__amt">{formatINR(r.amount)}</strong>
+              <span className={`badge ${REFUND_LABEL[r.status]?.[1] ?? ''}`}>{REFUND_LABEL[r.status]?.[0] ?? r.status}</span>
+            </div>
+            <p className="small muted">{r.provider ? 'Back to the original payment method via Razorpay' : 'To send by UPI / cash'} · {r.reason}</p>
+            <p className="small muted">Started {dateTime(r.createdAt)} by {r.requestedBy === 'customer' ? 'the customer (cancelled)' : r.requestedBy === 'system' ? 'the system' : r.requestedBy}{r.processedAt && ` · completed ${dateTime(r.processedAt)}`}</p>
+            {(r.providerRefundId || r.reference) && <p className="small"><span className="muted">Reference</span> <code>{r.providerRefundId ?? r.reference}</code> <Copy text={r.providerRefundId ?? r.reference} /></p>}
+            {r.error && <p className="small" style={{ color: 'var(--c-danger)' }}>{r.error}</p>}
+            {write && (
+              <div className="row no-print" style={{ marginTop: 6 }}>
+                {r.status === 'pending' && <button className="btn btn--quiet btn--sm" disabled={busy} onClick={() => onAction(`/admin/refunds/${r.id}/check`)}>Check status</button>}
+                {r.status === 'failed' && <button className="btn btn--sm" disabled={busy} onClick={() => onAction(`/admin/refunds/${r.id}/retry`)}>Retry refund</button>}
+                {r.status === 'to_send' && (
+                  <>
+                    <input className="input" style={{ flex: 1, minWidth: 180, minHeight: 40 }} placeholder="UPI reference (UTR) after sending" value={ref[r.id] ?? ''} onChange={(e) => setRef({ ...ref, [r.id]: e.target.value })} />
+                    <button className="btn btn--sm" disabled={busy || (ref[r.id] ?? '').trim().length < 3} onClick={() => onAction(`/admin/refunds/${r.id}/sent`, { reference: ref[r.id] })}>Mark sent</button>
+                  </>
+                )}
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function RefundSheet({ max, online, busy, onClose, onRefund }: { max: number; online: boolean; busy: boolean; onClose: () => void; onRefund: (amount: number, reason: string) => void }) {
+  const [rupees, setRupees] = useState(String(max / 100));
+  const [reason, setReason] = useState('');
+  const paise = Math.round(Number(rupees.replace(/[^\d.]/g, '')) * 100) || 0;
+  const bad = paise <= 0 || paise > max;
+  return (
+    <Sheet title="Refund" onClose={onClose} footer={<><button className="btn btn--quiet" onClick={onClose}>Close</button><span className="spacer" />
+      <button className="btn" disabled={busy || bad || reason.trim().length < 2} onClick={() => onRefund(paise, reason)}>{online ? `Refund ${paise ? formatINR(paise) : ''} via Razorpay` : `Record ${paise ? formatINR(paise) : ''} to send`}</button></>}>
+      <div className="stack">
+        <p className="muted">{online ? 'The money goes back to the card, UPI or bank account the customer paid with. Banks take 5–7 working days.' : 'This was paid by UPI or cash: send the money from your UPI app, then mark it sent with the UTR.'}</p>
+        <Field label="Amount" hint={`Up to ${formatINR(max)}`} error={paise > max ? `Up to ${formatINR(max)}` : undefined}>
+          <div className="prefix"><b>₹</b><input className="input" inputMode="decimal" value={rupees} onChange={(e) => setRupees(e.target.value)} /></div>
+        </Field>
+        <div className="row">{[1, 0.5].map((f) => <button key={f} type="button" className="add-chip add-chip--compact" onClick={() => setRupees(String(Math.round((max * f) / 100)))}>{f === 1 ? 'Full amount' : 'Half'}</button>)}</div>
+        <Field label="Reason (shown to the customer in the timeline)"><input className="input" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={200} placeholder="Returned item, damaged piece, price adjustment…" /></Field>
+      </div>
+    </Sheet>
+  );
+}
+
+function CancelSheet({ onClose, onCancel, busy, paid, amount, online }: { onClose: () => void; onCancel: (reason: string, refund: boolean) => void; busy: boolean; paid: boolean; amount: number; online: boolean }) {
+  const [reason, setReason] = useState('Customer asked to cancel');
+  const [refund, setRefund] = useState(true);
+  return (
+    <Sheet title="Cancel order" onClose={onClose} footer={<><button className="btn btn--quiet" onClick={onClose}>Keep order</button><span className="spacer" /><button className="btn btn--danger" disabled={busy} onClick={() => onCancel(reason, refund)}>{paid && refund && amount > 0 ? `Cancel & refund ${formatINR(amount)}` : 'Cancel order'}</button></>}>
       <div className="stack">
         <p>Stock goes back to the shelf automatically.</p>
-        {paid && <div className="notice"><Icon name="info" /> This order is paid. Refund the customer from your UPI app or gateway dashboard. Automated refunds arrive in 1.2.</div>}
+        {paid && amount > 0 && (
+          <label className="check refund-opt">
+            <input type="checkbox" checked={refund} onChange={(e) => setRefund(e.target.checked)} />
+            <span><strong>Refund {formatINR(amount)} to the customer</strong><br /><span className="muted small">{online ? 'Automatically through Razorpay, back to how they paid.' : 'Recorded as a refund to send by UPI; mark it sent once done.'}</span></span>
+          </label>
+        )}
         <Field label="Reason (shown to the customer)"><input className="input" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={200} /></Field>
       </div>
     </Sheet>

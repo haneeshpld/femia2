@@ -1,8 +1,9 @@
 import { formatINR } from '@femia/contracts';
 import type { Env } from './env.ts';
+import { syncPendingRefunds } from './services/refunds.ts';
 import { all, first } from './lib/db.ts';
 import { sendTelegram } from './notify/index.ts';
-import { releaseExpiredHolds } from './services/orders.ts';
+import { reconcilePendingGateway, releaseExpiredHolds } from './services/orders.ts';
 import { lowStock } from './services/products.ts';
 import { getSettings } from './services/settings.ts';
 
@@ -47,11 +48,25 @@ export async function dailySummary(env: Env) {
 export async function scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext) {
   switch (controller.cron) {
     case '*/5 * * * *': {
+      const paid = await reconcilePendingGateway(env, ctx);
+      if (paid) console.log(`confirmed ${paid} online payments with the gateway`);
+      await syncPendingRefunds(env);
       const n = await releaseExpiredHolds(env, ctx);
       if (n) console.log(`released ${n} expired holds`);
       break;
     }
     case '30 3 * * *': await dailySummary(env); break;
-    case '30 21 * * *': console.log('backup', await backupToR2(env)); break;
+    case '30 21 * * *': console.log('backup', await backupToR2(env)); await cleanupAuth(env); break;
   }
+}
+
+/** Nightly: forget expired codes, ended sessions, stale sign-ups and old rate-limit windows. */
+async function cleanupAuth(env: Env) {
+  const day = new Date(Date.now() - 864e5).toISOString();
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM otp_codes WHERE created_at < ?').bind(day),
+    env.DB.prepare('DELETE FROM sessions WHERE expires_at < ? OR (revoked_at IS NOT NULL AND revoked_at < ?)').bind(day, day),
+    env.DB.prepare('DELETE FROM admin_signups WHERE created_at < ?').bind(day),
+    env.DB.prepare('DELETE FROM rate_limits WHERE reset_at < ?').bind(Math.floor(Date.now() / 1000)),
+  ]);
 }

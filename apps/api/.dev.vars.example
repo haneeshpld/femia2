@@ -1,6 +1,17 @@
 # Copy to .dev.vars for local development
 DEV_ADMIN_EMAIL=owner@femia.local
+# The first sign-up with this email becomes the owner (production: set OWNER_EMAIL instead).
+# Local owner account: owner@femia.local (you chose its password; reset it with "Forgot password" and code 123456).
+# Without RESEND_API_KEY, every emailed code in development is 123456. In production a fixed code needs
+# FIXED_OTP_CODE (admin only) and shopper sign-in stays off until RESEND_API_KEY is set.
+OWNER_EMAIL=
+FIXED_OTP_CODE=
 # 32 random bytes, base64: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 SECRETS_KEY=
 RESEND_API_KEY=
 TELEGRAM_BOT_TOKEN=
+# Razorpay test keys (Razorpay → Settings → API keys, test mode). Webhook secret: any long random string,
+# also pasted into Razorpay → Settings → Webhooks.
+RAZORPAY_KEY_ID=
+RAZORPAY_KEY_SECRET=
+RAZORPAY_WEBHOOK_SECRET=

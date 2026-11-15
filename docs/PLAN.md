@@ -13,7 +13,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
                 ┌──────────────────────── client's Cloudflare account ───────────────────────┐
  customer ──▶   │  storefront (Astro SSR on Workers) ──service binding──▶  api (Hono Worker) │
                 │        │  static assets, fonts                             │   │    │      │
- owner/staff ─▶ │  admin (React PWA on Workers assets) ── Cloudflare Access ─▶│   │    │      │
+ owner/staff ─▶ │  admin (React PWA on Workers assets) ── password + code ───▶│   │    │      │
                 │                                                     D1 ◀──┘   R2   Cron   │
                 └─────────────────────────────────────────────────────────────────────────────┘
                      external: payment gateway (1 adapter) · Resend (email) · Telegram Bot API
@@ -22,7 +22,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 | Piece | Tech | Why |
 |---|---|---|
 | **Storefront** (client-owned) | Astro 7 SSR on Cloudflare Workers, **React 19 islands** only where interactive (cart, size sheet, checkout, filters, search), GSAP + Lenis. Any React library can drop in as an island later | Zero-JS by default, so Lighthouse ≥ 90 is achievable on low-end Android |
-| **Admin Studio + Prompt Studio Lite** (ours) | React 19 + Vite SPA, installable PWA, TanStack Query | Phone-first app feel; served as static assets behind Cloudflare Access |
+| **Admin Studio + Prompt Studio Lite** (ours) | React 19 + Vite SPA, installable PWA, TanStack Query | Phone-first app feel; served as static assets; its own sign-in (password + emailed code) |
 | **Core API** (ours) | Hono on Workers, D1 (SQLite), R2, Cron Triggers | Free tier, one deploy unit, typed end to end |
 | **Motion** | GSAP + ScrollTrigger + Lenis on plain DOM; React islands hydrate `client:visible` so heavy effects load only where used | Rich animation without paying for it on every page |
 | **Contracts** | Zod 4 schemas → inferred TS types, shared by API, SDK, admin, storefront | "Contracts first": one source of truth |
@@ -62,7 +62,7 @@ Storefront is the part transferred to the client's GitHub at handover. It consum
 4. **Generic variants.** `option1` / `option2` with labels from the manifest (`Size` / `Colour` for Femia), so the platform serves non-fashion clients unchanged.
 5. **Photos per colour.** `product_media.option2_value` links a photo to a colour; the colour swatch swaps the gallery.
 6. **Images.** Admin compresses and crops in the browser to the slot's aspect (3:4 product, arch tiles, etc.) and uploads **3 WebP sizes** (480 / 960 / 1600 w) to R2. The API serves `/media/:key` with immutable caching. No paid image resizing.
-7. **Auth.** Cloudflare Access (email one-time code) protects `admin.*` and `/admin/*` API routes. The API verifies the `Cf-Access-Jwt-Assertion` JWT and maps the email to `users → roles → permissions`. Local dev uses `DEV_ADMIN_EMAIL`.
+7. **Auth.** Built into the API (no Cloudflare Access). Admin: password (PBKDF2-SHA256, salted and peppered) + a 6-digit emailed code at every sign-in; new sign-ups wait for approval from another admin, invited people are pre-approved; 5 wrong passwords lock the account for 15 minutes. Shoppers: email + 6-digit code, optional (guest checkout stays). Sessions are random 256-bit tokens in HttpOnly cookies (`SameSite=Strict` for Admin, `Lax` for shoppers), stored only as SHA-256 hashes; Admin sessions end after 12 h idle / 7 days, shopper sessions after 30 days idle / 90 days. Codes are HMAC-hashed, expire in 10 minutes, allow 5 tries and are rate-limited. Cross-site writes are refused by an Origin check. Orders, coupon use and saved addresses are linked to the shopper's account; guest orders with the same verified email join it on sign-in.
 8. **Roles table supports any role**; 1.0 seeds `owner` (all) and `staff` (catalog, stock, orders, media, content; no `settings.*`, no `payments.keys`).
 9. **Payments.** `PaymentProvider` interface (`createIntent`, `verifyWebhook`, `fetchStatus`). 1.0 ships `manual-upi` + **one gateway adapter (Razorpay first; swap for the client's choice)**. Keys are stored encrypted (AES-GCM, key in a Worker secret) so the gateway is switched on from Settings without a redeploy.
 10. **Content publishing.** `content_versions` holds the full homepage/content JSON per version. Draft → Preview → Publish creates a new immutable version, and Undo re-publishes the previous one. The storefront reads the published version (cached 60 s).

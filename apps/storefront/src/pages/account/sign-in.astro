@@ -1,0 +1,41 @@
+---
+import Base from '../../layouts/Base.astro';
+import AccountAuth from '../../components/islands/AccountAuth.tsx';
+import '../../components/islands/account.css';
+import Icon from '../../components/ui/Icon.astro';
+import { getCommon, heroOf } from '../../lib/content.ts';
+import { srcset } from '../../lib/format.ts';
+const { site, categories } = await getCommon();
+const art = heroOf(site).image;
+Astro.response.headers.set('Cache-Control', 'no-store');
+---
+<Base site={site} categories={categories} title="Sign in" noindex minimal>
+  <section class="container signin">
+    <div class="signin__art" aria-hidden="true">
+      {art && <img src={art.src['960']} srcset={srcset(art)} sizes="(min-width: 1024px) 40vw, 0px" alt="" width={art.width} height={art.height} loading="eager" decoding="async" />}
+      <div class="signin__note">
+        <p class="signin__quote">Your Femia, <em>remembered.</em></p>
+        <ul role="list">
+          <li><Icon name="bag" size={18} /> Every order in one place, with live progress</li>
+          <li><Icon name="pin" size={18} /> Saved addresses for a faster checkout</li>
+          <li><Icon name="tag" size={18} /> The offers you've used and what you saved</li>
+        </ul>
+      </div>
+    </div>
+    <div class="signin__form"><AccountAuth client:only="react"><div slot="fallback" class="skeleton" style="width:100%;max-width:460px;height:440px;border-radius:22px"></div></AccountAuth></div>
+  </section>
+</Base>
+<style>
+  .signin { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(var(--sp-8), 6vw, var(--sp-16)); align-items: center; padding-block: var(--sp-10) var(--sp-16); min-height: calc(100dvh - 200px); }
+  .signin__art { position: relative; aspect-ratio: 4 / 5; max-height: 76vh; border-radius: 999px 999px 24px 24px; overflow: hidden; background: var(--c-sand); box-shadow: var(--shadow-card); }
+  .signin__art::after { content: ''; position: absolute; inset: 10px; border-radius: 999px 999px 16px 16px; border: 1px solid rgba(235, 203, 130, .7); pointer-events: none; }
+  .signin__art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .signin__note { position: absolute; left: 0; right: 0; bottom: 0; padding: var(--sp-16) var(--sp-8) var(--sp-8); color: var(--c-cream); background: linear-gradient(transparent, rgba(58, 12, 22, .82) 45%); }
+  .signin__quote { font-family: var(--font-display); font-size: clamp(2rem, 1.4rem + 1.8vw, 2.9rem); line-height: 1.05; margin-bottom: var(--sp-5); }
+  .signin__quote em { color: var(--c-zari-light); }
+  .signin__note ul { display: grid; gap: var(--sp-2); font-size: .9375rem; }
+  .signin__note li { display: flex; align-items: center; gap: var(--sp-3); }
+  .signin__note li :global(svg) { color: var(--c-zari-light); flex: none; }
+  .signin__form { display: flex; justify-content: center; }
+  @media (max-width: 1023px) { .signin { grid-template-columns: 1fr; padding-block: var(--sp-6) var(--sp-12); min-height: 0; } .signin__art { display: none; } }
+</style>

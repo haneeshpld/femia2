@@ -5,7 +5,7 @@ import OrderItems from '../../components/OrderItems.astro';
 import Icon from '../../components/ui/Icon.astro';
 import { api } from '../../lib/api.ts';
 import { getCommon } from '../../lib/content.ts';
-import { formatINR, upiUri } from '@femia/contracts';
+import { CANCEL_REASONS, formatINR, upiUri } from '@femia/contracts';
 import { ApiError } from '@femia/sdk';
 import { renderSVG } from 'uqr';
 import { t } from '@femia/i18n';
@@ -24,13 +24,24 @@ const waDigits = store.whatsapp.replace(/\D/g, '').replace(/^(\d{10})$/, '91$1')
 const waUrl = order.paymentMethod === 'whatsapp' && waDigits
   ? `https://wa.me/${waDigits}?text=${encodeURIComponent(`Hi Femia! I'd like to place order ${order.number}.\n${order.items.map((i) => `• ${i.title} (${i.optionLabel}) × ${i.qty}`).join('\n')}\nTotal: ${formatINR(order.total)}\nName: ${order.customerName}`)}` : null;
 const first = order.customerName.split(' ')[0];
+const awaitingOnline = order.status === 'pending_payment' && order.paymentMethod === 'gateway' && order.paymentStatus !== 'paid';
+const p = order.payment;
+const METHOD = { gateway: 'Online · card, UPI or netbanking', upi: 'UPI to Femia', cod: 'Cash on Delivery', whatsapp: 'Arranged on WhatsApp' } as const;
+const PAY_STATE = order.paymentStatus === 'refunded' ? ['Refunded', 'ok'] : order.paymentStatus === 'paid' ? ['Paid', 'ok']
+  : order.paymentStatus === 'cod' ? ['Pay on delivery', 'quiet'] : order.paymentStatus === 'failed' ? ['Payment failed', 'bad']
+  : order.status === 'cancelled' ? ['Not charged', 'quiet'] : ['Awaiting payment', 'warn'];
+const REFUND_STATE: Record<string, [string, string]> = {
+  pending: ['Refund in progress', 'warn'], processed: ['Refunded', 'ok'], failed: ['Delayed, we’re on it', 'bad'], to_send: ['Being sent by UPI', 'warn'], sent: ['Sent by UPI', 'ok'],
+};
+const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }) : '');
+const paidRefund = order.paymentStatus === 'paid';
 Astro.response.headers.set('Cache-Control', 'no-store');
 ---
 <Base site={site} categories={categories} title={`Order ${order.number}`} noindex minimal>
   <section class="container order">
     <header class="order__head">
       <span class="order__tick" aria-hidden="true"><Icon name={order.status === 'cancelled' ? 'info' : 'check'} size={30} /></span>
-      <h1 class="h2">{order.status === 'cancelled' ? 'Order cancelled' : t('order.thanks', { name: first ?? '' })}</h1>
+      <h1 class="h2">{order.status === 'cancelled' ? 'Order cancelled' : awaitingOnline ? 'One last step' : t('order.thanks', { name: first ?? '' })}</h1>
       <p>{order.status === 'cancelled' ? `Order ${order.number} was cancelled.` : t('order.placed', { number: order.number })} {order.status !== 'cancelled' && order.paymentStatus === 'paid' && 'Payment received.'}</p>
     </header>
 
@@ -42,6 +53,17 @@ Astro.response.headers.set('Cache-Control', 'no-store');
         <p class="upi__vpa">UPI ID: <strong>{pay.upiVpa}</strong> <button type="button" class="upi__copy" data-copy={pay.upiVpa}>Copy</button></p>
         <a class="btn upi__open" href={uri}>{t('order.upi.open')}</a>
         <p class="muted upi__note">Add <strong>{order.number}</strong> in the payment note. We hold your pieces for you while we confirm the payment.</p>
+      </div>
+    )}
+
+    {awaitingOnline && (
+      <div class="upi pay" data-gateway-pay>
+        <span class="pay__seal" aria-hidden="true"><Icon name="shield" size={26} /></span>
+        <h2 class="h3">Complete your payment of {formatINR(order.total)}</h2>
+        <p>Your order is saved and we're holding your pieces for a little while. Pay securely by UPI, card or netbanking.</p>
+        <button type="button" class="btn upi__open" data-pay-now><Icon name="shield" size={20} /> Pay {formatINR(order.total)} securely</button>
+        <p class="pay__msg" data-pay-msg role="status" aria-live="polite"></p>
+        <p class="muted upi__note">Already paid? It's confirmed automatically within a few minutes, and this page updates by itself.</p>
       </div>
     )}
 
@@ -61,9 +83,67 @@ Astro.response.headers.set('Cache-Control', 'no-store');
       <section aria-labelledby="sum-title" class="order__card">
         <h2 id="sum-title" class="h3">{t('checkout.summary')}</h2>
         <OrderItems order={order} />
-        <p class="muted order__ship">Delivering to {order.city} {order.pincode} · {({ upi: 'UPI', gateway: 'Paid online', cod: 'Cash on Delivery', whatsapp: 'WhatsApp order' } as const)[order.paymentMethod]}</p>
+        <p class="muted order__ship">Delivering to {order.city} {order.pincode}</p>
       </section>
+
+      {p && (
+        <section aria-labelledby="pay-title" class="order__card order__pay">
+          <div class="pay-head"><h2 id="pay-title" class="h3">Payment</h2><span class={`chip chip--${PAY_STATE[1]}`}>{PAY_STATE[0]}</span></div>
+          <dl class="pay-list">
+            <div><dt>Method</dt><dd>{METHOD[p.method]}</dd></div>
+            <div><dt>Amount</dt><dd>{formatINR(p.amount)}</dd></div>
+            {p.reference && <div><dt>Payment ID</dt><dd class="pay-ref"><code>{p.reference}</code><button type="button" class="pay-copy" data-copy={p.reference} aria-label="Copy payment ID">Copy</button></dd></div>}
+            {p.gatewayOrderId && <div><dt>Razorpay order</dt><dd><code class="muted">{p.gatewayOrderId}</code></dd></div>}
+            {p.paidAt && <div><dt>Paid on</dt><dd>{when(p.paidAt)}</dd></div>}
+            <div><dt>Order number</dt><dd><code>{order.number}</code></dd></div>
+          </dl>
+          {p.reference && <p class="muted pay-note">Quote the payment ID if you ever need to ask us or your bank about this payment.</p>}
+        </section>
+      )}
+
+      {order.refunds.length > 0 && (
+        <section aria-labelledby="rf-title" class="order__card order__refunds">
+          <h2 id="rf-title" class="h3">Refund</h2>
+          <ul role="list" class="rf-list">
+            {order.refunds.map((r) => (
+              <li class="rf">
+                <div class="rf__top"><strong>{formatINR(r.amount)}</strong><span class={`chip chip--${REFUND_STATE[r.status]![1]}`}>{REFUND_STATE[r.status]![0]}</span></div>
+                <p class="muted">{r.toOriginal ? 'Back to the card, UPI or bank account you paid with.' : 'Sent to you by UPI from Femia.'} Started {when(r.createdAt)}{r.processedAt && `, completed ${when(r.processedAt)}`}.</p>
+                {r.reference && <p class="pay-ref"><span class="muted">Refund reference</span> <code>{r.reference}</code><button type="button" class="pay-copy" data-copy={r.reference} aria-label="Copy refund reference">Copy</button></p>}
+                {r.toOriginal && r.status === 'pending' && <p class="rf__eta">Banks usually take 5–7 working days to show it in your account.</p>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
+
+    {order.canCancel && (
+      <div class="cancel-row">
+        <p class="muted">Changed your mind? You can cancel until we pack your order{paidRefund ? ', and we’ll refund you straight away' : ''}.</p>
+        <button type="button" class="btn btn--outline btn--sm" data-cancel-open>Cancel order</button>
+      </div>
+    )}
+    {order.canCancel && (
+      <dialog class="cx" data-cancel-dialog aria-labelledby="cx-title">
+        <form method="dialog" class="cx__form" data-cancel-form>
+          <h2 id="cx-title" class="h3">Cancel order {order.number}?</h2>
+          <p class="cx__money">{paidRefund
+            ? <>We'll refund <strong>{formatINR(order.total)}</strong> {p?.method === 'gateway' ? 'to the card, UPI or bank account you paid with. It usually shows within 5–7 working days.' : 'to you by UPI.'}</>
+            : order.paymentMethod === 'cod' ? 'Nothing has been charged, so there is nothing to refund.' : 'You haven’t been charged for this order.'}</p>
+          <fieldset class="cx__reasons">
+            <legend>Why are you cancelling?</legend>
+            {CANCEL_REASONS.map((r, i) => <label class="cx__reason"><input type="radio" name="reason" value={r} required checked={i === 0} /> {r}</label>)}
+          </fieldset>
+          <label class="cx__note"><span>Anything else? (optional)</span><textarea name="note" rows="2" maxlength="300" class="input"></textarea></label>
+          <p class="cx__err" data-cancel-err role="alert"></p>
+          <div class="cx__actions">
+            <button type="button" class="btn btn--outline" data-cancel-close>Keep my order</button>
+            <button type="submit" class="btn cx__go" data-cancel-go>Cancel order</button>
+          </div>
+        </form>
+      </dialog>
+    )}
     <p class="order__help">We've emailed your order details. Questions? <a href="/policies/contact">Contact us</a> or <a href={`/track?number=${order.number}`}>track this order</a> any time.</p>
   </section>
 </Base>
@@ -71,6 +151,8 @@ Astro.response.headers.set('Cache-Control', 'no-store');
   .order { padding-block: var(--sp-10) var(--sp-16); max-width: 1040px; }
   .order__head { display: grid; justify-items: center; text-align: center; gap: var(--sp-3); margin-bottom: var(--sp-8); }
   .order__tick { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; background: var(--c-maroon); color: var(--c-white); animation: rise 600ms var(--motion-ease-out) both; }
+  .pay__seal { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--c-maroon); color: var(--c-zari-light); box-shadow: 0 0 0 6px var(--c-blush); }
+  .pay__msg { min-height: 1.4em; font-size: .9375rem; color: var(--c-maroon); }
   .upi { display: grid; justify-items: center; text-align: center; gap: var(--sp-3); background: var(--c-surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: var(--sp-8) var(--sp-6); margin: 0 auto var(--sp-8); max-width: 520px; }
   .upi__qr { width: 220px; }
   .upi__qr :global(svg) { width: 100%; height: auto; }
@@ -78,6 +160,43 @@ Astro.response.headers.set('Cache-Control', 'no-store');
   .upi__note { font-size: .875rem; max-width: 40ch; }
   @media (min-width: 1024px) and (pointer: fine) { .upi__open { display: none; } }
   .order__grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-6); }
+  .pay-head, .rf__top { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+  .chip { padding: 3px 12px; border-radius: var(--r-pill); font-size: .8125rem; font-weight: 600; white-space: nowrap; }
+  .chip--ok { background: #E3F1E6; color: var(--c-success); } .chip--warn { background: #FFF1D6; color: #7A5418; }
+  .chip--bad { background: #FBEAEA; color: var(--c-danger); } .chip--quiet { background: var(--c-blush); color: var(--c-text); }
+  .pay-list { display: grid; gap: var(--sp-2); margin-top: var(--sp-4); }
+  .pay-list div { display: flex; justify-content: space-between; gap: var(--sp-4); padding-bottom: var(--sp-2); border-bottom: 1px solid var(--c-line); }
+  .pay-list div:last-child { border-bottom: 0; }
+  .pay-list dt { color: var(--c-muted); }
+  .pay-list dd { text-align: right; color: var(--c-ink); min-width: 0; overflow-wrap: anywhere; }
+  .pay-list code, .pay-ref code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .875rem; letter-spacing: .02em; }
+  .pay-ref { display: inline-flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; justify-content: flex-end; }
+  .pay-copy { min-height: 32px; padding: 0 10px; border-radius: var(--r-pill); border: 1px solid var(--c-line); font-size: .75rem; font-weight: 600; color: var(--c-maroon); }
+  .pay-copy:hover { border-color: var(--c-maroon); }
+  .pay-note { font-size: .8125rem; margin-top: var(--sp-3); }
+  .rf-list { display: grid; gap: var(--sp-4); margin-top: var(--sp-4); }
+  .rf { display: grid; gap: var(--sp-2); }
+  .rf__top strong { font-family: var(--font-display); font-size: 1.5rem; color: var(--c-ink); }
+  .rf .pay-ref { justify-content: flex-start; }
+  .rf__eta { font-size: .875rem; color: #7A5418; }
+  .cancel-row { display: flex; align-items: center; justify-content: center; gap: var(--sp-4); flex-wrap: wrap; margin-top: var(--sp-8); text-align: center; }
+  .cx { margin: auto; max-height: calc(100dvh - 32px); overflow: auto; width: min(520px, calc(100vw - 32px)); border: 0; border-radius: 20px; padding: 0; background: var(--c-surface); color: var(--c-text); box-shadow: 0 30px 80px -30px rgba(58, 31, 20, .55); }
+  .cx::backdrop { background: rgba(58, 31, 20, .45); backdrop-filter: blur(3px); }
+  .cx__form { display: grid; gap: var(--sp-4); padding: var(--sp-6); }
+  .cx__money { padding: var(--sp-3) var(--sp-4); border-radius: var(--r-md); background: var(--c-blush); }
+  .cx__reasons { border: 0; padding: 0; display: grid; gap: 2px; }
+  .cx__reasons legend { font-weight: 600; color: var(--c-ink); margin-bottom: var(--sp-2); }
+  .cx__reason { display: flex; align-items: center; gap: var(--sp-3); min-height: 40px; }
+  .cx__reason input { width: 18px; height: 18px; accent-color: var(--c-maroon); }
+  .cx__note { display: grid; gap: var(--sp-2); font-size: .875rem; color: var(--c-ink); }
+  .cx__err:empty { display: none; } .cx__err { color: var(--c-danger); font-size: .9375rem; }
+  .cx__actions { display: flex; gap: var(--sp-3); justify-content: flex-end; flex-wrap: wrap; }
+  .cx__go { background: var(--c-danger); border-color: var(--c-danger); }
+  .chip { line-height: 1.5; align-self: center; }
+  @media (max-width: 560px) {
+    .cx { margin: auto 0 0; width: 100vw; max-width: 100vw; border-radius: 20px 20px 0 0; padding-bottom: env(safe-area-inset-bottom); }
+    .cx__actions { flex-direction: column-reverse; } .cx__actions .btn { width: 100%; }
+  }
   .order__card { background: var(--c-surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: var(--sp-6); }
   .order__card h2 { margin-bottom: var(--sp-5); font-size: 1.625rem; }
   .order__ship { margin-top: var(--sp-4); font-size: .9375rem; }
@@ -99,8 +218,66 @@ Astro.response.headers.set('Cache-Control', 'no-store');
     document.querySelectorAll<HTMLButtonElement>('[data-copy]').forEach((b) => b.addEventListener('click', async () => {
       try { await navigator.clipboard.writeText(b.dataset.copy!); b.textContent = 'Copied'; } catch { /* clipboard blocked */ }
     }));
-    // Poll while awaiting UPI verification so the page flips to "paid" by itself.
-    if (!document.querySelector('[data-upi]')) return;
+    // Cancel: a native dialog with reasons; paid orders are refunded by the server.
+    const dlg = document.querySelector<HTMLDialogElement>('[data-cancel-dialog]');
+    document.querySelector('[data-cancel-open]')?.addEventListener('click', () => dlg?.showModal());
+    dlg?.querySelector('[data-cancel-close]')?.addEventListener('click', () => dlg.close());
+    dlg?.querySelector<HTMLFormElement>('[data-cancel-form]')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = e.currentTarget as HTMLFormElement;
+      const go = f.querySelector<HTMLButtonElement>('[data-cancel-go]')!;
+      const err = f.querySelector<HTMLElement>('[data-cancel-err]')!;
+      const data = new FormData(f);
+      const u = new URL(location.href);
+      go.disabled = true; go.textContent = 'Cancelling…'; err.textContent = '';
+      const r = await fetch(`/api/orders/${u.pathname.split('/').pop()}/cancel`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: u.searchParams.get('token'), reason: data.get('reason'), note: String(data.get('note') ?? '') }) }).catch(() => null);
+      if (r?.ok) { dlg!.close(); void navigate(location.pathname + location.search, { history: 'replace' }); return; }
+      const j = r ? await r.json().catch(() => null) as { error?: { message?: string } } | null : null;
+      err.textContent = j?.error?.message ?? 'We couldn’t cancel right now. Please try again or message us on WhatsApp.';
+      go.disabled = false; go.textContent = 'Cancel order';
+    });
+
+    // Online payment not finished: reopen Razorpay for the same order (the server checks first whether it already went through).
+    const u0 = new URL(location.href);
+    const number = u0.pathname.split('/').pop()!, token = u0.searchParams.get('token') ?? '';
+    const payBtn = document.querySelector<HTMLButtonElement>('[data-pay-now]');
+    const msg = document.querySelector<HTMLElement>('[data-pay-msg]');
+    const reload = () => navigate(location.pathname + location.search, { history: 'replace' });
+    const loadRazorpay = () => new Promise<void>((res, rej) => {
+      const w = window as unknown as { Razorpay?: unknown };
+      if (w.Razorpay) return res();
+      const s = document.createElement('script'); s.src = 'https://checkout.razorpay.com/v1/checkout.js'; s.onload = () => res(); s.onerror = () => rej(new Error('razorpay'));
+      document.head.appendChild(s);
+    });
+    payBtn?.addEventListener('click', async () => {
+      payBtn.disabled = true; if (msg) msg.textContent = 'Opening secure payment…';
+      try {
+        const r = await fetch(`/api/orders/${number}/pay`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) });
+        const d = await r.json() as { status?: string; provider?: string; payload?: Record<string, unknown>; error?: { message: string } };
+        if (!r.ok) throw new Error(d.error?.message ?? 'Something went wrong');
+        if (d.status === 'paid') { if (msg) msg.textContent = 'Payment received!'; void reload(); return; }
+        await loadRazorpay();
+        const RZ = (window as unknown as { Razorpay: new (o: Record<string, unknown>) => { open(): void; on(e: string, cb: (x: { error?: { description?: string } }) => void): void } }).Razorpay;
+        const rz = new RZ({
+          ...d.payload,
+          handler: async (resp: Record<string, string>) => {
+            if (msg) msg.textContent = 'Confirming your payment…';
+            await fetch(`/api/payments/${d.provider}/return`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ number, token, params: resp }) }).catch(() => {});
+            void reload();
+          },
+          modal: { ondismiss: () => { payBtn.disabled = false; if (msg) msg.textContent = ''; } },
+        });
+        rz.on('payment.failed', (e) => { if (msg) msg.textContent = `${e.error?.description ?? 'The payment didn’t go through'}. You can try again or use another method.`; payBtn.disabled = false; });
+        rz.open();
+      } catch (e) {
+        if (msg) msg.textContent = (e as Error).message === 'razorpay' ? 'Couldn’t load the payment window. Check your connection and try again.' : (e as Error).message;
+        payBtn.disabled = false;
+      }
+    });
+
+    // Poll while awaiting a payment so the page flips to "paid" by itself.
+    if (!document.querySelector('[data-upi], [data-gateway-pay]')) return;
     const u = new URL(location.href);
     const poll = setInterval(async () => {
       const r = await fetch(`/api/orders/${u.pathname.split('/').pop()}?token=${u.searchParams.get('token')}`).catch(() => null);

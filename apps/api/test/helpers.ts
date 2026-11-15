@@ -16,7 +16,7 @@ export async function call(method: string, path: string, body?: unknown, headers
   const text = await res.text();
   let json: any = null;
   try { json = JSON.parse(text); } catch { /* not json */ }
-  return { status: res.status, json, text };
+  return { status: res.status, json, text, setCookie: res.headers.get('set-cookie') };
 }
 
 export async function seedBasics() {
@@ -54,3 +54,6 @@ export async function variant(id: string) {
 export async function expireHolds() {
   await E.DB.prepare("UPDATE orders SET hold_expires_at = '2000-01-01T00:00:00.000Z' WHERE stock_state = 'held'").run();
 }
+
+/** Turn a Set-Cookie header into a Cookie header for the next request. */
+export const cookieFrom = (setCookie: string | null) => (setCookie ?? '').split(/,(?=\s*[^;=]+=)/).map((c) => c.split(';')[0]!.trim()).filter((c) => !c.endsWith('=')).join('; ');

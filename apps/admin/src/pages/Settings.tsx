@@ -5,8 +5,8 @@ import { paiseToRupees, rupeesToPaise } from '../lib/format.ts';
 import { useCan } from '../lib/me.ts';
 import { ErrorBox, Field, Skeleton, useToast } from '../components/ui.tsx';
 
-interface KeyField { id: string; label: string; secret: boolean; set: boolean; preview: string | null }
-interface Resp { settings: any; gateway: { provider: string; label: string; fields: KeyField[]; webhookUrl: string } | null }
+interface KeyField { id: string; label: string; secret: boolean; set: boolean; preview: string | null ; source?: 'secret' | 'admin' | null }
+interface Resp { settings: any; gateway: { provider: string; label: string; fields: KeyField[]; webhookUrl: string; mode?: 'test' | 'live' | null } | null }
 
 export default function Settings() {
   const q = useQuery({ queryKey: ['settings'], queryFn: () => get<Resp>('/admin/settings') });
@@ -106,7 +106,8 @@ function Payments({ initial, gateway }: { initial: any; gateway: Resp['gateway']
     onError: (e) => toast({ text: (e as Error).message, bad: true }),
   });
   useEffect(() => setS(initial), [initial]);
-  const keysReady = gateway?.fields.every((f) => f.set);
+  const keysReady = !!gateway?.fields.filter((f) => f.id !== 'webhookSecret').every((f) => f.set);
+  const fromSecrets = !!gateway?.fields.some((f) => f.source === 'secret');
   return (
     <>
       <Section title="Payments" desc="Customers see only the methods you switch on." onSave={() => save(s)} busy={busy}>
@@ -123,15 +124,22 @@ function Payments({ initial, gateway }: { initial: any; gateway: Resp['gateway']
       </Section>
       {gateway && can('payments.keys') && (
         <form className="card stack" onSubmit={(e) => { e.preventDefault(); saveKeys.mutate(); }}>
-          <div><h2>{gateway.label} keys</h2><p className="muted small">Stored encrypted. Staff can never see them. Use test keys until KYC is approved, then swap in live keys: no redeploy needed.</p></div>
+          <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div><h2>{gateway.label} keys</h2>
+              <p className="muted small">{fromSecrets
+                ? 'Set as Cloudflare Worker secrets from the deploy (clients/femia.secrets.env). Those always win over keys typed here. Staff can never see them.'
+                : 'Stored encrypted. Staff can never see them. Use test keys until KYC is approved, then swap in live keys: no redeploy needed.'}</p></div>
+            {gateway.mode && <span className={`badge ${gateway.mode === 'live' ? 'badge--ok' : 'badge--warn'}`}>{gateway.mode === 'live' ? 'Live: real payments' : 'Test mode: no real money'}</span>}
+          </div>
           <div className="grid3">
             {gateway.fields.map((f) => (
-              <Field key={f.id} label={f.label} hint={f.set ? `Saved: ${f.preview}` : 'Not set'}>
-                <input className="input" type={f.secret ? 'password' : 'text'} autoComplete="off" value={keys[f.id] ?? ''} onChange={(e) => setKeys({ ...keys, [f.id]: e.target.value })} placeholder={f.set ? 'Leave blank to keep' : ''} />
+              <Field key={f.id} label={f.label} hint={f.source === 'secret' ? `Cloudflare secret: ${f.preview}` : f.set ? `Saved: ${f.preview}` : f.id === 'webhookSecret' ? 'Optional, but needed for instant confirmations' : 'Not set'}>
+                <input className="input" type={f.secret ? 'password' : 'text'} autoComplete="off" value={keys[f.id] ?? ''} onChange={(e) => setKeys({ ...keys, [f.id]: e.target.value })}
+                  disabled={f.source === 'secret'} placeholder={f.source === 'secret' ? 'Managed by deploy secrets' : f.set ? 'Leave blank to keep' : ''} />
               </Field>
             ))}
           </div>
-          <Field label="Webhook URL" hint={`Add this in your ${gateway.label} dashboard → Webhooks, with events payment.captured, payment.failed, order.paid.`}><input className="input" readOnly value={gateway.webhookUrl} onFocus={(e) => e.target.select()} /></Field>
+          <Field label="Webhook URL" hint={`Add this in your ${gateway.label} dashboard → Webhooks, with events payment.captured, payment.failed, order.paid, refund.processed, refund.failed.`}><input className="input" readOnly value={gateway.webhookUrl} onFocus={(e) => e.target.select()} /></Field>
           <div className="row"><span className="spacer" /><button className="btn" disabled={saveKeys.isPending || !Object.values(keys).some((v) => v.trim())}>Save keys</button></div>
         </form>
       )}

@@ -15,11 +15,32 @@ export function getProvider(id: string): PaymentProvider<Record<string, string>>
 
 const secretKey = (provider: string) => `gateway.${provider}`;
 
-export async function getGatewayKeys(env: Env, provider: string): Promise<Record<string, string> | null> {
-  if (!env.SECRETS_KEY) return null;
+async function storedKeys(env: Env, provider: string): Promise<Record<string, string>> {
+  if (!env.SECRETS_KEY) return {};
   const row = await first<{ iv: string; ciphertext: string }>(env.DB, 'SELECT iv, ciphertext FROM secrets WHERE key = ?', secretKey(provider));
-  if (!row) return null;
-  return JSON.parse(await decrypt(env.SECRETS_KEY, row.iv, row.ciphertext)) as Record<string, string>;
+  return row ? (JSON.parse(await decrypt(env.SECRETS_KEY, row.iv, row.ciphertext)) as Record<string, string>) : {};
+}
+
+/**
+ * Gateway keys: Worker secrets (e.g. RAZORPAY_KEY_SECRET, pushed by the deploy) first, then keys saved in
+ * Admin → Settings (encrypted in D1). Null until the provider's required keys are all there.
+ */
+export async function getGatewayKeys(env: Env, provider: string): Promise<Record<string, string> | null> {
+  const p = PROVIDERS[provider];
+  if (!p) return null;
+  const fromEnv = Object.fromEntries(Object.entries(p.envKeys(env)).filter(([, v]) => !!v)) as Record<string, string>;
+  const keys = { ...(await storedKeys(env, provider)), ...fromEnv };
+  const required = p.keyFields.filter((f) => f.id !== 'webhookSecret').map((f) => f.id);
+  return required.every((k) => keys[k]) ? keys : null;
+}
+
+/** Where each key comes from, for the Admin settings screen. Values are never returned. */
+export async function gatewayKeySources(env: Env, provider: string) {
+  const p = PROVIDERS[provider];
+  if (!p) return {};
+  const fromEnv = p.envKeys(env) as Record<string, string | undefined>;
+  const stored = await storedKeys(env, provider);
+  return Object.fromEntries(p.keyFields.map((f) => [f.id, fromEnv[f.id] ? 'secret' : stored[f.id] ? 'admin' : null])) as Record<string, 'secret' | 'admin' | null>;
 }
 
 export async function putGatewayKeysStatement(env: Env, provider: string, keys: Record<string, string>, actor: string) {

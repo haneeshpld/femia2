@@ -29,8 +29,12 @@ export async function automaticOffers(db: D1Database): Promise<Offer[]> {
   return cache.offers;
 }
 
-/** Find a coupon and check the rules only the database knows (usage, per customer, first order). */
-export async function checkCoupon(db: D1Database, rawCode: string | null | undefined, phone?: string | null): Promise<{ coupon: Offer | null; error: string | null; code: string | null }> {
+/**
+ * Find a coupon and check the rules only the database knows: usage, uses per customer and first order only.
+ * A customer is matched by their account, mobile number or email, so signing out or using another number
+ * doesn't get round the limits.
+ */
+export async function checkCoupon(db: D1Database, rawCode: string | null | undefined, who: { phone?: string | null; customerId?: string | null; email?: string | null } = {}): Promise<{ coupon: Offer | null; error: string | null; code: string | null }> {
   const code = rawCode?.trim().toUpperCase() || null;
   if (!code) return { coupon: null, error: null, code: null };
   const row = await first<OfferRow>(db, "SELECT * FROM offers WHERE kind = 'coupon' AND code = ?", code);
@@ -40,15 +44,19 @@ export async function checkCoupon(db: D1Database, rawCode: string | null | undef
   if (status === 'scheduled') return { coupon: null, error: `${code} starts on ${new Date(o.startsAt!).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`, code };
   if (status === 'ended' || status === 'paused') return { coupon: null, error: `${code} has expired`, code };
   if (status === 'used-up') return { coupon: null, error: `${code} has been fully used`, code };
-  const digits = phone?.replace(/\D/g, '').slice(-10);
-  if (digits && digits.length === 10) {
+  const digits = who.phone?.replace(/\D/g, '').slice(-10);
+  const phone = digits && digits.length === 10 ? digits : null;
+  const email = who.email?.trim().toLowerCase() || null;
+  const customerId = who.customerId ?? null;
+  if (phone || email || customerId) {
+    const mine = '(o.phone = ?1 OR lower(o.email) = ?2 OR (?3 IS NOT NULL AND o.customer_id = ?3))';
     if (o.firstOrderOnly) {
-      const prior = await first<{ n: number }>(db, "SELECT COUNT(*) AS n FROM orders WHERE phone = ? AND status != 'cancelled'", digits);
+      const prior = await first<{ n: number }>(db, `SELECT COUNT(*) AS n FROM orders o WHERE ${mine} AND o.status != 'cancelled'`, phone ?? '-', email ?? '-', customerId);
       if ((prior?.n ?? 0) > 0) return { coupon: null, error: `${code} is for first orders only`, code };
     }
     if (o.perCustomerLimit) {
       const used = await first<{ n: number }>(db,
-        "SELECT COUNT(*) AS n FROM order_discounts d JOIN orders o ON o.id = d.order_id WHERE d.offer_id = ? AND o.phone = ? AND o.status != 'cancelled'", o.id, digits);
+        `SELECT COUNT(*) AS n FROM order_discounts d JOIN orders o ON o.id = d.order_id WHERE d.offer_id = ?4 AND ${mine} AND o.status != 'cancelled'`, phone ?? '-', email ?? '-', customerId, o.id);
       if ((used?.n ?? 0) >= o.perCustomerLimit) return { coupon: null, error: `You've already used ${code}`, code };
     }
   }

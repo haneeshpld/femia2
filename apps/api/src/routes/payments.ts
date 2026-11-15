@@ -5,6 +5,7 @@ import { first } from '../lib/db.ts';
 import { HttpError, notFound, readJson } from '../lib/http.ts';
 import { getGatewayKeys, getProvider } from '../payments/index.ts';
 import { getOrderRow, markPaid, markPaymentFailed, orderForCustomer } from '../services/orders.ts';
+import { applyRefundStatus, type RefundRow } from '../services/refunds.ts';
 
 export const paymentRoutes = new Hono<AppEnv>();
 
@@ -29,13 +30,19 @@ paymentRoutes.post('/payments/webhook/:provider', async (c) => {
   const provider = getProvider(c.req.param('provider'));
   const raw = await c.req.text();
   const keys = await getGatewayKeys(c.env, provider.id);
-  if (!keys) return c.json({ ok: false }, 503);
+  // No webhook secret yet: refuse (Razorpay retries), and the 5-minute reconciliation still confirms payments.
+  if (!keys?.webhookSecret) return c.json({ ok: false, error: 'webhook secret not configured' }, 503);
   const evt = await provider.verifyWebhook(c.req.raw, raw, keys);
   if (!evt) return c.json({ error: 'invalid signature' }, 401);
 
   const fresh = await c.env.DB.prepare('INSERT OR IGNORE INTO webhook_events (provider, event_id) VALUES (?, ?)').bind(provider.id, evt.eventId).run();
   if (!fresh.meta.changes) return c.json({ ok: true, duplicate: true });
   if (evt.outcome === 'ignored') return c.json({ ok: true });
+  if (evt.outcome === 'refund' && evt.refund) {
+    const r = await first<RefundRow>(c.env.DB, 'SELECT * FROM refunds WHERE provider = ? AND provider_refund_id = ?', provider.id, evt.refund.providerRefundId);
+    if (r) await applyRefundStatus(c.env, r, evt.refund.status);
+    return c.json({ ok: true, refund: !!r });
+  }
 
   const pay = await first<{ order_id: string }>(c.env.DB, 'SELECT order_id FROM payments WHERE provider = ? AND provider_order_id = ?', provider.id, evt.providerOrderId);
   if (!pay) return c.json({ ok: true, unknown: true });

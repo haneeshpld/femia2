@@ -12,6 +12,8 @@ const BaseField = z.object({
   label: z.string(),
   help: z.string().optional(),
   required: z.boolean().default(false),
+  /** Show this field only when a sibling select field has one of these values (Admin hides it otherwise). */
+  when: z.object({ field: z.string(), is: z.array(z.string()).min(1) }).optional(),
 });
 
 export type ManifestField =
@@ -42,6 +44,12 @@ export const ImageSlot = z.object({
   minWidth: z.number().int().default(1200),
   /** shape hint for the cropper overlay */
   mask: z.enum(['rect', 'arch', 'circle']).default('rect'),
+  /** Size to ask for in Admin ("Best at 2400 × 1200 px"). Defaults to minWidth × minWidth / aspect. */
+  recommended: z.object({ width: z.number().int().positive(), height: z.number().int().positive() }).optional(),
+  /** Where and how the photo is shown, said in Admin next to the upload. */
+  help: z.string().optional(),
+  /** Also keep a 2400 px rendition (full-width banners on large screens). */
+  hd: z.boolean().default(false),
 });
 export type ImageSlot = z.infer<typeof ImageSlot>;
 

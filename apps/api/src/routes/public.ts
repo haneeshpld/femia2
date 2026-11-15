@@ -1,14 +1,20 @@
 import { Hono } from 'hono';
+import { z } from 'zod';
 import {
+  CustomerCancel,
   AnalyticsBatch, CartQuoteRequest, NewsletterRequest, PincodeCheckRequest, ProductListQuery, STATE_PINCODES, TrackRequest, canShipTo, stateForPincode,
 } from '@femia/contracts';
 import type { AppEnv } from '../env.ts';
 import { first } from '../lib/db.ts';
-import { notFound, parse, readJson } from '../lib/http.ts';
+import { HttpError, notFound, parse, readJson } from '../lib/http.ts';
+import { safeEqual } from '../lib/crypto.ts';
 import { getProduct, listCategories, listCollections, listProducts, stockForProduct, stockForVariants } from '../services/catalog.ts';
 import { getDraft, getPublished, verifyPreviewToken } from '../services/content.ts';
-import { createOrder, orderForCustomer, quote, trackOrder } from '../services/orders.ts';
+import { createOrder, customerCancel, getOrderRow, orderForCustomer, quote, reconcileGatewayOrder, trackOrder } from '../services/orders.ts';
 import { getSettings, toPublicSettings } from '../services/settings.ts';
+import { optionalCustomer } from '../lib/auth.ts';
+import { assertSameOrigin, clientIp, rateLimit } from '../lib/security.ts';
+import { rememberAddress } from '../services/customers.ts';
 
 export const publicRoutes = new Hono<AppEnv>();
 
@@ -51,7 +57,8 @@ publicRoutes.get('/catalog/stock', async (c) => {
 
 publicRoutes.post('/cart/quote', async (c) => {
   const body = await readJson(c, CartQuoteRequest);
-  return c.json(await quote(c.env.DB, body.lines, { coupon: body.coupon, phone: body.phone }));
+  const shopper = await optionalCustomer(c);
+  return c.json(await quote(c.env.DB, body.lines, { coupon: body.coupon, phone: body.phone ?? shopper?.phone, customerId: shopper?.id, email: shopper?.email }));
 });
 
 publicRoutes.post('/checkout/pincode', async (c) => {
@@ -68,11 +75,53 @@ publicRoutes.post('/checkout/pincode', async (c) => {
   });
 });
 
-publicRoutes.post('/orders', async (c) => c.json(await createOrder(c.env, c.executionCtx, await c.req.json().catch(() => null)), 201));
+publicRoutes.post('/orders', async (c) => {
+  assertSameOrigin(c);
+  const shopper = await optionalCustomer(c);
+  const body = await c.req.json().catch(() => null);
+  const res = await createOrder(c.env, c.executionCtx, body, { customerId: shopper?.id ?? null });
+  // Signed-in shoppers can keep the delivery address for next time.
+  const b = body as { saveAddress?: boolean; customer?: { name?: string; phone?: string }; address?: Record<string, string> } | null;
+  if (shopper && b?.saveAddress && b.address && b.customer) {
+    c.executionCtx.waitUntil(rememberAddress(c.env.DB, shopper.id, {
+      name: b.customer.name ?? shopper.name, phone: (b.customer.phone ?? shopper.phone).replace(/\D/g, '').slice(-10),
+      line1: b.address.line1 ?? '', line2: b.address.line2 ?? '', landmark: b.address.landmark ?? '', city: b.address.city ?? '', state: 'Kerala', pincode: b.address.pincode ?? '',
+    }).catch(() => {}));
+  }
+  return c.json(res, 201);
+});
 
 publicRoutes.get('/orders/:number', async (c) => {
   c.header('Cache-Control', 'no-store');
   return c.json(await orderForCustomer(c.env.DB, c.req.param('number').toUpperCase(), c.req.query('token') ?? ''));
+});
+
+/**
+ * "Complete your payment" on the order page: checks with the gateway first (maybe it already went through),
+ * otherwise hands back the checkout options so the shopper can pay the same order again.
+ */
+publicRoutes.post('/orders/:number/pay', async (c) => {
+  assertSameOrigin(c);
+  const { token } = await readJson(c, z.object({ token: z.string().min(8).max(100) }));
+  await rateLimit(c.env.DB, `pay:${clientIp(c)}`, 30, 600);
+  const o = await getOrderRow(c.env.DB, { number: c.req.param('number').toUpperCase() });
+  if (!o || !safeEqual(o.access_token, token)) throw notFound('Order not found');
+  c.header('Cache-Control', 'no-store');
+  if (o.payment_method !== 'gateway') throw new HttpError(400, 'not_online', 'This order isn’t paid online');
+  if ((await reconcileGatewayOrder(c.env, c.executionCtx, o)) === 'paid' || o.payment_status === 'paid') return c.json({ status: 'paid' });
+  if (o.status !== 'pending_payment') throw new HttpError(409, 'closed', o.status === 'cancelled' ? 'This order was cancelled because the payment didn’t arrive in time. Please place it again.' : 'This order no longer needs payment.');
+  const p = await first<{ provider: string; raw: string }>(c.env.DB, "SELECT provider, raw FROM payments WHERE order_id = ? AND status IN ('created','failed') ORDER BY created_at DESC LIMIT 1", o.id);
+  if (!p) throw new HttpError(409, 'no_payment', 'Online payment isn’t available for this order. Please contact us.');
+  return c.json({ status: 'pending', provider: p.provider, payload: JSON.parse(p.raw), holdUntil: o.hold_expires_at });
+});
+
+/** The shopper cancels (until packing). Paid orders are refunded automatically. */
+publicRoutes.post('/orders/:number/cancel', async (c) => {
+  assertSameOrigin(c);
+  const v = await readJson(c, CustomerCancel);
+  await rateLimit(c.env.DB, `cancel:${clientIp(c)}`, 10, 3600);
+  c.header('Cache-Control', 'no-store');
+  return c.json(await customerCancel(c.env, c.executionCtx, c.req.param('number').toUpperCase(), v.token, v.reason, v.note));
 });
 
 publicRoutes.post('/orders/track', async (c) => {

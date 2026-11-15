@@ -3,14 +3,17 @@ import Base from '../layouts/Base.astro';
 import HomeView from '../components/home/HomeView.astro';
 import { getCommon } from '../lib/content.ts';
 import { srcset } from '../lib/format.ts';
+import { heroImages, PHONE, WIDE } from '../lib/hero.ts';
 import { homeSections } from '@femia/contracts';
 
 const { site, categories } = await getCommon();
 const heroSection = homeSections(site.content).find((x) => x.type === 'hero' && x.enabled);
-const heroImg = heroSection?.data.image ? site.media[heroSection.data.image] : undefined;
+const hero = heroSection ? heroImages(heroSection.data, site.media) : undefined;
+const heroImg = hero?.desktop ?? hero?.mobile;
 Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=600');
 ---
 <Base site={site} categories={categories} image={heroImg?.src['1600']}>
-  {heroImg && <link slot="head" rel="preload" as="image" href={heroImg.src['960']} imagesrcset={srcset(heroImg)} imagesizes="(min-width: 768px) 58vw, 100vw" fetchpriority="high" />}
+  {hero?.desktop && <link slot="head" rel="preload" as="image" href={hero.desktop.src['960']} imagesrcset={srcset(hero.desktop)} imagesizes={hero.desktopSizes} media={hero.mobile ? WIDE : undefined} fetchpriority="high" />}
+  {hero?.mobile && <link slot="head" rel="preload" as="image" href={hero.mobile.src['960']} imagesrcset={srcset(hero.mobile)} imagesizes="100vw" media={hero.desktop ? PHONE : undefined} fetchpriority="high" />}
   <HomeView site={site} categories={categories} />
 </Base>

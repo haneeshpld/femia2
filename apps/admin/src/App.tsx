@@ -1,8 +1,8 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { NavLink, Route, Routes } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
+import { NavLink, Route, Routes, useNavigate } from 'react-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { get } from './lib/api.ts';
+import { ApiError, get, post } from './lib/api.ts';
 import { MeCtx, type Me } from './lib/me.ts';
 import { Icon, type IconName } from './components/Icon.tsx';
 import { ErrorBox, Skeleton, useToast } from './components/ui.tsx';
@@ -23,24 +23,41 @@ const People = lazy(() => import('./pages/People.tsx'));
 const PromptStudio = lazy(() => import('./pages/PromptStudio.tsx'));
 const Festive = lazy(() => import('./pages/Festive.tsx'));
 const Offers = lazy(() => import('./pages/Offers.tsx'));
+const Auth = lazy(() => import('./pages/Auth.tsx'));
+const Customers = lazy(() => import('./pages/Customers.tsx'));
+const MyAccount = lazy(() => import('./pages/MyAccount.tsx'));
 const More = lazy(() => import('./pages/More.tsx'));
 
 type NavItem = { to: string; label: string; icon: IconName; perm?: string; badge?: number; end?: boolean };
 
 export function App() {
-  const me = useQuery({ queryKey: ['me'], queryFn: () => get<Me>('/admin/me'), staleTime: 5 * 60_000 });
+  const qc = useQueryClient();
+  const navigate = useNavigate();
+  const me = useQuery({ queryKey: ['me'], queryFn: () => get<Me>('/admin/me'), staleTime: 5 * 60_000, retry: (n, e) => !(e instanceof ApiError && e.status === 401) && n < 2 });
   const dash = useQuery({ queryKey: ['dashboard'], queryFn: () => get('/admin/dashboard'), enabled: !!me.data?.permissions.includes('dashboard.view'), refetchInterval: 60_000 });
   const toast = useToast();
   const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW();
 
   useEffect(() => { if (needRefresh) toast({ text: 'A new version of Admin is ready.', action: { label: 'Update', run: () => updateServiceWorker(true) } }); }, [needRefresh]);
   useEffect(() => {
-    const h = () => location.reload(); // Access session expired: reload re-runs the Access login
+    // Session ended (signed out elsewhere, idle too long, access removed): show the sign-in screen.
+    const h = () => { qc.removeQueries({ predicate: (q) => q.queryKey[0] !== 'me' }); void me.refetch(); };
     window.addEventListener('femia:unauthenticated', h);
     return () => window.removeEventListener('femia:unauthenticated', h);
   }, []);
 
   if (me.isPending) return <div className="main"><Skeleton n={4} /></div>;
+  if (me.error instanceof ApiError && me.error.status === 401) {
+    if (!/^\/(sign-in|sign-up|forgot)/.test(location.pathname)) try { sessionStorage.setItem('femia.after', location.pathname + location.search); } catch { /* ignore */ }
+    const signedIn = () => {
+      let to = '/';
+      try { to = sessionStorage.getItem('femia.after') || '/'; sessionStorage.removeItem('femia.after'); } catch { /* ignore */ }
+      if (/^\/(sign-in|sign-up|forgot)/.test(to)) to = '/';
+      qc.removeQueries({ predicate: (q) => q.queryKey[0] !== 'me' });
+      void me.refetch().then(() => navigate(to, { replace: true }));
+    };
+    return <Suspense fallback={<div className="main"><Skeleton n={3} /></div>}><Auth onSignedIn={signedIn} /></Suspense>;
+  }
   if (me.error) return <div className="main"><ErrorBox error={me.error} retry={() => me.refetch()} /></div>;
 
   const can = (p?: string) => !p || me.data.permissions.includes(p);
@@ -57,7 +74,8 @@ export function App() {
     { to: '/photos', label: 'Photos', icon: 'image', perm: 'media.write' },
     { to: '/prompt-studio', label: 'Prompt Studio', icon: 'wand', perm: 'media.write' },
     { to: '/settings', label: 'Settings', icon: 'settings', perm: 'settings.read' },
-    { to: '/people', label: 'People', icon: 'users', perm: 'people.manage' },
+    { to: '/customers', label: 'Customers', icon: 'users', perm: 'orders.read' },
+    { to: '/people', label: 'Team', icon: 'shield', perm: 'people.manage' },
   ];
   const tabs: NavItem[] = [nav[0]!, nav[1]!, nav[2]!, nav[3]!, { to: '/more', label: 'More', icon: 'more' }];
 
@@ -71,7 +89,11 @@ export function App() {
               <NavLink key={n.to} to={n.to} end={n.end}><Icon name={n.icon} />{n.label}{!!n.badge && <span className="nav__badge">{n.badge}</span>}</NavLink>
             ))}
           </nav>
-          <div className="side__me">{me.data.name || me.data.email}<br />{me.data.role === 'owner' ? 'Owner' : 'Staff'}</div>
+          <div className="side__me">
+            <NavLink to="/account" className="side__who"><span className="side__avatar" aria-hidden="true">{(me.data.name || me.data.email).trim()[0]?.toUpperCase()}</span>
+              <span><strong>{me.data.name || me.data.email}</strong><small>{me.data.role === 'owner' ? 'Owner' : 'Staff'} · My account</small></span></NavLink>
+            <button type="button" className="icon-btn" aria-label="Sign out" title="Sign out" onClick={async () => { await post('/auth/admin/sign-out').catch(() => {}); qc.removeQueries({ predicate: (q) => q.queryKey[0] !== 'me' }); navigate('/sign-in', { replace: true }); void me.refetch(); }}><Icon name="logout" /></button>
+          </div>
         </aside>
         <main className="main" id="main">
           <Suspense fallback={<Skeleton n={4} />}>
@@ -93,6 +115,11 @@ export function App() {
               <Route path="/prompt-studio" element={<PromptStudio />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/people" element={<People />} />
+              <Route path="/customers" element={<Customers />} />
+              <Route path="/customers/:id" element={<Customers />} />
+              <Route path="/account" element={<MyAccount />} />
+              <Route path="/sign-in" element={<Dashboard />} />
+              <Route path="/sign-up" element={<Dashboard />} />
               <Route path="/more" element={<More items={nav.slice(4).filter((n) => can(n.perm))} />} />
               <Route path="*" element={<div className="empty"><h2>Page not found</h2><a className="btn" href="/">Go home</a></div>} />
             </Routes>

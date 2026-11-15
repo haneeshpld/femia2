@@ -4,10 +4,14 @@ import { badRequest, conflict, notFound } from '../lib/http.ts';
 import { mediaRef, type MediaRow } from './catalog.ts';
 
 export const MEDIA_SIZES = [480, 960, 1600] as const;
+/** Optional extra rendition for full-width banners. */
+export const HD_SIZE = 2400;
 const MAX_BYTES = 2_500_000;
+const MAX_HD_BYTES = 4_000_000;
 
 /**
- * Admin compresses + crops in the browser and uploads 3 WebP renditions (multipart: w480, w960, w1600).
+ * Admin compresses + crops in the browser and uploads 3 WebP renditions (multipart: w480, w960, w1600),
+ * plus w2400 for full-width banner photos.
  * No server-side image processing, so this stays on the free tier.
  */
 export async function uploadMedia(env: Env, form: FormData, actor: string) {
@@ -21,6 +25,12 @@ export async function uploadMedia(env: Env, form: FormData, actor: string) {
     if (f.type !== 'image/webp') throw badRequest('Images must be WebP');
     files.push([w, f]);
   }
+  const hd = form.get(`w${HD_SIZE}`);
+  if (hd instanceof File) {
+    if (hd.size > MAX_HD_BYTES) throw badRequest(`The ${HD_SIZE}px image is too large (max 4 MB)`);
+    if (hd.type !== 'image/webp') throw badRequest('Images must be WebP');
+    files.push([HD_SIZE, hd]);
+  }
   const id = newId('med');
   const keyBase = `p/${id}`;
   await Promise.all(files.map(([w, f]) => env.MEDIA.put(`${keyBase}/${w}.webp`, f.stream(), {
@@ -31,7 +41,7 @@ export async function uploadMedia(env: Env, form: FormData, actor: string) {
   const placeholder = String(form.get('placeholder') ?? '').slice(0, 2000) || null;
   await env.DB.batch([
     env.DB.prepare('INSERT INTO media (id, key_base, width, height, sizes, alt, placeholder, bytes, created_by) VALUES (?,?,?,?,?,?,?,?,?)')
-      .bind(id, keyBase, width, height, JSON.stringify(MEDIA_SIZES), alt, placeholder, bytes, actor),
+      .bind(id, keyBase, width, height, JSON.stringify(files.map(([w]) => w)), alt, placeholder, bytes, actor),
     audit(env.DB, actor, 'media.upload', 'media', id, alt || 'Uploaded photo'),
   ]);
   return mediaRef((await first<MediaRow>(env.DB, 'SELECT * FROM media WHERE id = ?', id))!);
@@ -58,7 +68,8 @@ export async function deleteMedia(env: Env, id: string, actor: string) {
   if (!m) throw notFound('Photo not found');
   const usedIn = await mediaUsages(env.DB, id);
   if (usedIn.length) throw conflict('media_in_use', 'This photo is in use. Remove it from these places first.', { usedIn });
-  await env.MEDIA.delete(MEDIA_SIZES.map((w) => `${m.key_base}/${w}.webp`));
+  const sizes: number[] = (() => { try { return JSON.parse(m.sizes); } catch { return [...MEDIA_SIZES]; } })();
+  await env.MEDIA.delete(sizes.map((w) => `${m.key_base}/${w}.webp`));
   await env.DB.batch([env.DB.prepare('DELETE FROM media WHERE id = ?').bind(id), audit(env.DB, actor, 'media.delete', 'media', id, m.alt)]);
 }
 

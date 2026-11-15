@@ -1,4 +1,5 @@
-import { defineMiddleware } from 'astro:middleware';
+import { defineMiddleware, sequence } from 'astro:middleware';
+import { env } from 'cloudflare:workers';
 
 /**
  * Edge HTML cache. Pages that declare `Cache-Control: … s-maxage=N` (home, shop, product, collections, static
@@ -8,7 +9,7 @@ import { defineMiddleware } from 'astro:middleware';
  */
 const STORE_HEADER = 'x-femia-edge';
 
-export const onRequest = defineMiddleware(async (ctx, next) => {
+const edgeCache = defineMiddleware(async (ctx, next) => {
   const req = ctx.request;
   const cache = (globalThis as unknown as { caches?: { default?: Cache } }).caches?.default;
   const path = new URL(req.url).pathname;
@@ -36,3 +37,16 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   res.headers.set(STORE_HEADER, 'miss');
   return res;
 });
+
+/** Test sites (staging) ask search engines to stay away, so a trial deploy never competes with the real shop. */
+const noindex = defineMiddleware(async (_ctx, next) => {
+  const res = await next();
+  if ((env as unknown as { NOINDEX?: string }).NOINDEX === '1') {
+    const out = new Response(res.body, res);
+    out.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    return out;
+  }
+  return res;
+});
+
+export const onRequest = sequence(noindex, edgeCache);

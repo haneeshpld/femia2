@@ -1,7 +1,7 @@
 import { formatINR, type PublicOrder } from '@femia/contracts';
 import { color, font } from '@femia/tokens';
 
-export type OrderEmailKind = 'received' | 'confirmed' | 'shipped' | 'delivered';
+export type OrderEmailKind = 'received' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
@@ -10,6 +10,7 @@ const COPY: Record<OrderEmailKind, { subject: (n: string) => string; title: stri
   confirmed: { subject: (n) => `Your order ${n} is confirmed`, title: 'Your order is confirmed', body: "We're getting your pieces ready. We'll let you know as soon as they ship." },
   shipped: { subject: (n) => `Your order ${n} is on its way`, title: 'Your order is on its way', body: 'Your parcel has left our boutique.' },
   delivered: { subject: (n) => `Your order ${n} was delivered`, title: 'Delivered with love', body: 'We hope you love your new pieces. Reply to this email if anything is not right.' },
+  cancelled: { subject: (n) => `Your order ${n} is cancelled`, title: 'Your order is cancelled', body: 'Your order has been cancelled.' },
 };
 
 export function orderEmail(kind: OrderEmailKind, o: PublicOrder, ctx: { storeName: string; siteUrl: string; whatsapp: string }) {
@@ -23,8 +24,14 @@ export function orderEmail(kind: OrderEmailKind, o: PublicOrder, ctx: { storeNam
       </td>
       <td align="right" style="padding:12px 0;border-bottom:1px solid ${color.line};white-space:nowrap">${formatINR(i.lineTotal)}</td>
     </tr>`).join('');
-  const tracking = kind === 'shipped' && o.trackingUrl
-    ? `<p style="margin:16px 0"><a href="${esc(o.trackingUrl)}" style="display:inline-block;background:${color.maroon};color:#fff;padding:12px 22px;border-radius:999px;text-decoration:none">Track with ${esc(o.courier ?? 'courier')}</a></p>` : '';
+  const refunded = (o.refunds ?? []).filter((r) => r.status !== 'failed').reduce((n, r) => n + r.amount, 0);
+  const refundNote = kind === 'cancelled'
+    ? refunded > 0
+      ? `<p style="margin:16px 0 0;padding:14px 16px;background:${color.blush};border-radius:10px">Your refund of <b>${formatINR(refunded)}</b> has started. ${(o.refunds ?? []).some((r) => r.toOriginal) ? 'It goes back to the card, UPI or bank account you paid with and usually shows within 5–7 working days.' : "We'll send it to you by UPI shortly."}</p>`
+      : (o.paymentStatus === 'paid' ? '' : '<p style="margin:16px 0 0">Nothing was charged for this order.</p>')
+    : '';
+  const tracking = (kind === 'shipped' && o.trackingUrl
+    ? `<p style="margin:16px 0"><a href="${esc(o.trackingUrl!)}" style="display:inline-block;background:${color.maroon};color:#fff;padding:12px 22px;border-radius:999px;text-decoration:none">Track with ${esc(o.courier ?? 'courier')}</a></p>` : '') + refundNote;
 
   const html = `<!doctype html><html><body style="margin:0;background:${color.cream};font-family:${font.body};color:${color.text}">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${color.cream}"><tr><td align="center" style="padding:24px 12px">
@@ -51,6 +58,7 @@ ${(o.discounts ?? []).map((d) => `
     c.title, '', `Hi ${o.customerName}, ${c.body}`, `Order ${o.number}`, '',
     ...o.items.map((i) => `${i.title} (${i.optionLabel}) x${i.qty}  ${formatINR(i.lineTotal)}`),
     ...(o.discounts ?? []).map((d) => `${d.label}${d.code ? ` (${d.code})` : ''}: −${formatINR(d.amount)}`),
+    ...((o.refunds ?? []).length && kind === 'cancelled' ? [`Refund: ${formatINR((o.refunds ?? []).filter((r) => r.status !== 'failed').reduce((n, r) => n + r.amount, 0))} started`] : []),
     `Shipping: ${o.shipping ? formatINR(o.shipping) : 'Free'}`, `Total: ${formatINR(o.total)}`, '',
     ...(kind === 'shipped' && o.trackingUrl ? [`Track: ${o.trackingUrl}`] : []), `Order status: ${trackUrl}`,
   ].join('\n');

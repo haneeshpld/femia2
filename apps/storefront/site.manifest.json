@@ -23,10 +23,40 @@
     },
     {
       "id": "hero",
-      "label": "Hero image",
+      "label": "Hero · side photo (desktop)",
       "aspect": 0.9,
       "minWidth": 1400,
-      "mask": "rect"
+      "mask": "rect",
+      "recommended": {
+        "width": 1800,
+        "height": 2000
+      },
+      "help": "Fills the right side of the banner on computers and fades into the background behind the headline. Keep the outfit in the right two-thirds."
+    },
+    {
+      "id": "heroWide",
+      "label": "Hero · full-width photo (desktop)",
+      "aspect": 2,
+      "minWidth": 2000,
+      "mask": "rect",
+      "hd": true,
+      "recommended": {
+        "width": 2400,
+        "height": 1200
+      },
+      "help": "Covers the whole banner on computers. The headline sits on the left, so keep faces and the outfit in the right half."
+    },
+    {
+      "id": "heroMobile",
+      "label": "Hero · phone photo",
+      "aspect": 0.6667,
+      "minWidth": 1080,
+      "mask": "rect",
+      "recommended": {
+        "width": 1080,
+        "height": 1620
+      },
+      "help": "Used on phones instead of the desktop photo. The headline sits over the top third, so keep faces and the outfit in the lower two-thirds."
     },
     {
       "id": "arch",
@@ -65,10 +95,28 @@
     },
     {
       "id": "banner",
-      "label": "Promo banner (wide)",
+      "label": "Promo banner · desktop",
       "aspect": 1.6,
       "minWidth": 1400,
-      "mask": "rect"
+      "mask": "rect",
+      "recommended": {
+        "width": 2400,
+        "height": 1500
+      },
+      "hd": true,
+      "help": "Shown beside the message on computers and tablets."
+    },
+    {
+      "id": "bannerMobile",
+      "label": "Promo banner · phone",
+      "aspect": 0.8,
+      "minWidth": 1080,
+      "mask": "rect",
+      "recommended": {
+        "width": 1080,
+        "height": 1350
+      },
+      "help": "Used on phones instead of the desktop photo, shown tall above the message."
     }
   ],
   "sections": [
@@ -371,10 +419,50 @@
           "label": "Second link"
         },
         {
+          "id": "layout",
+          "type": "select",
+          "label": "Photo style",
+          "options": [
+            {
+              "value": "side",
+              "label": "Side photo that fades into the background"
+            },
+            {
+              "value": "full",
+              "label": "Full-width photo behind the headline"
+            }
+          ]
+        },
+        {
           "id": "image",
           "type": "image",
-          "label": "Hero image",
-          "slot": "hero"
+          "label": "Desktop photo",
+          "slot": "hero",
+          "when": {
+            "field": "layout",
+            "is": [
+              "side"
+            ]
+          }
+        },
+        {
+          "id": "imageWide",
+          "type": "image",
+          "label": "Desktop photo",
+          "slot": "heroWide",
+          "when": {
+            "field": "layout",
+            "is": [
+              "full"
+            ]
+          }
+        },
+        {
+          "id": "imageMobile",
+          "type": "image",
+          "label": "Phone photo (optional)",
+          "slot": "heroMobile",
+          "help": "Leave empty to use the desktop photo on phones too."
         }
       ]
     },
@@ -652,8 +740,15 @@
         {
           "id": "image",
           "type": "image",
-          "label": "Photo",
+          "label": "Desktop photo",
           "slot": "banner"
+        },
+        {
+          "id": "imageMobile",
+          "type": "image",
+          "label": "Phone photo (optional)",
+          "slot": "bannerMobile",
+          "help": "Leave empty to use the desktop photo on phones too."
         },
         {
           "id": "align",

@@ -70,3 +70,21 @@
 .code__remove { flex: none; min-height: 44px; padding: 0 var(--sp-2); font-size: .8125rem; color: var(--c-cream); text-decoration: underline; text-underline-offset: 3px; }
 .co__summary .deal-nudge { margin: var(--sp-3) 0 0; }
 @media (prefers-reduced-motion: reduce) { .code__ticket { animation: none; } }
+
+/* ───────── signed in ───────── */
+.co__who { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); border-radius: var(--r-lg); background: var(--c-surface); box-shadow: var(--shadow-card); flex-wrap: wrap; }
+.co__who-mono { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 999px 999px 10px 10px; background: linear-gradient(135deg, #F6E6BE, #E4C27A); color: var(--c-maroon); font-family: var(--font-display); font-size: 1.25rem; }
+.co__who > span:nth-child(2) { flex: 1; min-width: 0; }
+.co__who-link { font-size: .875rem; font-weight: 600; color: var(--c-maroon); text-decoration: underline; text-underline-offset: 3px; }
+.co__signin { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-4); border-radius: var(--r-lg); color: var(--c-text);
+  background: linear-gradient(110deg, rgba(235, 203, 130, .18), var(--c-surface) 70%); border: 1px solid color-mix(in srgb, var(--c-zari) 45%, transparent); transition: border-color 160ms ease; }
+.co__signin:hover { border-color: var(--c-zari); }
+.co__signin > svg:first-child { color: var(--c-maroon); flex: none; }
+.co__signin > span { flex: 1; }
+.co__signin strong { color: var(--c-ink); }
+.co__saved { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: var(--sp-2); }
+.co__addr { display: grid; gap: 2px; text-align: left; padding: var(--sp-3) var(--sp-4); border: 1.5px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white); font-size: .875rem; color: var(--c-muted); transition: border-color 160ms ease, background 160ms ease; }
+.co__addr strong { color: var(--c-ink); font-size: .9375rem; }
+.co__addr.is-on { border-color: var(--c-maroon); background: #FDF6F2; }
+.co__addr--new { display: flex; align-items: center; justify-content: center; gap: var(--sp-2); color: var(--c-maroon); font-weight: 600; border-style: dashed; }
+.input[readonly] { background: var(--c-cream); color: var(--c-muted); }

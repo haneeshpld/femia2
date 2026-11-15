@@ -1,0 +1,14 @@
+---
+import Base from '../../layouts/Base.astro';
+import AccountHome from '../../components/islands/AccountHome.tsx';
+import '../../components/islands/account.css';
+import { getCommon } from '../../lib/content.ts';
+const { site, categories } = await getCommon();
+Astro.response.headers.set('Cache-Control', 'no-store');
+---
+<Base site={site} categories={categories} title="Your account" noindex>
+  <section class="container account"><AccountHome client:only="react"><div slot="fallback" class="skeleton" style="height:420px;border-radius:24px"></div></AccountHome></section>
+</Base>
+<style>
+  .account { padding-block: var(--sp-8) var(--sp-16); }
+</style>

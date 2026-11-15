@@ -13,3 +13,5 @@ clients/*.json
 !clients/*.example.json
 .release/
 apps/*/wrangler.*.json
+# Worker secrets for deploys (see clients/*.secrets.example.env)
+clients/*.secrets.env

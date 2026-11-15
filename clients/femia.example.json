@@ -1,10 +1,13 @@
 {
-  "$comment": "Copy to clients/femia.json (gitignored). IDs come from `node tools/release/provision.mjs clients/femia.json`.",
+  "$comment": "One Cloudflare account. Create real ones with `npm run client:new <name>` (gitignored). See docs/RELEASE.md.",
   "client": "femia",
   "accountId": "",
+  "environment": "production",
+  "prefix": "femia",
+  "workersDev": "",
   "domains": { "store": "femia.in", "admin": "admin.femia.in", "api": "api.femia.in" },
+  "tokenEnv": "CF_TOKEN_FEMIA",
   "d1": { "name": "femia", "id": "" },
   "r2": { "bucket": "femia-media" },
-  "access": { "teamDomain": "femia.cloudflareaccess.com", "aud": "" },
   "email": { "from": "Femia <orders@femia.in>" }
 }

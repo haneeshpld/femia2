@@ -7,7 +7,7 @@ import { useCan } from '../lib/me.ts';
 import { Icon } from '../components/Icon.tsx';
 import { Empty, ErrorBox, Skeleton, StatusBadge } from '../components/ui.tsx';
 
-interface Row { number: string; status: string; paymentMethod: string; paymentStatus: string; channel: string; customerName: string; city: string; total: number; createdAt: string; itemCount: number }
+interface Row { number: string; status: string; paymentMethod: string; paymentStatus: string; channel: string; customerName: string; city: string; total: number; createdAt: string; itemCount: number; refundState: 'pending' | 'done' | 'failed' | null }
 const TABS = [['active', 'To do'], ['pending_payment', 'Awaiting payment'], ['new', 'New'], ['confirmed', 'Confirmed'], ['packed', 'Packed'], ['shipped', 'Shipped'], ['delivered', 'Delivered'], ['cancelled', 'Cancelled'], ['all', 'All']] as const;
 
 export default function Orders() {
@@ -39,7 +39,8 @@ export default function Orders() {
           {list.data.items.map((o) => (
             <button key={o.number} className="list-item" style={{ width: '100%', textAlign: 'left' }} onClick={() => nav(`/orders/${o.number}`)}>
               <span style={{ flex: 1, minWidth: 0 }}>
-                <span className="row" style={{ gap: 8 }}><strong>{o.number}</strong><StatusBadge status={o.status} />{o.paymentStatus === 'paid' && <span className="badge badge--ok">Paid</span>}{o.paymentStatus === 'failed' && <span className="badge badge--bad">Payment failed</span>}</span>
+                <span className="row" style={{ gap: 8 }}><strong>{o.number}</strong><StatusBadge status={o.status} />{o.paymentStatus === 'paid' && <span className="badge badge--ok">Paid</span>}{o.paymentStatus === 'failed' && <span className="badge badge--bad">Payment failed</span>}
+                  {o.refundState === 'done' && <span className="badge badge--ok">Refunded</span>}{o.refundState === 'pending' && <span className="badge badge--warn">Refund pending</span>}{o.refundState === 'failed' && <span className="badge badge--bad">Refund failed</span>}</span>
                 <span className="muted small">{o.customerName} · {o.city} · {o.itemCount} item{o.itemCount === 1 ? '' : 's'} · {METHOD_LABEL[o.paymentMethod]}{o.channel !== 'web' ? ` · via ${o.channel}` : ''}</span>
               </span>
               <span style={{ display: 'grid', justifyItems: 'end' }}><strong>{formatINR(o.total)}</strong><span className="muted small">{ago(o.createdAt)}</span></span>

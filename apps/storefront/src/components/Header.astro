@@ -22,7 +22,10 @@ const right: Item[] = [
   </svg>
 
   <div class="container hdr__inner">
-    <button class="icon-btn hdr__m-only" type="button" data-ui="search:open" aria-label={t('nav.search')}><Icon name="search" /></button>
+    <div class="hdr__m-left hdr__m-only">
+      <button class="icon-btn" type="button" data-ui="search:open" aria-label={t('nav.search')}><Icon name="search" /></button>
+      <a class="icon-btn hdr__acct" href="/account" aria-label="Your account" data-account-link><Icon name="user" /><span class="hdr__acct-dot" data-account-dot hidden></span></a>
+    </div>
     <nav class="hdr__nav hdr__nav--l" aria-label="Main">
       <ul role="list">
         {left.map((n) => (
@@ -43,6 +46,9 @@ const right: Item[] = [
       </nav>
       <div class="hdr__actions">
         <button class="icon-btn hdr__d-only" type="button" data-ui="search:open" aria-label={t('nav.search')}><Icon name="search" /></button>
+        <a class="icon-btn hdr__acct hdr__d-only" href="/account" aria-label="Your account" data-account-link>
+          <Icon name="user" /><span class="hdr__acct-dot" data-account-dot hidden></span>
+        </a>
         <a class="icon-btn" href="/wishlist" aria-label={t('nav.wishlist')}>
           <Icon name="heart" /><span class="badge" data-wish-count hidden></span>
         </a>
@@ -88,11 +94,14 @@ const right: Item[] = [
   .hdr__actions :global(.roll) { display: flex; flex-direction: column; line-height: 18px; }
   .hdr__actions :global(.roll span) { display: block; height: 18px; }
   .hdr__m-only { display: none; }
+  .hdr__acct { position: relative; }
+  .hdr__acct-dot { position: absolute; top: 9px; right: 8px; width: 9px; height: 9px; border-radius: 50%; background: var(--c-zari); box-shadow: 0 0 0 2px var(--c-cream); }
 
   @media (max-width: 1023px) {
     .hdr { --h-open: 72px; --h-closed: 58px; --dip-open: 14px; }
     .hdr__nav { display: none; }
     .hdr__m-only { display: inline-grid; margin-left: -10px; justify-self: start; }
+    .hdr__m-left { display: flex; }
     .hdr__d-only { display: none; }
     .hdr__inner { grid-template-columns: 1fr auto 1fr; }
   }
@@ -103,6 +112,17 @@ const right: Item[] = [
   import { $cartCount, $wishlist } from '../lib/stores.ts';
   import { emit } from '../lib/ui-events.ts';
   import { onPage } from '../lib/lifecycle.ts';
+  import { signedInHint } from '../lib/account.ts';
+
+  // Account icon: a small gold dot once signed in (a display hint only; the session cookie is HttpOnly).
+  const syncAccount = () => {
+    const who = signedInHint();
+    document.querySelectorAll<HTMLElement>('[data-account-dot]').forEach((d) => d.toggleAttribute('hidden', !who));
+    document.querySelectorAll<HTMLAnchorElement>('[data-account-link]').forEach((l) => l.setAttribute('aria-label', who ? `Your account (${who.name})` : 'Sign in or create an account'));
+  };
+  syncAccount();
+  window.addEventListener('femia:account', syncAccount);
+  window.addEventListener('storage', (e) => { if (e.key === 'femia.account.v1') syncAccount(); });
 
   // Header and tab bar persist across client-router navigations: mark the current section on every page.
   const section = (p: string) => (p === '/' ? '/' : p.startsWith('/shop') || p.startsWith('/products') ? '/shop' : p.startsWith('/collections') ? '/collections' : p.startsWith('/visit') ? '/visit' : null);

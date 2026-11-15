@@ -59,7 +59,7 @@ export function CartDrawer({ open, onClose, threshold }: { open: boolean; onClos
         <div><dt>{t('bag.shipping')}</dt><dd>{remaining === 0 ? t('bag.free') : quote ? formatINR(quote.shipping) : '—'}</dd></div>
         {quote && quote.savings > 0 && <div className="totals__save"><dt>You save</dt><dd>{formatINR(quote.savings)}</dd></div>}
       </dl>
-      <a className="btn btn--block" href="/checkout" onClick={() => track('begin_checkout', { value: subtotal })}>
+      <a className="btn btn--block" href="/checkout" onClick={() => { track('begin_checkout', { value: subtotal }); onClose(); }}>
         {t('bag.checkout')} · {formatINR(quote?.total ?? subtotal)} <Icon name="arrowRight" size={20} className="arrow" />
       </a>
     </>

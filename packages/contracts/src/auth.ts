@@ -7,7 +7,7 @@ export const PERMISSIONS = [
   'orders.read', 'orders.write',
   'content.write', 'content.publish',
   'settings.read', 'settings.write',
-  'payments.keys',
+  'payments.keys', 'payments.refund',
   'people.manage',
   'audit.read',
 ] as const;

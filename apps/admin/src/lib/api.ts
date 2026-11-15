@@ -15,7 +15,8 @@ export async function api<T = any>(path: string, init: RequestInit & { json?: un
   if (res.status === 204) return undefined as T;
   const data = await res.json().catch(() => null);
   if (!res.ok) {
-    if (res.status === 401) window.dispatchEvent(new Event('femia:unauthenticated'));
+    // only a lost session (not a wrong password on the sign-in screen) sends you back to sign in
+    if (res.status === 401 && data?.error?.code === 'unauthenticated' && path !== '/admin/me') window.dispatchEvent(new Event('femia:unauthenticated'));
     throw new ApiError(res.status, data?.error?.code ?? 'http_error', data?.error?.message ?? `Something went wrong (${res.status})`, data?.error?.details);
   }
   return data as T;

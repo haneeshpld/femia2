@@ -3,24 +3,28 @@ import { onUi } from '../../lib/ui-events.ts';
 import { CartDrawer } from './CartDrawer.tsx';
 import { QuickAdd } from './QuickAdd.tsx';
 import { SearchOverlay } from './SearchOverlay.tsx';
-import './shell.css';
+import { Icon } from './Icon.tsx';
 
 /** One island for every overlay, hydrated on idle. Static markup talks to it through ui-events. */
 export default function Shell({ freeShippingThreshold, sizeGuide, onReady }: { freeShippingThreshold: number; sizeGuide: string; onReady?: () => void }) {
   const [cart, setCart] = useState(false);
   const [search, setSearch] = useState(false);
   const [quick, setQuick] = useState<{ slug: string; colour?: string | null; origin?: DOMRect; imageUrl?: string | null } | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ title: string; detail: string } | null>(null);
 
   useEffect(() => {
     const off = onUi((e) => {
       if (e.type === 'cart:open') setCart(true);
       if (e.type === 'search:open') setSearch(true);
       if (e.type === 'quick-add') setQuick({ slug: e.slug, colour: e.colour, origin: e.origin, imageUrl: e.imageUrl });
-      if (e.type === 'toast') setToast(e.message);
+      if (e.type === 'toast') setToast({ title: e.message, detail: '' });
     });
+    // Moving to another page (the bag's Checkout button, a product link, a search result…) closes every overlay,
+    // which also hands scrolling back to the new page.
+    const closeAll = () => { setCart(false); setSearch(false); setQuick(null); setToast(null); };
+    document.addEventListener('astro:before-preparation', closeAll);
     onReady?.(); // listening now: the loader replays anything queued before React arrived
-    return off;
+    return () => { off(); document.removeEventListener('astro:before-preparation', closeAll); };
   }, []);
 
   useEffect(() => {
@@ -37,9 +41,16 @@ export default function Shell({ freeShippingThreshold, sizeGuide, onReady }: { f
     <>
       <CartDrawer open={cart} onClose={closeCart} threshold={freeShippingThreshold} />
       <SearchOverlay open={search} onClose={closeSearch} />
-      <QuickAdd slug={quick?.slug ?? null} colour={quick?.colour} origin={quick?.origin} imageUrl={quick?.imageUrl} onClose={closeQuick} onAdded={setToast} sizeGuide={sizeGuide} />
+      <QuickAdd slug={quick?.slug ?? null} colour={quick?.colour} origin={quick?.origin} imageUrl={quick?.imageUrl} onClose={closeQuick}
+        onAdded={(item) => setToast({ title: 'Added to your bag', detail: item })} sizeGuide={sizeGuide} />
       <div className={`toast${toast ? ' is-on' : ''}`} role="status" aria-live="polite">
-        {toast && <><span>{toast}</span><button type="button" onClick={() => { setToast(null); setCart(true); }}>View Bag</button></>}
+        {toast && (
+          <>
+            <span className="toast__seal" aria-hidden="true"><Icon name="check" size={18} /></span>
+            <span className="toast__text"><strong>{toast.title}</strong>{toast.detail && <span>{toast.detail}</span>}</span>
+            <button type="button" onClick={() => { setToast(null); setCart(true); }}>View bag</button>
+          </>
+        )}
       </div>
     </>
   );

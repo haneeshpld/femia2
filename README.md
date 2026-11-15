@@ -40,6 +40,26 @@ hold expiry, UPI mark-paid, gateway success / failure / abandoned with signed we
 
 The storefront navigates in place (Astro `ClientRouter`), so `<script>` modules run **once**. Anything that touches page content must use `onPage()` from `src/lib/lifecycle.ts`: it runs on every page and takes a cleanup that runs before the next swap. Header, footer, announcement bar, tab bar and the cart shell are persisted (`transition:persist`). Pages that send `Cache-Control: … s-maxage` are cached at the edge by `src/middleware.ts`; personal pages must send `no-store`.
 
+## Deploying
+
+Each Cloudflare account is a profile in `clients/` (gitignored). `clients/personal.json` is your test account (staging, `*.workers.dev`). See [docs/RELEASE.md](docs/RELEASE.md):
+`npm run provision clients/personal.json` → `npm run data -- copy local clients/personal.json` → `npm run deploy clients/personal.json`. Moving to another account later: `npm run client:new <name> -- --from=personal`, provision, `npm run data -- copy`, deploy.
+
+## Accounts and sign-in
+
+- **Admin** (`localhost:5173`): sign in with password + a 6-digit code. Locally every code is `123456` until `RESEND_API_KEY` is set. New sign-ups appear under **Team** for approval; invited people are approved already. The local test owner login is in `apps/api/.dev.vars.example`.
+- **Shoppers** (`localhost:4321/account`): email + code (also `123456` locally). The account shows current and previous orders, offers used, saved addresses and their details; checkout fills itself in when signed in.
+- **Admin → Customers** shows every shopper account with its orders, offers used and addresses.
+- API tests act as the owner through `DEV_AUTH_BYPASS` (set only in `vitest.config.ts`).
+
+## Razorpay (online payments)
+
+- Keys live in `apps/api/.dev.vars` locally (`RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`) and in `clients/femia.secrets.env` for deploys; both are gitignored. `npm run deploy` pushes the deploy copy as Cloudflare Worker secrets (`npm run secrets` does it on its own).
+- Switch it on in Admin → Settings → Payments ("Online payments via Razorpay"). Admin shows whether the keys are in test or live mode.
+- Payments are confirmed three ways: the signed browser return, signed webhooks, and a 5-minute check with Razorpay's API (also run before any hold is released, from the order page's "Complete your payment" button and Admin's "Check payment with Razorpay"). Authorised payments are captured for the exact order amount.
+- **Cancelling and refunds**: shoppers can cancel from their order page until it's packed; paid orders refund automatically (Razorpay back to the original method; UPI/cash orders become a "to send" refund the owner marks sent with the UTR). Store cancellations refund the same way, owners can refund part or all of an order (returns), failed refunds can be retried, and refund status follows Razorpay's `refund.*` webhooks plus a 5-minute check. Add the `refund.processed` and `refund.failed` events to the Razorpay webhook.
+- Webhooks can't reach your laptop; locally the order page and Admin check confirm payments instead.
+
 ## Festive themes
 
 Owners switch seasonal decorations on in Admin → Festive themes (now, or between dates). The storefront marks the

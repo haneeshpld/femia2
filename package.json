@@ -23,6 +23,9 @@
     "dev": "echo 'Run in 3 terminals: npm run dev:api | npm run dev:store | npm run dev:admin'",
     "provision": "node tools/release/provision.mjs",
     "deploy": "node tools/release/deploy.mjs",
+    "secrets": "node tools/release/secrets.mjs",
+    "client:new": "node tools/release/new-client.mjs",
+    "data": "node tools/release/data.mjs",
     "rollback": "node tools/release/rollback.mjs"
   },
   "devDependencies": {

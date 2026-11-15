@@ -50,7 +50,7 @@ export function QuickAdd({ slug, colour, origin, imageUrl, onClose, onAdded, siz
     });
     track('add_to_bag', { productId: p.id, variantId: chosen.id, value: chosen.price });
     flyToBag(document.querySelector('.sheet.is-open .qa__img')?.getBoundingClientRect() ?? origin, image?.src['480']);
-    onAdded(`${p.title} · ${size} ${t('common.added').toLowerCase()} to your bag`);
+    onAdded([p.title, [size, colourLabel].filter(Boolean).join(' / ')].filter(Boolean).join(' · '));
     onClose();
   };
 

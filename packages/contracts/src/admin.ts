@@ -61,6 +61,8 @@ export const OrderTransitionInput = z.object({
   trackingNumber: z.string().trim().max(60).optional(),
   trackingUrl: z.url().optional().or(z.literal('').transform(() => undefined)),
   reason: z.string().trim().max(200).optional(),
+  /** When cancelling a paid order: give the money back (Razorpay refunds automatically; UPI/cash is recorded to send). */
+  refund: z.boolean().default(true),
 });
 
 export const AdminOrderListQuery = z.object({

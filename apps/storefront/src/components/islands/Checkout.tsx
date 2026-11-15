@@ -7,8 +7,7 @@ import { t } from '@femia/i18n';
 import { $cart, removeLine, setQty } from '../../lib/stores.ts';
 import { Icon } from './Icon.tsx';
 import { navigate } from 'astro:transitions/client';
-import './shell.css';
-import './checkout.css';
+import { acct, setSignedIn } from '../../lib/account.ts';
 
 type Method = 'upi' | 'gateway' | 'cod' | 'whatsapp';
 const SAVED = 'femia.checkout.v1';
@@ -51,6 +50,25 @@ export default function Checkout({ payments }: { payments: PublicSettings['payme
   const clientRef = useRef(typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `ref-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => setHydrated(true), []);
+
+  // Signed-in shoppers: details filled in, saved addresses to pick from, and the order lands in their account.
+  type Saved = { id: string; label: string; name: string; phone: string; line1: string; line2: string; landmark: string; city: string; pincode: string; isDefault: boolean };
+  const [account, setAccount] = useState<{ customer: { name: string; email: string; phone: string }; addresses: Saved[] } | null>(null);
+  const [addrId, setAddrId] = useState<string | null>(null);
+  const [saveAddress, setSaveAddress] = useState(true);
+  const useAddress = (a: Saved) => {
+    setAddrId(a.id);
+    setForm((f) => ({ ...f, name: a.name || f.name, phone: a.phone || f.phone, line1: a.line1, line2: a.line2, landmark: a.landmark, city: a.city, pincode: a.pincode }));
+    setErrors({}); void checkPin(a.pincode);
+  };
+  useEffect(() => {
+    acct('/account/me').then((r) => {
+      setAccount(r); setSignedIn(r.customer);
+      setForm((f) => ({ ...f, name: f.name || r.customer.name, phone: f.phone || r.customer.phone, email: r.customer.email }));
+      const def = r.addresses.find((a: Saved) => a.isDefault) ?? r.addresses[0];
+      if (def) useAddress(def);
+    }).catch(() => {});
+  }, []);
 
   // Coupon: typed here, checked by the server with every quote (usage, first order and minimums need the phone).
   const [coupon, setCoupon] = useState<string | null>(() => (typeof window === 'undefined' ? null : readCoupon()));
@@ -121,7 +139,7 @@ export default function Checkout({ payments }: { payments: PublicSettings['payme
       lines: lines.map((l) => ({ variantId: l.variantId, qty: l.qty })),
       customer: { name: form.name, phone: form.phone, email: form.email },
       address: { line1: form.line1, line2: form.line2, landmark: form.landmark, city: form.city, pincode: form.pincode.trim() },
-      paymentMethod: method, newsletter, clientRef: clientRef.current,
+      paymentMethod: method, newsletter, clientRef: clientRef.current, saveAddress: !!account && !addrId && saveAddress,
       coupon: couponState?.applied ? coupon : null,
     };
     const res = await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => null);
@@ -177,16 +195,38 @@ export default function Checkout({ payments }: { payments: PublicSettings['payme
     <form className="co" onSubmit={submit} noValidate>
       <div className="co__main">
         {banner && <p className="co__banner" role="alert"><Icon name="info" size={20} /> {banner}</p>}
+        {account ? (
+          <p className="co__who"><span className="co__who-mono" aria-hidden="true">{account.customer.name.trim()[0]?.toUpperCase()}</span>
+            <span>Signed in as <strong>{account.customer.name}</strong><span className="muted"> · {account.customer.email}</span></span>
+            <a href="/account" className="co__who-link">Your account</a></p>
+        ) : (
+          <a className="co__signin" href="/account/sign-in?next=/checkout">
+            <Icon name="user" size={20} /><span><strong>Have a Femia account?</strong> Sign in for saved addresses and all your orders in one place.</span><Icon name="arrowRight" size={18} />
+          </a>
+        )}
         <fieldset className="co__card">
           <legend><span className="co__step">1</span> {t('checkout.contact')}</legend>
           {field('name', t('checkout.name'), { autoComplete: 'name', required: true })}
           <div className="co__row">
             {field('phone', t('checkout.phone'), { type: 'tel', inputMode: 'numeric', autoComplete: 'tel-national', required: true, placeholder: '98470 12345' })}
-            {field('email', t('checkout.email'), { type: 'email', inputMode: 'email', autoComplete: 'email', required: true })}
+            {field('email', t('checkout.email'), { type: 'email', inputMode: 'email', autoComplete: 'email', required: true, readOnly: !!account, title: account ? 'Orders go to your account email' : undefined })}
           </div>
         </fieldset>
         <fieldset className="co__card">
           <legend><span className="co__step">2</span> {t('checkout.address')}</legend>
+          {account && account.addresses.length > 0 && (
+            <div className="co__saved" role="radiogroup" aria-label="Saved addresses">
+              {account.addresses.map((a) => (
+                <button key={a.id} type="button" role="radio" aria-checked={addrId === a.id} className={`co__addr${addrId === a.id ? ' is-on' : ''}`} onClick={() => useAddress(a)}>
+                  <strong>{a.label || a.name}</strong><span>{a.line1}, {a.city} {a.pincode}</span>
+                </button>
+              ))}
+              <button type="button" role="radio" aria-checked={!addrId} className={`co__addr co__addr--new${!addrId ? ' is-on' : ''}`}
+                onClick={() => { setAddrId(null); setForm((f) => ({ ...f, line1: '', line2: '', landmark: '', city: '', pincode: '' })); setPin(null); }}>
+                <Icon name="plus" size={18} /> New address
+              </button>
+            </div>
+          )}
           {field('line1', t('checkout.line1'), { autoComplete: 'address-line1', required: true })}
           {field('line2', t('checkout.line2'), { autoComplete: 'address-line2' })}
           <div className="co__row">
@@ -202,6 +242,7 @@ export default function Checkout({ payments }: { payments: PublicSettings['payme
             </div>
           </div>
           {field('landmark', t('checkout.landmark'))}
+          {account && !addrId && <label className="co__nl"><input type="checkbox" checked={saveAddress} onChange={(e) => setSaveAddress(e.target.checked)} /> Save this address to my account</label>}
         </fieldset>
         <fieldset className="co__card">
           <legend><span className="co__step">3</span> {t('checkout.payment')}</legend>

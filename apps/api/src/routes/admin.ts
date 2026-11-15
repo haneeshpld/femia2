@@ -1,21 +1,26 @@
 import { Hono } from 'hono';
 import {
   AdminOrderListQuery, AdminProductListQuery, ContentDraftInput, GatewayKeysInput, ManualOrderInput, MediaPatch, OrderNoteInput,
-  OrderTransitionInput, ProductStatusInput, Settings, StockAdjustInput, UserInput, PERMISSIONS, CheckoutRequest, CategoryInput, CollectionInput, CatalogPresets,
+  OrderTransitionInput, ProductStatusInput, Settings, StockAdjustInput, PERMISSIONS, AdminInvite, AdminApprove, PasswordChange, passwordProblem, RefundInput, ManualRefundSent, CheckoutRequest, CategoryInput, CollectionInput, CatalogPresets,
 } from '@femia/contracts';
 import { z } from 'zod';
 import type { AppEnv } from '../env.ts';
 import { can, requireAdmin } from '../lib/auth.ts';
 import { all, audit, first, newId } from '../lib/db.ts';
 import { conflict, forbidden, HttpError, notFound, parse, readJson } from '../lib/http.ts';
-import { getGatewayKeys, PROVIDERS, putGatewayKeysStatement } from '../payments/index.ts';
+import { gatewayKeySources, getGatewayKeys, PROVIDERS, putGatewayKeysStatement } from '../payments/index.ts';
 import { listCategories, listCollections } from '../services/catalog.ts';
 import * as content from '../services/content.ts';
 import { deleteMedia, listMedia, mediaUsages, uploadMedia } from '../services/media.ts';
-import { createOrder, getOrderRow, markPaid, orderItems, toPublicOrder, transitionOrder } from '../services/orders.ts';
+import { createOrder, getOrderRow, markPaid, orderItems, reconcileGatewayOrder, toPublicOrder, transitionOrder } from '../services/orders.ts';
 import { duplicateProduct, getAdminProduct, listAdminProducts, lowStock, saveProduct, setProductStatus } from '../services/products.ts';
 import { deleteOffer, listOffers, saveOffer, setOfferActive } from '../services/offers.ts';
 import { getSettings, putSettingStatement } from '../services/settings.ts';
+import { customerOrders, listAddresses } from '../services/customers.ts';
+import { listRefunds, markRefundSent, refundable, retryRefund, startRefund, syncRefund, type RefundRow } from '../services/refunds.ts';
+import { deviceLabel, revokeAllStatement } from '../services/sessions.ts';
+import { hashPassword, rateLimit, verifyPassword } from '../lib/security.ts';
+import { sendEmail } from '../notify/index.ts';
 import { adjustStock, stockHistory } from '../services/stock.ts';
 
 export const adminRoutes = new Hono<AppEnv>();
@@ -26,6 +31,7 @@ const actorOf = (c: { get(k: 'user'): { email: string } }) => c.get('user').emai
 // ── session ──
 adminRoutes.get('/me', (c) => {
   const u = c.get('user');
+  c.header('Cache-Control', 'no-store');
   return c.json({ id: u.id, email: u.email, name: u.name, role: u.roleId, permissions: [...u.permissions] });
 });
 
@@ -237,7 +243,9 @@ adminRoutes.get('/orders', can('orders.read'), async (c) => {
   const [items, total] = await Promise.all([
     all(c.env.DB, `SELECT number, status, payment_method AS paymentMethod, payment_status AS paymentStatus, channel, customer_name AS customerName,
                    phone, city, total, created_at AS createdAt, hold_expires_at AS holdExpiresAt,
-                   (SELECT COUNT(*) FROM order_items i WHERE i.order_id = orders.id) AS itemCount
+                   (SELECT COUNT(*) FROM order_items i WHERE i.order_id = orders.id) AS itemCount,
+                   (SELECT CASE WHEN SUM(status IN ('failed')) > 0 THEN 'failed' WHEN SUM(status IN ('pending','to_send')) > 0 THEN 'pending'
+                           WHEN COUNT(*) > 0 THEN 'done' END FROM refunds r WHERE r.order_id = orders.id) AS refundState
                    FROM orders ${sql} ORDER BY created_at DESC LIMIT ? OFFSET ?`, ...binds, q.pageSize, (q.page - 1) * q.pageSize),
     first<{ n: number }>(c.env.DB, `SELECT COUNT(*) AS n FROM orders ${sql}`, ...binds),
   ]);
@@ -247,12 +255,20 @@ adminRoutes.get('/orders', can('orders.read'), async (c) => {
 adminRoutes.get('/orders/:number', can('orders.read'), async (c) => {
   const o = await getOrderRow(c.env.DB, { number: c.req.param('number').toUpperCase() });
   if (!o) throw notFound('Order not found');
-  const [pub, events] = await Promise.all([
+  const [pub, events, refundRows, attempts, left] = await Promise.all([
     toPublicOrder(c.env.DB, o),
     all(c.env.DB, 'SELECT status, note, actor, public, created_at AS at FROM order_events WHERE order_id = ? ORDER BY id', o.id),
+    listRefunds(c.env.DB, o.id),
+    all<{ provider: string; provider_order_id: string | null; provider_payment_id: string | null; amount: number; status: string; created_at: string; updated_at: string }>(c.env.DB,
+      'SELECT provider, provider_order_id, provider_payment_id, amount, status, created_at, updated_at FROM payments WHERE order_id = ? ORDER BY created_at', o.id),
+    refundable(c.env.DB, o),
   ]);
   return c.json({
-    ...pub, events, channel: o.channel, stockState: o.stock_state, holdExpiresAt: o.hold_expires_at, notes: o.notes, cancelReason: o.cancel_reason,
+    ...pub, events, channel: o.channel, stockState: o.stock_state, holdExpiresAt: o.hold_expires_at, notes: o.notes, cancelReason: o.cancel_reason, cancelledBy: o.cancelled_by,
+    paidAt: o.paid_at, refundable: left,
+    gatewayAttempts: attempts.map((a) => ({ provider: a.provider, orderId: a.provider_order_id, paymentId: a.provider_payment_id, amount: a.amount, status: a.status, createdAt: a.created_at, updatedAt: a.updated_at })),
+    refundList: refundRows.map((r) => ({ id: r.id, amount: r.amount, status: r.status, provider: r.provider, providerRefundId: r.provider_refund_id, paymentId: r.provider_payment_id,
+      reference: r.reference, reason: r.reason, error: r.error, requestedBy: r.requested_by, createdAt: r.created_at, processedAt: r.processed_at })),
     address: { line1: o.line1, line2: o.line2, landmark: o.landmark, city: o.city, state: o.state, pincode: o.pincode },
   });
 });
@@ -270,6 +286,41 @@ adminRoutes.post('/orders/:number/mark-paid', can('orders.write'), async (c) => 
   if (o.payment_status === 'paid') throw conflict('already_paid', 'This order is already marked as paid');
   const fresh = await markPaid(c.env, c.executionCtx, o, actorOf(c));
   return c.json({ number: fresh.number, status: fresh.status, paymentStatus: fresh.payment_status });
+});
+
+// ── refunds ──
+/** Refund on its own (returns, part refunds, paid-but-sold-out). Cancelling a paid order refunds by itself. */
+adminRoutes.post('/orders/:number/refunds', can('payments.refund'), async (c) => {
+  const v = await readJson(c, RefundInput);
+  const o = await getOrderRow(c.env.DB, { number: c.req.param('number').toUpperCase() });
+  if (!o) throw notFound('Order not found');
+  const r = await startRefund(c.env, c.executionCtx, o, { amount: v.amount, reason: v.reason, by: actorOf(c) });
+  return c.json({ id: r.id, status: r.status, error: r.error }, 201);
+});
+adminRoutes.post('/refunds/:id/check', can('orders.read'), async (c) => {
+  const r = await first<RefundRow>(c.env.DB, 'SELECT * FROM refunds WHERE id = ?', c.req.param('id'));
+  if (!r) throw notFound('Refund not found');
+  try { const s = await syncRefund(c.env, r); return c.json({ status: s.status }); }
+  catch { throw new HttpError(502, 'gateway_unavailable', 'Couldn’t reach the payment gateway. Try again in a minute.'); }
+});
+adminRoutes.post('/refunds/:id/retry', can('orders.write'), async (c) => {
+  const r = await retryRefund(c.env, c.executionCtx, c.req.param('id'), actorOf(c));
+  return c.json({ id: r.id, status: r.status, error: r.error });
+});
+adminRoutes.post('/refunds/:id/sent', can('orders.write'), async (c) => {
+  const { reference } = await readJson(c, ManualRefundSent);
+  await markRefundSent(c.env, c.req.param('id'), reference, actorOf(c));
+  return c.json({ ok: true });
+});
+
+/** "Check with Razorpay": confirm an online payment straight from the gateway (missed webhook, customer says they paid). */
+adminRoutes.post('/orders/:number/check-payment', can('orders.write'), async (c) => {
+  const o = await getOrderRow(c.env.DB, { number: c.req.param('number').toUpperCase() });
+  if (!o) throw notFound('Order not found');
+  const status = await reconcileGatewayOrder(c.env, c.executionCtx, o);
+  if (status === 'unavailable') throw new HttpError(502, 'gateway_unavailable', 'Couldn’t reach the payment gateway. Try again in a minute.');
+  await audit(c.env.DB, actorOf(c), 'order.check_payment', 'order', o.id, `${o.number}: gateway says ${status}`).run();
+  return c.json({ status });
 });
 
 adminRoutes.post('/orders/:number/notes', can('orders.write'), async (c) => {
@@ -324,12 +375,14 @@ adminRoutes.get('/settings', can('settings.read'), async (c) => {
   const s = await getSettings(c.env.DB);
   const provider = PROVIDERS[s.payments.gateway.provider];
   const keys = c.get('user').permissions.has('payments.keys') ? await getGatewayKeys(c.env, s.payments.gateway.provider) : null;
+  const sources = c.get('user').permissions.has('payments.keys') ? await gatewayKeySources(c.env, s.payments.gateway.provider) : {};
   return c.json({
     settings: s,
     gateway: provider ? {
       provider: provider.id, label: provider.label,
-      fields: provider.keyFields.map((f) => ({ ...f, set: !!keys?.[f.id], preview: keys?.[f.id] && !f.secret ? keys[f.id] : keys?.[f.id] ? '••••' + keys[f.id]!.slice(-4) : null })),
-      webhookUrl: `${new URL(c.req.url).origin}/payments/webhook/${provider.id}`,
+      fields: provider.keyFields.map((f) => ({ ...f, set: !!keys?.[f.id], source: sources[f.id] ?? null, preview: keys?.[f.id] && !f.secret ? keys[f.id] : keys?.[f.id] ? '••••' + keys[f.id]!.slice(-4) : null })),
+      mode: keys?.keyId?.startsWith('rzp_live_') ? 'live' : keys?.keyId ? 'test' : null,
+      webhookUrl: `${c.env.API_URL || new URL(c.req.url).origin}/payments/webhook/${provider.id}`,
     } : null,
   });
 });
@@ -360,28 +413,169 @@ adminRoutes.put('/settings/payments/keys', can('payments.keys'), async (c) => {
 
 // ── people & audit ──
 adminRoutes.get('/roles', can('people.manage'), async (c) => c.json({ roles: await all(c.env.DB, 'SELECT id, name, permissions, system FROM roles'), permissions: PERMISSIONS }));
+const USER_COLS = `u.id, u.email, u.name, u.role_id AS roleId, u.status, u.last_seen_at AS lastSeenAt, u.last_login_at AS lastLoginAt,
+  u.created_at AS createdAt, u.approved_at AS approvedAt, (u.password_hash IS NOT NULL) AS hasPassword,
+  (SELECT a.name FROM users a WHERE a.email = u.approved_by OR a.id = u.approved_by) AS approvedBy,
+  (SELECT COUNT(*) FROM sessions s WHERE s.kind = 'admin' AND s.subject_id = u.id AND s.revoked_at IS NULL AND s.expires_at > strftime('%Y-%m-%dT%H:%M:%fZ','now')) AS sessions`;
 adminRoutes.get('/users', can('people.manage'), async (c) =>
-  c.json(await all(c.env.DB, 'SELECT id, email, name, role_id AS roleId, active, last_seen_at AS lastSeenAt FROM users ORDER BY created_at')));
+  c.json(await all(c.env.DB, `SELECT ${USER_COLS} FROM users u ORDER BY CASE u.status WHEN 'pending' THEN 0 ELSE 1 END, u.created_at`)));
+
+async function activeOwners(db: D1Database) {
+  return (await first<{ n: number }>(db, "SELECT COUNT(*) AS n FROM users WHERE role_id = 'owner' AND status = 'active'"))?.n ?? 0;
+}
+async function roleExists(db: D1Database, id: string) {
+  if (!(await first(db, 'SELECT 1 FROM roles WHERE id = ?', id))) throw notFound('Unknown role');
+}
+
+/** Invite: the admin approves up front; the person then signs up with this email and is in straight away. */
 adminRoutes.post('/users', can('people.manage'), async (c) => {
-  const u = await readJson(c, UserInput);
-  if (!(await first(c.env.DB, 'SELECT 1 FROM roles WHERE id = ?', u.roleId))) throw notFound('Unknown role');
+  const u = await readJson(c, AdminInvite);
+  await roleExists(c.env.DB, u.roleId);
+  if (await first(c.env.DB, 'SELECT 1 FROM users WHERE email = ?', u.email)) throw conflict('exists', 'This email is already on your team list');
+  const id = newId('usr');
   await c.env.DB.batch([
-    c.env.DB.prepare(`INSERT INTO users (id, email, name, role_id, active) VALUES (?,?,?,?,?)
-      ON CONFLICT(email) DO UPDATE SET name = excluded.name, role_id = excluded.role_id, active = excluded.active`).bind(newId('usr'), u.email, u.name, u.roleId, u.active ? 1 : 0),
-    audit(c.env.DB, actorOf(c), 'people.upsert', 'user', u.email, `${u.email} → ${u.roleId}${u.active ? '' : ' (disabled)'}`),
+    c.env.DB.prepare("INSERT INTO users (id, email, name, role_id, active, status, approved_by, approved_at) VALUES (?,?,?,?,0,'invited',?,?)")
+      .bind(id, u.email, u.name, u.roleId, actorOf(c), new Date().toISOString()),
+    audit(c.env.DB, actorOf(c), 'people.invite', 'user', id, `Invited ${u.email} as ${u.roleId}`),
+  ]);
+  const link = `${c.env.ADMIN_URL}/sign-up?email=${encodeURIComponent(u.email)}`;
+  if (c.env.RESEND_API_KEY) {
+    c.executionCtx.waitUntil(sendEmail(c.env, { to: u.email, subject: 'You’re invited to Femia Admin',
+      html: `<p>${c.get('user').name || 'The Femia team'} invited you to Femia Admin.</p><p><a href="${link}">Create your password</a> with this email address to get started.</p>`,
+      text: `You're invited to Femia Admin. Create your password with this email address: ${link}` }));
+  }
+  return c.json({ ok: true, link, emailed: !!c.env.RESEND_API_KEY }, 201);
+});
+
+adminRoutes.post('/users/:id/approve', can('people.manage'), async (c) => {
+  const { roleId } = await readJson(c, AdminApprove);
+  await roleExists(c.env.DB, roleId);
+  const u = await first<{ email: string; name: string; status: string }>(c.env.DB, 'SELECT email, name, status FROM users WHERE id = ?', c.req.param('id'));
+  if (!u) throw notFound('User not found');
+  if (u.status !== 'pending') throw conflict('not_pending', 'This person isn’t waiting for approval');
+  await c.env.DB.batch([
+    c.env.DB.prepare("UPDATE users SET status = 'active', active = 1, role_id = ?, approved_by = ?, approved_at = ? WHERE id = ? AND status = 'pending'")
+      .bind(roleId, actorOf(c), new Date().toISOString(), c.req.param('id')),
+    audit(c.env.DB, actorOf(c), 'people.approve', 'user', c.req.param('id'), `Approved ${u.email} as ${roleId}`),
+  ]);
+  if (c.env.RESEND_API_KEY) {
+    c.executionCtx.waitUntil(sendEmail(c.env, { to: u.email, subject: 'Your Femia Admin access is approved',
+      html: `<p>Hi ${u.name || 'there'}, your Femia Admin account is approved. <a href="${c.env.ADMIN_URL}">Sign in</a>.</p>`, text: `Your Femia Admin account is approved. Sign in: ${c.env.ADMIN_URL}` }));
+  }
+  return c.json({ ok: true });
+});
+
+adminRoutes.post('/users/:id/reject', can('people.manage'), async (c) => {
+  const u = await first<{ email: string; status: string }>(c.env.DB, 'SELECT email, status FROM users WHERE id = ?', c.req.param('id'));
+  if (!u) throw notFound('User not found');
+  if (u.status !== 'pending' && u.status !== 'invited') throw conflict('not_pending', 'Only pending requests or invites can be declined');
+  await c.env.DB.batch([
+    u.status === 'invited'
+      ? c.env.DB.prepare('DELETE FROM users WHERE id = ?').bind(c.req.param('id'))
+      : c.env.DB.prepare("UPDATE users SET status = 'rejected', active = 0 WHERE id = ?").bind(c.req.param('id')),
+    audit(c.env.DB, actorOf(c), u.status === 'invited' ? 'people.uninvite' : 'people.reject', 'user', c.req.param('id'), `${u.status === 'invited' ? 'Cancelled invite for' : 'Declined'} ${u.email}`),
   ]);
   return c.json({ ok: true });
 });
+
 adminRoutes.patch('/users/:id', can('people.manage'), async (c) => {
-  const body = await readJson(c, z.object({ roleId: z.string().optional(), active: z.boolean().optional(), name: z.string().max(60).optional() }));
-  if (c.req.param('id') === c.get('user').id && (body.active === false || (body.roleId && body.roleId !== 'owner'))) throw forbidden("You can't remove your own owner access");
-  const u = await first<{ email: string }>(c.env.DB, 'SELECT email FROM users WHERE id = ?', c.req.param('id'));
+  const body = await readJson(c, z.object({ roleId: z.string().optional(), status: z.enum(['active', 'disabled']).optional(), name: z.string().trim().max(60).optional() }));
+  const id = c.req.param('id');
+  const u = await first<{ email: string; role_id: string; status: string }>(c.env.DB, 'SELECT email, role_id, status FROM users WHERE id = ?', id);
   if (!u) throw notFound('User not found');
+  if (id === c.get('user').id && (body.status === 'disabled' || (body.roleId && body.roleId !== u.role_id))) throw forbidden('You can’t change your own role or access. Ask another owner.');
+  if (body.roleId) await roleExists(c.env.DB, body.roleId);
+  if (body.status && !['active', 'disabled'].includes(u.status)) throw conflict('bad_state', 'Approve or decline this person first');
+  const losingOwner = u.role_id === 'owner' && u.status === 'active' && ((body.roleId && body.roleId !== 'owner') || body.status === 'disabled');
+  if (losingOwner && (await activeOwners(c.env.DB)) <= 1) throw conflict('last_owner', 'Femia needs at least one owner. Make someone else an owner first.');
   await c.env.DB.batch([
-    c.env.DB.prepare('UPDATE users SET role_id = COALESCE(?, role_id), active = COALESCE(?, active), name = COALESCE(?, name) WHERE id = ?')
-      .bind(body.roleId ?? null, body.active === undefined ? null : body.active ? 1 : 0, body.name ?? null, c.req.param('id')),
-    audit(c.env.DB, actorOf(c), 'people.update', 'user', u.email, JSON.stringify(body)),
+    c.env.DB.prepare('UPDATE users SET role_id = COALESCE(?, role_id), status = COALESCE(?, status), active = CASE COALESCE(?, status) WHEN \'active\' THEN 1 ELSE 0 END, name = COALESCE(?, name) WHERE id = ?')
+      .bind(body.roleId ?? null, body.status ?? null, body.status ?? null, body.name ?? null, id),
+    ...(body.status === 'disabled' ? [revokeAllStatement(c.env.DB, 'admin', id)] : []),
+    audit(c.env.DB, actorOf(c), 'people.update', 'user', id, `${u.email}: ${[body.roleId && `role → ${body.roleId}`, body.status && `access → ${body.status}`, body.name && 'renamed'].filter(Boolean).join(', ')}`),
   ]);
+  return c.json({ ok: true });
+});
+
+adminRoutes.post('/users/:id/sign-out', can('people.manage'), async (c) => {
+  await c.env.DB.batch([revokeAllStatement(c.env.DB, 'admin', c.req.param('id')), audit(c.env.DB, actorOf(c), 'people.sign_out', 'user', c.req.param('id'), 'Signed out of all devices')]);
+  return c.json({ ok: true });
+});
+
+// ── my account: name, password, where I'm signed in ──
+adminRoutes.patch('/account', async (c) => {
+  const { name } = await readJson(c, z.object({ name: z.string().trim().min(2).max(60) }));
+  await c.env.DB.prepare('UPDATE users SET name = ? WHERE id = ?').bind(name, c.get('user').id).run();
+  return c.json({ ok: true });
+});
+adminRoutes.get('/account/sessions', async (c) => {
+  const rows = await all<{ id: string; created_at: string; last_seen_at: string; ip: string; user_agent: string }>(c.env.DB,
+    "SELECT id, created_at, last_seen_at, ip, user_agent FROM sessions WHERE kind = 'admin' AND subject_id = ? AND revoked_at IS NULL AND expires_at > ? ORDER BY last_seen_at DESC",
+    c.get('user').id, new Date().toISOString());
+  const cur = c.get('sessionId');
+  return c.json(rows.map((r) => ({ id: r.id.slice(0, 16), device: deviceLabel(r.user_agent), ip: r.ip, createdAt: r.created_at, lastSeenAt: r.last_seen_at, current: r.id === cur })));
+});
+adminRoutes.delete('/account/sessions/:id', async (c) => {
+  const short = c.req.param('id');
+  if (!/^[0-9a-f]{16}$/.test(short)) throw notFound('Session not found');
+  await c.env.DB.prepare("UPDATE sessions SET revoked_at = ? WHERE kind = 'admin' AND subject_id = ? AND substr(id, 1, 16) = ? AND revoked_at IS NULL")
+    .bind(new Date().toISOString(), c.get('user').id, short).run();
+  return c.json({ ok: true });
+});
+adminRoutes.post('/account/password', async (c) => {
+  const v = await readJson(c, PasswordChange);
+  const me = c.get('user');
+  const row = await first<{ password_hash: string | null }>(c.env.DB, 'SELECT password_hash FROM users WHERE id = ?', me.id);
+  await rateLimit(c.env.DB, `pw-change:${me.id}`, 10, 3600);
+  if (!(await verifyPassword(c.env, v.current, row?.password_hash ?? null))) throw new HttpError(422, 'validation', 'Please check the highlighted fields', { fields: { current: 'That isn’t your current password' } });
+  const problem = passwordProblem(v.next, { email: me.email, name: me.name });
+  if (problem) throw new HttpError(422, 'validation', 'Please check the highlighted fields', { fields: { next: problem } });
+  await c.env.DB.batch([
+    c.env.DB.prepare('UPDATE users SET password_hash = ?, password_changed_at = ? WHERE id = ?').bind(await hashPassword(c.env, v.next), new Date().toISOString(), me.id),
+    revokeAllStatement(c.env.DB, 'admin', me.id, c.get('sessionId') ?? undefined),
+    audit(c.env.DB, actorOf(c), 'auth.password_change', 'user', me.id, 'Changed password; other devices signed out'),
+  ]);
+  return c.json({ ok: true });
+});
+
+// ── shoppers: accounts, their orders and the offers they've used ──
+adminRoutes.get('/customers', can('orders.read'), async (c) => {
+  const q = (c.req.query('q') ?? '').trim().toLowerCase().slice(0, 60);
+  const like = `%${q}%`;
+  const rows = await all(c.env.DB, `
+    SELECT cu.id, cu.email, cu.name, cu.phone, cu.disabled, cu.created_at AS createdAt, cu.last_login_at AS lastLoginAt,
+      (SELECT COUNT(*) FROM orders o WHERE o.customer_id = cu.id) AS orders,
+      (SELECT COALESCE(SUM(o.total),0) FROM orders o WHERE o.customer_id = cu.id AND o.status NOT IN ('cancelled','pending_payment')) AS spent,
+      (SELECT MAX(o.created_at) FROM orders o WHERE o.customer_id = cu.id) AS lastOrderAt,
+      (SELECT COUNT(*) FROM order_discounts d JOIN orders o ON o.id = d.order_id WHERE o.customer_id = cu.id AND o.status != 'cancelled') AS offersUsed
+    FROM customers cu ${q ? 'WHERE lower(cu.email) LIKE ? OR lower(cu.name) LIKE ? OR cu.phone LIKE ?' : ''}
+    ORDER BY COALESCE(lastOrderAt, cu.created_at) DESC LIMIT 200`, ...(q ? [like, like, like] : []));
+  return c.json(rows);
+});
+adminRoutes.get('/customers/:id', can('orders.read'), async (c) => {
+  const id = c.req.param('id');
+  const cu = await first<Record<string, unknown>>(c.env.DB, 'SELECT id, email, name, phone, marketing, disabled, created_at AS createdAt, last_login_at AS lastLoginAt FROM customers WHERE id = ?', id);
+  if (!cu) throw notFound('Customer not found');
+  const [history, addresses, sessions] = await Promise.all([
+    customerOrders(c.env.DB, id),
+    listAddresses(c.env.DB, id),
+    first<{ n: number }>(c.env.DB, "SELECT COUNT(*) AS n FROM sessions WHERE kind = 'customer' AND subject_id = ? AND revoked_at IS NULL AND expires_at > ?", id, new Date().toISOString()),
+  ]);
+  return c.json({ customer: cu, addresses, ...history, signedInDevices: sessions?.n ?? 0 });
+});
+adminRoutes.post('/customers/:id/access', can('people.manage'), async (c) => {
+  const { disabled } = await readJson(c, z.object({ disabled: z.boolean() }));
+  const id = c.req.param('id');
+  const r = await c.env.DB.prepare('UPDATE customers SET disabled = ?, updated_at = ? WHERE id = ?').bind(disabled ? 1 : 0, new Date().toISOString(), id).run();
+  if (!r.meta.changes) throw notFound('Customer not found');
+  await c.env.DB.batch([
+    ...(disabled ? [revokeAllStatement(c.env.DB, 'customer', id)] : []),
+    audit(c.env.DB, actorOf(c), disabled ? 'customer.disable' : 'customer.enable', 'customer', id, disabled ? 'Closed account and signed out' : 'Reopened account'),
+  ]);
+  return c.json({ ok: true });
+});
+adminRoutes.post('/customers/:id/sign-out', can('people.manage'), async (c) => {
+  await c.env.DB.batch([revokeAllStatement(c.env.DB, 'customer', c.req.param('id')), audit(c.env.DB, actorOf(c), 'customer.sign_out', 'customer', c.req.param('id'), 'Signed out of all devices')]);
   return c.json({ ok: true });
 });
 adminRoutes.get('/audit', can('audit.read'), async (c) =>
