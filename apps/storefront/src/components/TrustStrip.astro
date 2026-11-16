@@ -10,7 +10,7 @@ const map: Record<string, IconName> = { truck: 'truck', returns: 'returns', shie
     <ul role="list" class="trust__list">
       {items.map((it) => (
         <li class="trust__item">
-          <Icon name={map[it.icon] ?? 'sparkle'} size={32} />
+          <span class="trust__icon"><Icon name={map[it.icon] ?? 'sparkle'} size={24} /></span>
           <div><strong>{it.title}</strong><span>{it.body}</span></div>
         </li>
       ))}
@@ -18,20 +18,19 @@ const map: Record<string, IconName> = { truck: 'truck', returns: 'returns', shie
   </section>
 )}
 <style>
-  .trust { padding-block: var(--sp-10) var(--sp-4); }
-  .trust__list { display: grid; grid-template-columns: repeat(4, 1fr); position: relative; padding-block: var(--sp-8); }
-  .trust__list::before, .trust__list::after { content: ''; position: absolute; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--c-zari), transparent); opacity: .55; }
-  .trust__list::before { top: 0; } .trust__list::after { bottom: 0; }
+  .trust { padding-block: clamp(var(--sp-12), 6vw, var(--sp-20)) var(--sp-4); }
+  .trust__list { display: grid; grid-template-columns: repeat(4, 1fr); padding-block: var(--sp-5); border-radius: 999px; background: var(--c-blush); }
   .trust__item { display: flex; align-items: center; justify-content: center; gap: var(--sp-4); color: var(--c-ink); padding-inline: var(--sp-4); }
-  .trust__item + .trust__item { border-left: 1px solid rgba(199, 154, 62, .35); }
-  .trust__item :global(svg) { color: var(--c-zari-deep); flex: none; }
+  .trust__item + .trust__item { border-left: 1px solid var(--c-line); }
+  .trust__icon { flex: none; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; color: var(--c-accent);
+    background: var(--c-surface); box-shadow: inset 0 0 0 1px rgba(199, 154, 62, .55), 0 6px 14px -8px rgba(138, 98, 54, .35); }
   .trust__item div { display: grid; line-height: 1.35; }
-  .trust__item strong { font-family: var(--font-display); font-size: 1.1875rem; font-weight: 500; letter-spacing: -0.01em; }
+  .trust__item strong { font-family: var(--font-display); font-size: 1.3125rem; font-weight: 600; letter-spacing: 0; }
   .trust__item span { color: var(--c-muted); font-size: .875rem; }
   @media (max-width: 899px) {
-    .trust__list { grid-template-columns: 1fr 1fr; row-gap: var(--sp-6); }
+    .trust__list { grid-template-columns: 1fr 1fr; row-gap: var(--sp-6); border-radius: 28px; }
     .trust__item { justify-content: flex-start; padding-inline: var(--sp-3); }
     .trust__item:nth-child(odd) { border-left: 0; }
   }
-  @media (max-width: 380px) { .trust__item { gap: var(--sp-3); } .trust__item :global(svg) { width: 28px; height: 28px; } }
+  @media (max-width: 380px) { .trust__item { gap: var(--sp-3); } .trust__icon { width: 44px; height: 44px; } }
 </style>

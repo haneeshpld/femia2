@@ -75,12 +75,12 @@ onPage(() => {
         });
       });
 
-      // Category arches open upward from their base.
+      // Category photos open upward from their base.
       gsap.utils.toArray<HTMLElement>('[data-arches]').forEach((list) => {
         const tiles = gsap.utils.toArray<HTMLElement>('[data-arch-tile]', list).filter(below);
         if (!tiles.length) return;
         gsap.timeline({ scrollTrigger: { trigger: list, start: 'top 85%', once: true } })
-          .from(tiles, { clipPath: 'inset(100% 0% 0% 0% round 999px 999px 0px 0px)', duration: 1.3, ease: 'power4.out', stagger: 0.09 })
+          .from(tiles, { clipPath: 'inset(100% 0% 0% 0%)', duration: 1.3, ease: 'power4.out', stagger: 0.09 })
           .from(tiles.map((t) => t.querySelector('img')), { scale: 1.3, duration: 1.6, ease, stagger: 0.09 }, 0)
           .from(tiles.map((t) => t.parentElement?.querySelector('.cat__name')), { autoAlpha: 0, y: 14, duration: 0.8, ease, stagger: 0.09 }, 0.35);
       });
@@ -112,47 +112,6 @@ onPage(() => {
         });
       });
 
-      // Footer (persisted, but its scroll range depends on this page's height).
-      const footer = document.querySelector('[data-footer]');
-      const weave = footer?.querySelector('[data-zari] pattern');
-      if (footer && weave) {
-        gsap.fromTo(weave, { attr: { patternTransform: 'translate(0 0)' } }, {
-          attr: { patternTransform: 'translate(192 0)' }, ease: 'none',
-          scrollTrigger: { trigger: footer, start: 'top bottom', end: 'bottom bottom', scrub: true },
-        });
-      }
-      const track = document.querySelector<HTMLElement>('[data-marquee-track]');
-      if (track) {
-        track.classList.add('is-gsap');
-        const loop = gsap.to(track, { xPercent: -50, duration: 42, ease: 'none', repeat: -1, paused: true });
-        ScrollTrigger.create({
-          trigger: '[data-marquee]', start: 'top bottom', end: 'bottom top',
-          onToggle: (self) => (self.isActive ? loop.play() : loop.pause()),
-          onUpdate: (self) => {
-            const v = Math.min(4, 1 + Math.abs(self.getVelocity()) / 600);
-            gsap.to(loop, { timeScale: self.direction < 0 ? -v : v, duration: 0.3, overwrite: true });
-            gsap.to(loop, { timeScale: self.direction < 0 ? -1 : 1, duration: 1.2, delay: 0.3 });
-          },
-        });
-        offs.push(() => track.classList.remove('is-gsap'));
-      }
-
-      // Magnetic primary buttons (desktop only).
-      if (finePointer) {
-        document.querySelectorAll<HTMLElement>('main [data-magnetic]').forEach((btn) => {
-          const x = gsap.quickTo(btn, 'x', { duration: 0.5, ease: 'power3.out' });
-          const y = gsap.quickTo(btn, 'y', { duration: 0.5, ease: 'power3.out' });
-          const move = (e: PointerEvent) => {
-            const r = btn.getBoundingClientRect();
-            x((e.clientX - r.left - r.width / 2) * 0.22);
-            y((e.clientY - r.top - r.height / 2) * 0.32);
-          };
-          const leave = () => { x(0); y(0); };
-          btn.addEventListener('pointermove', move);
-          btn.addEventListener('pointerleave', leave);
-          offs.push(() => { btn.removeEventListener('pointermove', move); btn.removeEventListener('pointerleave', leave); });
-        });
-      }
     });
     ScrollTrigger.refresh();
     revert = () => { offs.forEach((f) => f()); ctx.revert(); };

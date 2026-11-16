@@ -5,10 +5,18 @@
  * bag, search or "Add to Bag" control) or the first UI event, and queued events are replayed once it's ready.
  * Persisted across client-router navigations, so it loads at most once per visit.
  */
-interface Props { freeShippingThreshold: number; sizeGuide: string }
-const { freeShippingThreshold, sizeGuide } = Astro.props;
+import type { StoreSettings } from '@femia/contracts';
+interface Props { freeShippingThreshold: number; sizeGuide: string; store: StoreSettings }
+const { freeShippingThreshold, sizeGuide, store: s } = Astro.props;
+// For "Try at the boutique": WhatsApp in international digits, where the shop is, and its hours.
+const trialStore = {
+  wa: s.whatsapp.replace(/\D/g, '').replace(/^(\d{10})$/, '91$1'),
+  place: [s.address.line1, s.address.city].filter(Boolean).join(', '),
+  mapUrl: s.mapUrl,
+  hours: s.hours,
+};
 ---
-<div id="femia-shell" transition:persist="shell" data-threshold={freeShippingThreshold} data-size-guide={sizeGuide}></div>
+<div id="femia-shell" transition:persist="shell" data-threshold={freeShippingThreshold} data-size-guide={sizeGuide} data-store={JSON.stringify(trialStore)}></div>
 <script>
   import type { UiEvent } from '../lib/ui-events.ts';
 
@@ -22,6 +30,7 @@ const { freeShippingThreshold, sizeGuide } = Astro.props;
     import('./islands/mount-shell.tsx').then(({ mount }) => mount(el, {
       freeShippingThreshold: Number(el.dataset.threshold ?? 99900),
       sizeGuide: el.dataset.sizeGuide ?? '',
+      store: JSON.parse(el.dataset.store || '{"wa":"","place":"","mapUrl":"","hours":null}'),
       onReady: () => {
         state = 'ready';
         window.removeEventListener('femia:ui', capture, true);
@@ -38,7 +47,7 @@ const { freeShippingThreshold, sizeGuide } = Astro.props;
   }
   window.addEventListener('femia:ui', capture, true);
 
-  const INTENT = '[data-ui], [data-quick-add], [data-bag-button], [data-add], a[href="/checkout"]';
+  const INTENT = '[data-ui], [data-quick-add], [data-bag-button], [data-add], [data-trial], a[href="/checkout"]';
   const onIntent = (e: Event) => { if ((e.target as Element | null)?.closest?.(INTENT)) load(); };
   for (const type of ['pointerover', 'touchstart', 'focusin']) document.addEventListener(type, onIntent, { passive: true, capture: true });
   // Anything already in the bag? The shell will be needed for the count-driven drawer soon.

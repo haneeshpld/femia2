@@ -20,7 +20,7 @@ const { heading, tiles, uid = 'cats' } = Astro.props;
             <span class="cat__arch" data-arch-tile>
               {image && <img src={image.src['480']} srcset={srcset(image)} sizes="(min-width: 1024px) 18vw, (min-width: 768px) 30vw, 40vw" width={image.width} height={image.height} alt="" loading="lazy" decoding="async" />}
             </span>
-            <span class="cat__name">{c.name}</span>
+            <span class="cat__base"><span class="cat__name">{c.name}</span></span>
           </a>
         </li>
       ))}
@@ -28,23 +28,25 @@ const { heading, tiles, uid = 'cats' } = Astro.props;
   </div>
 </section>
 <style>
-  .cats__track { display: grid; grid-template-columns: repeat(5, 1fr); gap: clamp(var(--sp-3), 1.6vw, var(--sp-6)); }
-  .cat { display: grid; gap: var(--sp-4); justify-items: center; }
-  .cat__arch { position: relative; display: block; width: 100%; aspect-ratio: 0.77; border-radius: var(--r-arch); overflow: hidden; background: var(--c-sand); box-shadow: var(--shadow-card); }
-  .cat__arch::after { /* zari thread tracing the arch, inset */
-    content: ''; position: absolute; inset: 7px; border-radius: inherit; border: 1px solid rgba(255, 244, 222, .0); transition: border-color 500ms ease, inset 500ms var(--motion-ease-out);
+  .cats__track { display: grid; grid-template-columns: repeat(5, 1fr); gap: clamp(var(--sp-4), 2vw, var(--sp-8)); }
+  /* Square photo cards; the name sits in small capitals on a soft band below. */
+  .cat {
+    position: relative; isolation: isolate; display: grid; height: 100%; overflow: hidden;
+    border-radius: var(--r-card); background: var(--c-surface); box-shadow: var(--shadow-card); transition: box-shadow 400ms ease;
   }
-  .cat:hover .cat__arch::after { border-color: rgba(255, 238, 205, .8); inset: 9px; }
+  .cat::before { content: ''; position: absolute; inset: 0; z-index: 2; border-radius: inherit; border: 1px solid transparent; pointer-events: none; transition: border-color 400ms ease; }
+  .cat:hover { box-shadow: var(--shadow-card-hover); }
+  .cat:hover::before { border-color: var(--c-zari); }
+  .cat__arch { position: relative; display: block; width: 100%; aspect-ratio: 1; overflow: hidden; background: var(--c-sand); }
   .cat__arch img { width: 100%; height: 100%; object-fit: cover; transition: transform 1200ms var(--motion-ease-out); }
-  .cat:hover .cat__arch img { transform: scale(1.06); }
-  .cat__name { position: relative; font-family: var(--font-display); font-size: 1.5rem; font-weight: 500; color: var(--c-ink); transition: color var(--motion-fast) ease; }
-  .cat__name::after { content: ''; position: absolute; left: 50%; bottom: -6px; width: 6px; height: 6px; background: var(--c-zari); transform: translateX(-50%) rotate(45deg) scale(0); transition: transform 360ms var(--motion-ease-out); }
-  .cat:hover .cat__name { color: var(--c-maroon); font-style: italic; }
-  .cat:hover .cat__name::after { transform: translateX(-50%) rotate(45deg) scale(1); }
+  .cat:hover .cat__arch img { transform: scale(1.05); }
+  .cat__base { display: grid; place-items: center; min-height: 50px; padding: var(--sp-2) var(--sp-3); background: var(--c-blush); color: var(--c-ink); transition: color var(--motion-fast) ease; }
+  .cat__name { font-size: .8125rem; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; text-align: center; }
+  .cat:hover .cat__base { color: var(--c-accent); }
   @media (max-width: 1023px) {
     .cats__track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; margin-inline: calc(var(--layout-gutter) * -1); padding: 4px var(--layout-gutter) var(--sp-6); }
     .cats__track::-webkit-scrollbar { display: none; }
-    .cats__track li { flex: 0 0 clamp(124px, 32vw, 210px); scroll-snap-align: start; }
-    .cat__name { font-size: 1.1875rem; }
+    .cats__track li { flex: 0 0 clamp(132px, 34vw, 210px); scroll-snap-align: start; }
+    .cat__name { font-size: .75rem; letter-spacing: .1em; }
   }
 </style>

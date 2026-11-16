@@ -1,128 +1,189 @@
 ---
+/**
+ * Home hero: "the rail".
+ * The boutique's rail of new pieces, hung on a brass rod that runs off the edge of the screen. The owner's photo
+ * hangs first, open; the newest pieces hang beside it as narrow slices with their names running up the side, like
+ * garment tags. Point at (or tab to) a piece and it slides open while the others close up, as hangers do when you
+ * push them along a rail. On load the garments drop onto the rail one after another.
+ * Phones: headline, then the rail as a swipeable strip, then the buttons.
+ */
 import Icon from '../ui/Icon.astro';
-import { srcset } from '../../lib/format.ts';
+import { formatINR, srcset } from '../../lib/format.ts';
+import { api } from '../../lib/api.ts';
+import { boutiqueStatus, type DayHours } from '../../lib/hours.ts';
 import { PHONE, TABLET, type DeviceImages } from '../../lib/hero.ts';
-import { t } from '@femia/i18n';
-interface Props { hero: Record<string, any>; images: DeviceImages; city?: string }
-const { hero: h, images, city } = Astro.props;
+interface Props { hero: Record<string, any>; images: DeviceImages; city?: string; hours?: DayHours[] | null }
+const { hero: h, images, city, hours = null } = Astro.props;
+const status = boutiqueStatus(hours);
+// The four newest pieces still in stock hang beside the photo.
+const pieces = await api().catalog.products({ sort: 'new', pageSize: 8 })
+  .then((r) => r.items.filter((p) => !p.soldOut && p.images.length).slice(0, 4)).catch(() => []);
 // Desktop / tablet / phone photos from Admin; each falls back to the next larger one.
 const { desktop: image, tablet, mobile } = images;
 ---
 <section class="hero" aria-labelledby="hero-title" data-hero>
-  {image && (
-    <div class="hero__art" aria-hidden="true" data-hero-art>
-      <div class="hero__art-inner" data-parallax="12">
-        <picture>
-          {mobile && mobile !== image && <source media={PHONE} srcset={srcset(mobile)} sizes="100vw" width={mobile.width} height={mobile.height} />}
-          {tablet && tablet !== image && <source media={TABLET} srcset={srcset(tablet)} sizes="58vw" width={tablet.width} height={tablet.height} />}
-          <img src={image.src['960']} srcset={srcset(image)} sizes={`${PHONE} 100vw, 58vw`} width={image.width} height={image.height}
-            alt="" fetchpriority="high" decoding="async" data-hero-img />
-        </picture>
-      </div>
-    </div>
-  )}
-  {image && <span class="hero__frame" aria-hidden="true" data-hero-fade><i /></span>}
-  <div class="container hero__inner">
-    <div class="hero__copy">
-      <h1 id="hero-title" class="hero__title">
-        <span class="split-line"><span class="hero__line" data-hero-line>{h.title}</span></span>
-        {h.titleAccent && (
-          <span class="split-line hero__accent-wrap">
-            <span class="hero__line accent" data-hero-line>{h.titleAccent}</span>
-            <svg class="hero__stitch" viewBox="0 0 420 26" preserveAspectRatio="none" aria-hidden="true">
-              <defs>
-                <mask id="stitch-draw" maskUnits="userSpaceOnUse">
-                  <path d="M4 15 C 90 3, 170 25, 250 13 S 370 5, 416 14" stroke="#fff" stroke-width="6" fill="none" pathLength="1" stroke-dasharray="1" data-stitch-mask />
-                </mask>
-              </defs>
-              <path d="M4 15 C 90 3, 170 25, 250 13 S 370 5, 416 14" mask="url(#stitch-draw)" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="8 6" />
-            </svg>
-          </span>
-        )}
-      </h1>
+  <div class="hero__stage">
+    <h1 id="hero-title" class="hero__title">
+      <span class="split-line"><span class="hero__line" data-hero-line>{h.title}</span></span>
+      {h.titleAccent && <span class="split-line"><span class="hero__line hero__accent" data-hero-line>{h.titleAccent}</span></span>}
+    </h1>
+
+    <ul class="rail" role="list" aria-label="New arrivals">
+      <li class="rail__item rail__item--lead">
+        <div class="rail__frame">
+          {image && (
+            <picture>
+              {mobile && mobile !== image && <source media={PHONE} srcset={srcset(mobile)} sizes="72vw" width={mobile.width} height={mobile.height} />}
+              {tablet && tablet !== image && <source media={TABLET} srcset={srcset(tablet)} sizes="(min-width: 900px) 34vw, 72vw" width={tablet.width} height={tablet.height} />}
+              <img src={image.src['960']} srcset={srcset(image)} sizes="(min-width: 900px) 34vw, 72vw" width={image.width} height={image.height}
+                alt={image.alt ?? ''} fetchpriority="high" decoding="async" />
+            </picture>
+          )}
+        </div>
+      </li>
+      {pieces.map((p) => {
+        const img = p.images.find((i) => i.role === 'main') ?? p.images[0]!;
+        return (
+          <li class="rail__item">
+            <a class="rail__frame rail__link" href={`/products/${p.slug}`}>
+              <img src={img.src['480']} srcset={srcset(img)} sizes="(min-width: 900px) 30vw, 44vw" width={img.width} height={img.height} alt="" loading="eager" decoding="async" />
+              <span class="rail__tag" aria-hidden="true">{p.title}</span>
+              <span class="rail__cap"><span class="rail__name">{p.title}</span><span class="rail__price">{formatINR(p.price)}</span></span>
+            </a>
+          </li>
+        );
+      })}
+    </ul>
+
+    <div class="hero__act">
       {h.body && <p class="hero__body" data-hero-fade>{h.body}</p>}
       <div class="hero__ctas" data-hero-fade>
-        <a class="btn" href={h.ctaLink} data-magnetic>{h.ctaLabel} <Icon name="arrowRight" size={18} class="arrow" /></a>
-        {h.secondaryLabel && h.secondaryLink && <a class="hero__link" href={h.secondaryLink}>{h.secondaryLabel}</a>}
+        <a class="btn" href={h.ctaLink}>{h.ctaLabel} <Icon name="arrowRight" size={18} class="arrow" /></a>
+        {h.secondaryLabel && h.secondaryLink && <a class="btn btn--outline" href={h.secondaryLink}>{h.secondaryLabel}</a>}
       </div>
     </div>
-  </div>
-  <div class="container hero__foot" data-hero-fade>
-    {h.eyebrow && <p class="hero__tag"><i class="lozenge" />{h.eyebrow}{city && <span class="hero__city">· {city}</span>}</p>}
-    <a href="#after-hero" class="hero__scroll"><span>{t('common.scroll')}</span><i aria-hidden="true"></i></a>
+
+    {(h.eyebrow || status) && (
+      <div class="hero__foot" data-hero-fade>
+        {h.eyebrow && <p class="hero__tag">{h.eyebrow}</p>}
+        {status && (
+          <a class:list={['hero__status', { 'is-open': status.open }]} href="/visit" data-hours={JSON.stringify(hours)}>
+            <span class="hero__dot" aria-hidden="true"></span>
+            <span><span data-status-text>{status.text}</span>{city && <span class="hero__city">, {city}</span>}</span>
+          </a>
+        )}
+      </div>
+    )}
   </div>
 </section>
-<div id="after-hero"></div>
 
 <style>
-  .hero { position: relative; isolation: isolate; overflow: hidden; min-height: clamp(600px, 88vh, 820px); display: grid; grid-template-rows: 1fr auto;
-    background: radial-gradient(110% 90% at 82% 28%, #F7DCCD 0%, transparent 58%), radial-gradient(60% 50% at 10% 90%, #F6E4D6 0%, transparent 70%), linear-gradient(180deg, #FAEBE1 0%, var(--c-cream) 100%); }
-  .hero__art { position: absolute; z-index: -1; inset: 0 0 0 auto; width: 60%;
-    -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 30%); mask-image: linear-gradient(90deg, transparent 0%, #000 30%); }
-  .hero__art-inner { position: absolute; inset: -8% 0; }
-  .hero__art picture { display: contents; }
-  .hero__art img { width: 100%; height: 100%; object-fit: cover; object-position: 30% 50%; transform-origin: 70% 40%; }
-  .hero__inner { align-self: center; padding-block: var(--sp-16) var(--sp-10); }
-  .hero__copy { max-width: 640px; }
-  .hero__title { font-size: clamp(2.9rem, 1.5rem + 5.2vw, 5.75rem); line-height: .98; font-weight: 500; letter-spacing: -0.03em; }
-  .hero__line { display: inline-block; }
-  .hero__accent-wrap { position: relative; padding-bottom: .22em; }
-  .hero__title .accent { font-weight: 400; letter-spacing: -0.02em; }
-  .hero__stitch { position: absolute; left: 0; bottom: 0; width: min(100%, 9.5em); height: .3em; color: var(--c-zari-deep); overflow: visible; }
-  .hero__body { font-size: clamp(1.0625rem, 1rem + .3vw, 1.25rem); line-height: 1.6; max-width: 32ch; margin-top: var(--sp-6); color: var(--c-text); }
-  .hero__ctas { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4) var(--sp-8); margin-top: var(--sp-10); }
-  .hero__link { position: relative; display: inline-flex; align-items: center; min-height: 44px; color: var(--c-ink); font-size: .8125rem; font-weight: 500; letter-spacing: .16em; text-transform: uppercase; }
-  .hero__link::after { content: ''; position: absolute; left: 0; right: 0; bottom: 9px; height: 1px; background: var(--c-zari); transform-origin: right; transition: transform 420ms var(--motion-ease-out); }
-  .hero__link:hover { color: var(--c-maroon); }
-  .hero__link:hover::after { transform: scaleX(.35); }
-  .hero__foot { display: flex; align-items: flex-end; justify-content: space-between; padding-bottom: var(--sp-6); }
-  .hero__tag { display: inline-flex; align-items: center; gap: var(--sp-3); font-size: .72rem; font-weight: 500; letter-spacing: .24em; text-transform: uppercase; color: var(--c-ink); }
+  .hero {
+    --rail-h: clamp(360px, calc(100svh - 240px), 660px);   /* garment height on wide screens */
+    --hang: 24px;                                           /* rod + hanger space above the garments */
+    --rod: linear-gradient(90deg, var(--c-zari-deep), var(--c-zari) 30%, var(--c-zari-deep) 65%, var(--c-zari));
+    position: relative; isolation: isolate; overflow: hidden; background: var(--c-cream);
+    padding-block: clamp(var(--sp-5), 4vh, var(--sp-12));
+  }
+
+  /* ── wide screens: copy on the left, the rail running off the right edge ── */
+  .hero__stage {
+    display: grid; column-gap: clamp(var(--sp-8), 5vw, var(--sp-20));
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    grid-template-rows: 1fr auto auto auto 1fr;
+    padding-inline-start: max(var(--layout-gutter), calc((100% - var(--layout-max-width)) / 2 + var(--layout-gutter)));
+  }
+  .hero__title { grid-column: 1; grid-row: 2; font-size: clamp(2.75rem, 1rem + 4vw, 5.5rem); line-height: .96; letter-spacing: -.02em; font-weight: 500; overflow-wrap: break-word; }
+  .hero__line { display: block; }
+  .hero__accent { font-style: italic; color: var(--c-accent); letter-spacing: -.01em; }
+  .hero__act { grid-column: 1; grid-row: 3; display: grid; gap: var(--sp-6); justify-items: start; margin-top: var(--sp-6); }
+  .hero__body { font-size: clamp(1.0625rem, 1rem + .25vw, 1.1875rem); line-height: 1.6; max-width: 34ch; color: var(--c-text); }
+  .hero__ctas { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
+  .hero__foot { grid-column: 1; grid-row: 4; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-6); margin-top: var(--sp-6); }
+  .hero__tag { font-size: .9375rem; color: var(--c-ink); }
+  .hero__status { display: inline-flex; align-items: center; gap: var(--sp-2); min-height: 44px; font-size: .875rem; color: var(--c-ink); }
+  .hero__status:hover [data-status-text] { text-decoration: underline; text-decoration-color: var(--c-zari); text-underline-offset: 3px; }
   .hero__city { color: var(--c-muted); }
-  .hero__scroll { display: grid; justify-items: center; gap: var(--sp-2); font-size: .68rem; letter-spacing: .3em; color: var(--c-ink); text-transform: uppercase; }
-  .hero__scroll i { width: 1px; height: 46px; background: linear-gradient(var(--c-ink), var(--c-zari)); transform-origin: top; animation: scroll-line 2.4s var(--motion-ease) infinite; }
-  @keyframes scroll-line { 0% { transform: scaleY(0); } 50% { transform: scaleY(1); transform-origin: top; } 51% { transform-origin: bottom; } 100% { transform: scaleY(0); transform-origin: bottom; } }
+  .hero__dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #B9A79B; }
+  .hero__status.is-open .hero__dot { background: var(--c-success); box-shadow: 0 0 0 3px rgba(47, 107, 63, .18); }
+
+  /* ── the rail ── */
+  .rail {
+    grid-column: 2; grid-row: 1 / -1; display: flex; gap: 10px;
+    height: calc(var(--rail-h) + var(--hang)); padding-top: var(--hang);
+    background: var(--rod) 0 9px / 100% 2px no-repeat;   /* the brass rod */
+  }
+  .rail__item { position: relative; flex: 1 1 0; min-width: 0; }
+  .rail__item::before { /* hanger ring around the rod */
+    content: ''; position: absolute; top: calc(-1 * var(--hang) + 4px); left: calc(50% - 6px); width: 12px; height: 12px;
+    border: 1.5px solid var(--c-zari-deep); border-radius: 50%;
+  }
+  .rail__item::after { /* the hook down to the garment */
+    content: ''; position: absolute; top: calc(-1 * var(--hang) + 16px); left: calc(50% - .75px); width: 1.5px; height: calc(var(--hang) - 16px); background: var(--c-zari-deep);
+  }
+  .rail__frame { position: absolute; inset: 0; display: block; overflow: hidden; border-radius: 12px; background: var(--c-sand); box-shadow: var(--shadow-card); }
+  .rail__frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 25%; }
+  .rail__frame picture { display: contents; }
+  .rail__item:last-child .rail__frame { border-start-end-radius: 0; border-end-end-radius: 0; } /* runs off the edge */
+
+  .rail__link::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(0deg, rgba(36, 24, 12, .62), rgba(36, 24, 12, 0) 48%); }
+  .rail__link:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 3px; }
+  .rail__tag { /* name running up the side, like a garment tag */
+    position: absolute; z-index: 1; left: 50%; bottom: 18px; max-height: calc(100% - 36px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    writing-mode: vertical-rl; transform: translateX(-50%) rotate(180deg);
+    font-size: .8125rem; font-weight: 500; letter-spacing: .02em; color: #FFFDF8; transition: opacity 260ms ease;
+  }
+  .rail__cap { position: absolute; z-index: 1; left: 16px; right: 16px; bottom: 14px; display: grid; gap: 2px; color: #FFFDF8; }
+  .rail__name { font-size: 1rem; font-weight: 500; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rail__price { font-size: .875rem; font-variant-numeric: tabular-nums; opacity: .9; }
+
+  @media (min-width: 900px) {
+    /* the lead photo is open; pointing at a piece pushes it open and closes the others up */
+    .rail__item { --open: 5.5; transition: flex-grow 750ms var(--motion-ease-out); }
+    .rail__item--lead { flex-grow: var(--open); }
+    .rail__item:not(.rail__item--lead):is(:hover, :focus-within) { flex-grow: var(--open); }
+    .rail:has(.rail__item:not(.rail__item--lead):is(:hover, :focus-within)) .rail__item--lead { flex-grow: 1; }
+    .rail__cap { opacity: 0; transform: translateY(8px); transition: opacity 300ms ease, transform 400ms var(--motion-ease-out); }
+    .rail__item:is(:hover, :focus-within) .rail__cap { opacity: 1; transform: none; transition-delay: 220ms; }
+    .rail__item:is(:hover, :focus-within) .rail__tag { opacity: 0; }
+  }
+  @media (min-width: 900px) and (prefers-reduced-motion: reduce) {
+    .rail__item, .rail__cap { transition: none; }
+  }
+
+  /* Christmas seal (festive/christmas): stamped on the lead photo's upper corner. */
+  .hero :global(.xm-seal) { right: auto; bottom: auto; left: 44%; top: clamp(40px, 7vh, 80px); width: 120px; }
 
   /* Held only while GSAP prepares the entrance (removed by script, or after 1.6s by the head guard). */
   :global(.hero-pending) [data-hero-line] { transform: translateY(105%); }
   :global(.hero-pending) [data-hero-fade] { opacity: 0; }
-  :global(.hero-pending) [data-hero-art] { opacity: 0; }
-  :global(.hero-pending) [data-stitch-mask] { stroke-dashoffset: 1; }
+  :global(.hero-pending) .rail__frame { clip-path: inset(0 0 100% 0); }
 
-  .hero__frame { display: none; }
-
-  /* Phones: a magazine cover. The photo fills the first screen, seen through a gold arch;
-     the tagline sits under the arch's crown and the headline rests on a cream fade at the bottom. */
-  @media (max-width: 767px) {
-    .hero { min-height: clamp(560px, calc(100svh - 130px), 780px); grid-template-rows: auto 1fr; }
-    .hero__art { inset: 0; width: auto; height: auto; -webkit-mask-image: none; mask-image: none; }
-    .hero__art-inner { inset: -6% 0; }
-    .hero__art img { object-position: 50% 30%; }
-    .hero__art::after { content: ''; position: absolute; inset: 0; pointer-events: none;
-      background: linear-gradient(180deg, rgba(251, 241, 233, .82) 0%, rgba(251, 241, 233, 0) 17%, rgba(251, 241, 233, 0) 36%,
-        rgba(251, 241, 233, .78) 56%, rgba(251, 241, 233, .96) 72%, var(--c-cream) 100%); }
-
-    .hero__frame { display: block; position: absolute; z-index: 0; inset: 12px 12px 0; pointer-events: none;
-      border: 1px solid rgba(199, 154, 62, .9); border-bottom: 0; border-radius: 999px 999px 0 0;
-      -webkit-mask-image: linear-gradient(180deg, #000 48%, transparent 66%); mask-image: linear-gradient(180deg, #000 48%, transparent 66%); }
-    .hero__frame i { position: absolute; inset: 7px 7px 0; border: 1px dashed rgba(199, 154, 62, .6); border-bottom: 0; border-radius: inherit; }
-
-    .hero__foot { order: 1; position: relative; z-index: 1; display: flex; justify-content: center; padding-top: 92px; padding-bottom: 0; }
-    .hero__tag { font-size: .625rem; letter-spacing: .2em; padding: 7px 14px; border-radius: 999px; background: rgba(251, 241, 233, .78);
-      -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
-    .hero__scroll { display: none; }
-
-    .hero__inner { order: 2; align-self: end; position: relative; z-index: 1; padding-block: var(--sp-6) var(--sp-8); }
-    .hero__title { font-size: clamp(2.1rem, .9rem + 6vw, 3.1rem); }
-    .hero__accent-wrap { display: inline-block; }
-    .hero__stitch { width: 100%; }
-    .hero__body { font-size: 1rem; margin-top: var(--sp-4); max-width: 32ch; }
-    .hero__ctas { flex-wrap: nowrap; gap: var(--sp-5); margin-top: var(--sp-6); }
-    .hero__ctas .btn { flex: none; }
-    .hero__link { font-size: .72rem; letter-spacing: .14em; white-space: nowrap; }
-    .hero :global(.xm-seal) { top: 150px; bottom: auto; right: 24px; width: 84px; }
+  /* ── phones and small tablets: headline, the rail as a swipeable strip, then the buttons ── */
+  @media (max-width: 899px) {
+    .hero { padding-block: var(--sp-6) var(--sp-8); }
+    .hero__stage { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; padding-inline: var(--layout-gutter); }
+    .hero__title { grid-row: 1; font-size: clamp(2.5rem, 1.4rem + 4.6vw, 4rem); }
+    .rail {
+      grid-column: 1; grid-row: 2; height: auto; margin: var(--sp-5) calc(-1 * var(--layout-gutter)) 0;
+      padding: var(--hang) var(--layout-gutter) var(--sp-2); gap: 12px;
+      overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scroll-padding-inline: var(--layout-gutter);
+      background-attachment: local; scrollbar-width: none;
+    }
+    .rail::-webkit-scrollbar { display: none; }
+    .rail__item { flex: 0 0 46vw; height: clamp(300px, 50svh, 460px); scroll-snap-align: start; }
+    .rail__item--lead { flex-basis: 72vw; }
+    .rail__item:last-child .rail__frame { border-radius: 12px; }
+    .rail__tag { display: none; }
+    .hero__act { grid-row: 3; margin-top: var(--sp-6); }
+    .hero__ctas { order: -1; }
+    .hero__foot { grid-row: 4; margin-top: var(--sp-4); }
+    .hero :global(.xm-seal) { left: auto; right: 16px; top: 150px; width: 84px; }
   }
-  @media (max-width: 429px) {
-    .hero__ctas { flex-wrap: wrap; gap: var(--sp-2) var(--sp-5); }
+  @media (max-width: 479px) {
+    .hero__act { justify-items: stretch; }
+    .hero__ctas { flex-direction: column; }
+    .hero__ctas .btn { width: 100%; }
   }
 </style>
 
@@ -135,41 +196,28 @@ const { desktop: image, tablet, mobile } = images;
     const root = document.querySelector<HTMLElement>('[data-hero]');
     const html = document.documentElement;
     if (!root || !html.classList.contains('motion')) { html.classList.remove('hero-pending'); return; }
-    const art = root.querySelector<HTMLElement>('[data-hero-art]');
-    const img = root.querySelector<HTMLElement>('[data-hero-img]');
+    const frames = root.querySelectorAll<HTMLElement>('.rail__frame');
+    const imgs = root.querySelectorAll<HTMLElement>('.rail__frame img');
     const lines = root.querySelectorAll('[data-hero-line]');
     const fades = root.querySelectorAll('[data-hero-fade]');
-    const stitch = root.querySelector('[data-stitch-mask]');
-    let io: IntersectionObserver | undefined;
 
     const ctx = gsap.context(() => {
-      // Diagonal silk wipe: the reveal edge runs parallel to the ribbon (top-right → bottom-left).
-      const hidden = 'polygon(100% 0%, 100% 0%, 100% 100%, 165% 100%)';
-      const shown = 'polygon(-65% 0%, 100% 0%, 100% 100%, 0% 100%)';
       // Drop the CSS hold first (same frame, no paint) so GSAP doesn't read it as a starting offset.
       html.classList.remove('hero-pending');
+      gsap.set(frames, { clipPath: 'inset(0% 0% 100% 0%)' });
+      gsap.set(imgs, { scale: 1.15, yPercent: -5 });
       gsap.set(lines, { y: 0, yPercent: 105 });
-      gsap.set(fades, { autoAlpha: 0, y: 18 });
-      if (art) gsap.set(art, { clipPath: hidden, autoAlpha: 1 });
-      if (img) gsap.set(img, { scale: 1.14, filter: 'blur(14px)' });
-      if (stitch) gsap.set(stitch, { strokeDashoffset: 1 });
+      gsap.set(fades, { autoAlpha: 0, y: 14 });
 
       const tl = gsap.timeline({ defaults: { ease: 'expo.out' } });
-      if (art) tl.to(art, { clipPath: shown, duration: 1.7, ease: 'power4.inOut' }, 0);
-      if (img) tl.to(img, { scale: 1, filter: 'blur(0px)', duration: 2, ease: 'power3.out', clearProps: 'filter' }, 0.15);
-      tl.to(lines, { yPercent: 0, duration: 1.15, stagger: 0.13 }, 0.2)
-        .to(fades, { autoAlpha: 1, y: 0, duration: 1, stagger: 0.12 }, 0.6);
-      if (stitch) tl.to(stitch, { strokeDashoffset: 0, duration: 1.3, ease: 'power2.inOut' }, 0.75);
-
-      // The ribbon keeps breathing, but only while the hero is on screen.
-      if (img) {
-        const drift = gsap.to(img, { yPercent: -1.8, rotation: 0.5, duration: 6.5, ease: 'sine.inOut', yoyo: true, repeat: -1, paused: true });
-        tl.eventCallback('onComplete', () => drift.play());
-        io = new IntersectionObserver(([e]) => (e?.isIntersecting && tl.progress() === 1 ? drift.play() : drift.pause()));
-        io.observe(root);
-      }
+      // The garments drop onto the rail one after another…
+      tl.to(frames, { clipPath: 'inset(0% 0% 0% 0%)', duration: 1.1, ease: 'power4.inOut', stagger: 0.09, clearProps: 'clipPath' }, 0)
+        .to(imgs, { scale: 1, yPercent: 0, duration: 1.5, ease: 'power3.out', stagger: 0.09, clearProps: 'transform' }, 0.05)
+      // …while the headline rises and the rest settles in.
+        .to(lines, { yPercent: 0, duration: 1, stagger: 0.1 }, 0.2)
+        .to(fades, { autoAlpha: 1, y: 0, duration: 0.8, stagger: 0.08 }, 0.55);
     }, root);
 
-    return () => { io?.disconnect(); ctx.revert(); };
+    return () => ctx.revert();
   });
 </script>

@@ -1,4 +1,11 @@
 ---
+/**
+ * Promo banner: "the hem".
+ * The photo runs to the edge of the screen and ends in a straight, stitched hem. The heading is laid across that
+ * hem: ivory where it sits on the photo, ink where it sits on the wall (two copies of the line, each clipped at the
+ * seam). As the banner scrolls in, the heading slides across the seam and its letters change colour as they cross.
+ * Pure CSS scroll-driven animation; browsers without it (and reduced motion) get the finished state.
+ */
 import Icon from '../ui/Icon.astro';
 import { emph, srcset } from '../../lib/format.ts';
 import { PHONE, TABLET, type DeviceImages } from '../../lib/hero.ts';
@@ -6,38 +13,115 @@ interface Props { block: Record<string, any>; images: DeviceImages; uid: string 
 const { block: b, images, uid } = Astro.props;
 // Desktop / tablet / phone photos; the frame takes each photo's own shape when the owner uploaded one.
 const { desktop: image, tablet, mobile, ownTablet, ownMobile } = images;
-const right = b.align === 'right';
+// Admin "Text position": the message sits on that side, the photo runs to the opposite edge.
+const textLeft = b.align !== 'right';
+const heading = emph(b.heading);
 ---
-<section class:list={['section promo', { 'promo--right': right }]} aria-labelledby={`${uid}-title`}>
-  <div class="container promo__inner">
-    <div class:list={['promo__media arch ph', { 'has-tablet': ownTablet, 'has-phone': ownMobile }]} data-reveal>
+<section class:list={['section promo', textLeft ? 'promo--text-left' : 'promo--text-right']} aria-labelledby={`${uid}-title`}>
+  <div class="promo__stage">
+    <div class:list={['promo__media', { 'has-tablet': ownTablet, 'has-phone': ownMobile }]}>
       {image && (
         <picture>
           {mobile && mobile !== image && <source media={PHONE} srcset={srcset(mobile)} sizes="100vw" width={mobile.width} height={mobile.height} />}
-          {tablet && tablet !== image && <source media={TABLET} srcset={srcset(tablet)} sizes="(min-width: 900px) 55vw, 100vw" width={tablet.width} height={tablet.height} />}
-          <img src={image.src['960']} srcset={srcset(image)} sizes="(min-width: 900px) 55vw, 100vw" width={image.width} height={image.height} alt={image.alt} loading="lazy" decoding="async" />
+          {tablet && tablet !== image && <source media={TABLET} srcset={srcset(tablet)} sizes="(min-width: 900px) 58vw, 100vw" width={tablet.width} height={tablet.height} />}
+          <img src={image.src['960']} srcset={srcset(image)} sizes="(min-width: 900px) 58vw, 100vw" width={image.width} height={image.height} alt={image.alt} loading="lazy" decoding="async" />
         </picture>
       )}
+      <span class="promo__hem" aria-hidden="true"></span>
     </div>
-    <div class="promo__copy" data-reveal style="--delay:120ms">
-      <h2 id={`${uid}-title`} data-split set:html={emph(b.heading)} />
-      {b.body && <p>{b.body}</p>}
-      {b.ctaLabel && b.ctaLink && <a class="btn" href={b.ctaLink} data-magnetic>{b.ctaLabel} <Icon name="arrowRight" size={18} class="arrow" /></a>}
+    <div class="promo__copy">
+      <div class="promo__title">
+        <h2 id={`${uid}-title`} class="promo__line promo__line--ink"><span set:html={heading} /></h2>
+        <div class="promo__line promo__line--light" aria-hidden="true"><span set:html={heading} /></div>
+      </div>
+      {b.body && <p class="promo__body">{b.body}</p>}
+      {b.ctaLabel && b.ctaLink && <a class="btn" href={b.ctaLink}>{b.ctaLabel} <Icon name="arrowRight" size={18} class="arrow" /></a>}
     </div>
   </div>
 </section>
 <style>
-  .promo__inner { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: clamp(var(--sp-8), 6vw, var(--sp-20)); align-items: center; }
-  .promo--right .promo__media { order: 2; }
-  .promo__media { aspect-ratio: 1.6; border-radius: var(--r-card); box-shadow: var(--shadow-card-hover); }
-  .promo__media picture, .promo__media img { display: block; width: 100%; height: 100%; object-fit: cover; }
-  @media (min-width: 768px) and (max-width: 1199px) { .promo__media.has-tablet { aspect-ratio: 4 / 3; } }
-  @media (max-width: 767px) { .promo__media.has-phone { aspect-ratio: 4 / 5; } }
-  .promo__copy { display: grid; gap: var(--sp-5); justify-items: start; }
-  .promo__copy h2 :global(em) { font-style: italic; color: var(--c-maroon); font-weight: 450; }
-  .promo__copy p { font-size: var(--fs-md); max-width: 40ch; }
-  @media (max-width: 899px) {
-    .promo__inner { grid-template-columns: 1fr; }
-    .promo--right .promo__media { order: 0; }
+  .promo { overflow-x: clip; } /* clip, not hidden: a scroll container would capture the view timeline */
+
+  /* ── photo ── */
+  .promo__media { position: relative; overflow: hidden; background: var(--c-accent-900); }
+  .promo__media picture, .promo__media img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }
+  .promo__media::after { /* a warm shadow toward the seam so the ivory letters read on any photo */
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(var(--scrim-dir, to bottom), transparent 40%, rgba(38, 25, 13, .4) 72%, rgba(38, 25, 13, .58));
   }
+  .promo__hem { /* the stitched hem: zari dashes just inside the cut edge */
+    position: absolute; z-index: 1; pointer-events: none;
+    --stitch: var(--c-zari-light) 0 7px, transparent 7px 12px;
+  }
+
+  /* ── heading: two copies, clipped at the seam ── */
+  .promo__copy { position: relative; z-index: 2; display: grid; gap: var(--sp-6); justify-items: start; }
+  .promo__title {
+    justify-self: stretch; display: grid;
+    font-family: var(--font-display); font-weight: 500; font-size: clamp(2.75rem, 1.5rem + 4.6vw, 6rem);
+    line-height: .98; letter-spacing: -.02em; font-optical-sizing: auto;
+  }
+  .promo__line { grid-area: 1 / 1; margin: 0; font: inherit; letter-spacing: inherit; color: var(--c-ink); }
+  .promo__line > span { display: block; text-wrap: balance; }
+  .promo__line :global(em) { font-style: italic; color: var(--c-accent); }
+  .promo__line--light { color: #FFFDF8; text-shadow: 0 1px 22px rgba(30, 18, 8, .35); user-select: none; pointer-events: none; }
+  .promo__line--light :global(em) { color: var(--c-zari-light); }
+
+  .promo__body { font-size: var(--fs-md); color: var(--c-text); max-width: 34ch; }
+
+  /* ── wide screens: photo bleeds to one edge, message on the other ── */
+  @media (min-width: 900px) {
+    .promo__stage {
+      --pad: clamp(1.75rem, 3.5vw, 3.5rem);   /* message's distance from the seam */
+      --cross: clamp(3.5rem, 8vw, 8.5rem);    /* how far the heading reaches into the photo */
+      --from-x: calc(var(--dir) * 11vw);
+      --hx: 1; --hy: 0;
+      display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+      min-height: clamp(32rem, 44vw, 46rem);
+    }
+    .promo__copy { align-self: center; padding-block: var(--sp-12); }
+    .promo__title { margin-inline-start: calc(-1 * (var(--cross) + var(--pad))); }
+    .promo__hem { top: 0; bottom: 0; width: 1px; background: repeating-linear-gradient(to bottom, var(--stitch)); transform-origin: top; }
+
+    /* text on the right (photo bleeds left) */
+    .promo--text-right .promo__stage { --dir: -1; --scrim-dir: to right; padding-inline-end: max(var(--layout-gutter), calc((100% - var(--layout-max-width)) / 2 + var(--layout-gutter))); }
+    .promo--text-right .promo__copy { padding-inline-start: var(--pad); }
+    .promo--text-right .promo__hem { right: 10px; }
+    .promo--text-right .promo__line--ink { clip-path: inset(-100vw -100vw -100vw var(--cross)); }
+    .promo--text-right .promo__line--light { clip-path: inset(-100vw calc(100% - var(--cross)) -100vw -100vw); }
+
+    /* text on the left (photo bleeds right), mirrored and hugging the seam */
+    .promo--text-left .promo__stage { --dir: 1; --scrim-dir: to left; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); padding-inline-start: max(var(--layout-gutter), calc((100% - var(--layout-max-width)) / 2 + var(--layout-gutter))); }
+    .promo--text-left .promo__media { order: 2; }
+    .promo--text-left .promo__copy { padding-inline-end: var(--pad); justify-items: end; text-align: end; }
+    .promo--text-left .promo__title { margin-inline: 0 calc(-1 * (var(--cross) + var(--pad))); }
+    .promo--text-left .promo__hem { left: 10px; }
+    .promo--text-left .promo__line--ink { clip-path: inset(-100vw calc(100% - var(--cross)) -100vw -100vw); }
+    .promo--text-left .promo__line--light { clip-path: inset(-100vw -100vw -100vw calc(100% - var(--cross))); }
+  }
+
+  /* ── phones and small tablets: full-width photo, hem along its foot, first line half on the photo ── */
+  @media (max-width: 899px) {
+    .promo__stage { --hx: 0; --hy: 1; --from-y: -.55em; }
+    .promo__media { aspect-ratio: 4 / 3; }
+    .promo__hem { left: 0; right: 0; bottom: 10px; height: 1px; background: repeating-linear-gradient(to right, var(--stitch)); transform-origin: left; }
+    .promo__copy { padding-inline: var(--layout-gutter); }
+    .promo__title { --cy: .6em; margin-top: calc(-1 * var(--cy)); }
+    .promo__line--ink { clip-path: inset(var(--cy) -100vw -100vw -100vw); }
+    .promo__line--light { clip-path: inset(-100vw -100vw calc(100% - var(--cy)) -100vw); }
+  }
+  @media (max-width: 767px) { .promo__media.has-phone { aspect-ratio: 4 / 5; } }
+
+  /* ── the one moment: tied to scroll, so it plays back as you scroll up ── */
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (animation-timeline: view()) {
+      .promo__stage { view-timeline: --promo block; }
+      .promo__line > span { animation: promo-cross linear both; animation-timeline: --promo; animation-range: entry 15% cover 50%; }
+      .promo__media img { animation: promo-settle linear both; animation-timeline: --promo; animation-range: entry 0% cover 55%; }
+      .promo__hem { animation: promo-stitch linear both; animation-timeline: --promo; animation-range: entry 10% cover 45%; }
+    }
+  }
+  @keyframes promo-cross { from { transform: translate(var(--from-x, 0px), var(--from-y, 0px)); } }
+  @keyframes promo-settle { from { transform: scale(1.12); } }
+  @keyframes promo-stitch { from { transform: scale(var(--hx), var(--hy)); } }
 </style>

@@ -136,6 +136,16 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
           <Icon name="heart" />
         </button>
       </div>
+      {store.whatsapp && available && (
+        <button type="button" class="try" data-trial>
+          <span class="try__icon"><Icon name="hanger" size={22} /></span>
+          <span class="try__text">
+            <strong data-trial-label>Try it at the boutique</strong>
+            <span data-trial-sub>Choose a time to try it on{store.address.city ? ` in ${store.address.city}` : ''}</span>
+          </span>
+          <Icon name="chevronRight" size={20} />
+        </button>
+      )}
       {wa && <a class="info__wa" href={wa} target="_blank" rel="noopener"><Icon name="whatsapp" size={20} /> {t('product.askWhatsApp')}</a>}
 
       <div class="acc">
@@ -171,7 +181,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
 <style>
   .crumbs ol { display: flex; flex-wrap: wrap; gap: var(--sp-2); padding-block: var(--sp-4); font-size: .875rem; color: var(--c-muted); }
   .crumbs li + li::before { content: '/'; margin-right: var(--sp-2); opacity: .6; }
-  .crumbs a:hover { color: var(--c-maroon); }
+  .crumbs a:hover { color: var(--c-accent); }
   .crumbs [aria-current] { color: var(--c-ink); }
   .pdp { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: clamp(var(--sp-8), 5vw, var(--sp-16)); align-items: start; padding-bottom: var(--sp-12); }
   .gallery { position: sticky; top: calc(var(--layout-header) + var(--sp-4)); display: grid; grid-template-columns: 80px 1fr; gap: var(--sp-4); }
@@ -181,14 +191,14 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
   .gallery__slide img { width: 100%; height: 100%; object-fit: cover; }
   .gallery__thumbs { grid-column: 1; grid-row: 1; display: grid; gap: var(--sp-3); align-content: start; }
   .gallery__thumbs button { display: block; width: 80px; aspect-ratio: 3 / 4; border-radius: var(--r-sm); overflow: hidden; outline: 1.5px solid transparent; outline-offset: 2px; opacity: .7; transition: opacity var(--motion-fast) ease; }
-  .gallery__thumbs button[aria-current='true'] { outline-color: var(--c-maroon); opacity: 1; }
+  .gallery__thumbs button[aria-current='true'] { outline-color: var(--c-accent); opacity: 1; }
   .gallery__thumbs img { width: 100%; height: 100%; object-fit: cover; }
   .gallery__dots { display: none; }
   .gallery:not(:has(.gallery__thumbs)) { grid-template-columns: 1fr; }
   .gallery:not(:has(.gallery__thumbs)) .gallery__track { grid-column: 1; }
   .info { display: grid; gap: var(--sp-5); }
-  .info__cat a:hover { color: var(--c-maroon); }
-  .info__title { font-size: clamp(2.4rem, 1.8rem + 2.4vw, 3.75rem); letter-spacing: -0.03em; }
+  .info__cat a:hover { color: var(--c-accent); }
+  .info__title { font-size: clamp(2.5rem, 1.9rem + 2.2vw, 3.75rem); line-height: 1; letter-spacing: -0.015em; }
   .info__title + .info__price { margin-top: var(--sp-1); }
   .info__price { font-size: 1.375rem; margin-top: calc(var(--sp-2) * -1); }
   .info__tax { font-size: .875rem; margin-top: calc(var(--sp-4) * -1); }
@@ -199,10 +209,10 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
     background: linear-gradient(100deg, rgba(235, 203, 130, .16), rgba(255, 253, 250, .6) 60%);
     border: 1px dashed color-mix(in srgb, var(--c-zari) 70%, transparent); border-radius: 12px;
   }
-  .deal__mark { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: var(--c-maroon); color: var(--c-zari-light); box-shadow: inset 0 0 0 2px rgba(235, 203, 130, .45); }
+  .deal__mark { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: var(--c-accent); color: var(--c-zari-light); box-shadow: inset 0 0 0 2px rgba(235, 203, 130, .45); }
   .deal--gold .deal__mark { background: linear-gradient(135deg, #F1D99A, var(--c-zari) 50%, var(--c-zari-deep)); color: var(--c-ink); }
   .deal--ink .deal__mark { background: var(--c-ink); color: var(--c-cream); }
-  .deal--rose .deal__mark { background: var(--c-blush); color: var(--c-maroon); }
+  .deal--rose .deal__mark { background: var(--c-blush); color: var(--c-accent); }
   .deal--green .deal__mark { background: #24533F; color: #E9F1E4; }
   .deal__text { display: grid; gap: 1px; font-size: .875rem; color: var(--c-muted); }
   .deal__text strong { font-size: 1rem; font-weight: 600; color: var(--c-ink); }
@@ -210,17 +220,29 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
   .opt legend { font-size: .9375rem; color: var(--c-muted); margin-bottom: var(--sp-3); width: 100%; }
   .opt legend strong, .opt__head > span { color: var(--c-ink); }
   .opt__head { display: flex; justify-content: space-between; align-items: center; }
-  .opt__chart { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--c-maroon); font-weight: 600; text-decoration: underline; text-underline-offset: 4px; min-height: 44px; }
+  .opt__chart { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--c-accent); font-weight: 600; text-decoration: underline; text-underline-offset: 4px; min-height: 44px; }
   .swatches--lg .swatch { width: 34px; height: 34px; }
   .sizes { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
   .size { min-width: 56px; min-height: 48px; padding: 0 var(--sp-3); border-radius: var(--r-md); border: 1.5px solid var(--c-line); background: var(--c-surface); font-weight: 600; color: var(--c-ink); transition: border-color var(--motion-fast) ease, background var(--motion-fast) ease; }
   .size:hover:not(:disabled) { border-color: var(--c-ink); }
-  .size[aria-pressed='true'] { background: var(--c-maroon); border-color: var(--c-maroon); color: var(--c-white); }
-  .size:disabled { color: var(--c-muted); text-decoration: line-through; background: repeating-linear-gradient(135deg, transparent 0 6px, rgba(58, 31, 20, .06) 6px 7px), var(--c-surface); cursor: not-allowed; }
+  .size[aria-pressed='true'] { background: var(--c-accent); border-color: var(--c-accent); color: var(--c-white); }
+  .size:disabled { color: var(--c-muted); text-decoration: line-through; background: repeating-linear-gradient(135deg, transparent 0 6px, rgba(47, 39, 33, .06) 6px 7px), var(--c-surface); cursor: not-allowed; }
   .low { color: var(--c-warning); font-weight: 600; font-size: .9375rem; min-height: 1.4em; }
   .info__buy { display: flex; gap: var(--sp-3); align-items: center; }
   .info__add { min-height: 58px; font-size: .875rem; }
   .info__wish { position: static; flex: none; width: 56px; height: 56px; border: 1.5px solid var(--c-line); box-shadow: none; background: var(--c-surface); }
+  .try {
+    display: flex; align-items: center; gap: var(--sp-4); width: 100%; padding: var(--sp-3) var(--sp-4); text-align: left;
+    border: 1px solid color-mix(in srgb, var(--c-zari) 55%, transparent); border-radius: var(--r-md); background: var(--c-surface);
+    color: var(--c-ink); transition: border-color var(--motion-fast) ease, background var(--motion-fast) ease;
+  }
+  .try:hover { border-color: var(--c-accent); }
+  .try__icon { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--c-blush); color: var(--c-accent); }
+  .try__text { flex: 1; display: grid; gap: 1px; }
+  .try__text strong { font-weight: 500; }
+  .try__text span { font-size: .875rem; color: var(--c-muted); }
+  .try.is-on { border-color: var(--c-accent); background: color-mix(in srgb, var(--c-blush) 45%, var(--c-surface)); }
+  .try.is-on .try__icon { background: var(--c-accent); color: var(--c-zari-light); }
   .info__wa { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--c-ink); font-weight: 500; text-decoration: underline; text-underline-offset: 4px; min-height: 44px; }
   .acc { border-top: 1px solid var(--c-line); }
   .acc details { border-bottom: 1px solid var(--c-line); }
@@ -229,9 +251,9 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
   .acc summary :global(svg) { transition: transform var(--motion-base) var(--motion-ease); }
   .acc details[open] summary :global(svg) { transform: rotate(45deg); }
   .acc__body { padding-bottom: var(--sp-5); display: grid; gap: var(--sp-2); }
-  .acc__body a { color: var(--c-maroon); text-decoration: underline; }
+  .acc__body a { color: var(--c-accent); text-decoration: underline; }
   dialog { border: 0; padding: 0; background: transparent; max-width: none; max-height: none; }
-  dialog::backdrop { background: rgba(42, 20, 14, .6); }
+  dialog::backdrop { background: rgba(40, 32, 26, .6); }
   .zoom[open] { position: fixed; inset: 0; width: 100vw; height: 100dvh; background: var(--c-cream); overflow: auto; }
   .zoom img { width: 100%; max-width: 1200px; margin: 0 auto; }
   .zoom__close { position: fixed; top: var(--sp-3); right: var(--sp-3); background: var(--c-surface); box-shadow: var(--shadow-card); z-index: 1; }
@@ -245,7 +267,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
     .gallery__thumbs { display: none; }
     .gallery__dots { display: flex; justify-content: center; gap: 6px; }
     .gallery__dots span { width: 6px; height: 6px; border-radius: 3px; background: var(--c-line); transition: width var(--motion-base) ease, background var(--motion-base) ease; }
-    .gallery__dots span.is-on { width: 18px; background: var(--c-maroon); }
+    .gallery__dots span.is-on { width: 18px; background: var(--c-accent); }
   }
   @media (max-width: 767px) {
     .info__buy { position: fixed; left: 0; right: 0; bottom: calc(56px + env(safe-area-inset-bottom)); z-index: 44; background: color-mix(in srgb, var(--c-cream) 95%, transparent); backdrop-filter: blur(10px); padding: var(--sp-3) var(--layout-gutter); border-top: 1px solid var(--c-line); }
@@ -254,7 +276,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
 </style>
 
 <script>
-  import { addToCart } from '../../lib/stores.ts';
+  import { $trial, $trialVisit, addToCart, addTrial, inTrial } from '../../lib/stores.ts';
   import { flyToBag } from '../../lib/fly.ts';
   import { emit } from '../../lib/ui-events.ts';
   import { track } from '../../lib/analytics.ts';
@@ -343,6 +365,17 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
         dlg.showModal();
         return;
       }
+      if (t.closest('[data-trial]')) {
+        const imgs = d.galleries[colour ?? ''] ?? Object.values(d.galleries)[0] ?? [];
+        addTrial({
+          productId: d.id, slug: d.slug, title: d.title, price: variant()?.price ?? d.price, image: imgs[0]?.src['480'] ?? null,
+          colour: d.option2Values.find((o) => o.value === colour)?.label ?? null,
+          sizes: hasSizes && size ? [d.option1Values.find((o) => o.value === size)?.label ?? size] : [],
+          sizeOptions: d.option1Values.map((o) => o.label),
+        });
+        emit({ type: 'trial:open' });
+        return;
+      }
       if (t.closest('[data-open-chart]')) { document.querySelector<HTMLDialogElement>('[data-chart-dialog]')?.showModal(); return; }
       if (t.closest('[data-add]')) {
         if (hasSizes && !size) {
@@ -385,6 +418,20 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
     }).catch(() => {});
     renderSizes();
     track('view_item', { productId: d.id, value: d.price });
+
+    // "Try it at the boutique" shows whether this piece is already on the try-on list.
+    const tryBtn = $<HTMLElement>('[data-trial]');
+    const city = $<HTMLElement>('[data-trial-sub]')?.textContent ?? '';
+    const syncTry = () => {
+      if (!tryBtn) return;
+      const on = inTrial(d.id);
+      const v = $trialVisit.get();
+      tryBtn.classList.toggle('is-on', on);
+      $<HTMLElement>('[data-trial-label]')!.textContent = on ? 'On your try-on list' : 'Try it at the boutique';
+      $<HTMLElement>('[data-trial-sub]')!.textContent = on ? (v ? `Visit requested for ${v.long.replace(/^(today|tomorrow), .*/, '$1')}` : 'View your list and choose a time') : city;
+    };
+    const offs = [$trial.subscribe(syncTry), $trialVisit.subscribe(syncTry)];
+    return () => offs.forEach((off) => off());
   }
   });
 </script>

@@ -231,7 +231,7 @@ async function main() {
       { id: 'occasions', type: 'occasions', enabled: true, data: { heading: 'Dressed for every *moment*', items: [
         { collection: 'col_everyday', title: 'Everyday Edit', image: occ[0] }, { collection: 'col_festive', title: 'Festive Edit', image: occ[1] }, { collection: 'col_work', title: 'Work Edit', image: occ[2] },
       ] } },
-      { id: 'boutique', type: 'boutique', enabled: true, data: { heading: 'Try it on *in person*', body: 'Step into our boutique to explore the full collection, feel the fabrics and find your perfect fit with our stylists.', image: boutique } },
+      { id: 'boutique', type: 'boutique', enabled: false, data: { heading: 'Try it on *in person*', body: 'Step into our boutique to explore the full collection, feel the fabrics and find your perfect fit with our stylists.', image: boutique } },
       { id: 'instagram', type: 'instagram', enabled: true, data: { heading: 'Styled *by you*', handle: '@femia__boutique', images: social.map((image) => ({ image, caption: '', link: '' })) } },
     ] },
     // Visit Us page

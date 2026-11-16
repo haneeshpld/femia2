@@ -4,13 +4,15 @@ import { useEffect, useState } from 'react';
 import type { Quote } from '@femia/contracts';
 import { formatINR } from '@femia/contracts/money';
 import { t } from '@femia/i18n';
-import { $cart, removeLine, setQty } from '../../lib/stores.ts';
+import { $cart, $trial, removeLine, setQty } from '../../lib/stores.ts';
+import { emit } from '../../lib/ui-events.ts';
 import { track } from '../../lib/analytics.ts';
 import { Icon } from './Icon.tsx';
 import { Sheet } from './Sheet.tsx';
 
 export function CartDrawer({ open, onClose, threshold }: { open: boolean; onClose: () => void; threshold: number }) {
   const lines = useStore($cart);
+  const trialCount = useStore($trial).length;
   const [quote, setQuote] = useState<Quote | null>(null);
   const [notices, setNotices] = useState<string[]>([]);
 
@@ -65,8 +67,17 @@ export function CartDrawer({ open, onClose, threshold }: { open: boolean; onClos
     </>
   );
 
+  const trialLink = trialCount > 0 && (
+    <button type="button" className="trial-link" onClick={() => emit({ type: 'trial:open' })}>
+      <Icon name="hanger" size={20} />
+      <span>{trialCount} {trialCount === 1 ? 'piece' : 'pieces'} to try at the boutique</span>
+      <Icon name="chevronRight" size={18} />
+    </button>
+  );
+
   return (
     <Sheet open={open} onClose={onClose} labelledBy="bag-title" title={<>{t('bag.title')}{count > 0 && <span className="sheet__count"> ({count})</span>}</>} footer={footer}>
+      {trialLink}
       {lines.length === 0 ? (
         <div className="empty">
           <span className="empty__icon"><Icon name="bag" size={36} /></span>

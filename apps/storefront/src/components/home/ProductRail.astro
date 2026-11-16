@@ -21,8 +21,15 @@ const { title, linkLabel, products, viewAll, id } = Astro.props;
   </section>
 )}
 <style>
-  .rail { padding-top: 0; }
-  .rail__track { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-10) var(--sp-6); }
+  .rail { padding-top: clamp(var(--sp-4), 2vw, var(--sp-8)); }
+  /* Wide screens: the heading becomes an intro column on the left, the pieces sit to its right. */
+  @media (min-width: 1100px) {
+    .rail > .container { display: grid; grid-template-columns: minmax(220px, .9fr) 4fr; gap: clamp(var(--sp-10), 4vw, var(--sp-16)); align-items: start; }
+    .rail .section-head { grid-template-columns: 1fr; grid-template-areas: 'title' 'rule' 'aside'; justify-items: start; text-align: left; margin: var(--sp-6) 0 0; row-gap: var(--sp-4); }
+    .rail .section-head h2 { font-size: clamp(2.25rem, 1.6rem + 1.4vw, 3rem); }
+    .rail .section-head :global(.thread-rule), .rail .section-head > :global(:not(h2)) { justify-self: start; }
+  }
+  .rail__track { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-10) clamp(var(--sp-5), 1.8vw, var(--sp-8)); }
   @media (max-width: 1023px) {
     .rail__track { display: flex; gap: var(--sp-4); overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; margin-inline: calc(var(--layout-gutter) * -1); padding: var(--sp-2) var(--layout-gutter) var(--sp-10); }
     .rail__track::-webkit-scrollbar { display: none; }

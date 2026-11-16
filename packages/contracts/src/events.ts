@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const AnalyticsEventName = z.enum(['page_view', 'view_item', 'add_to_bag', 'begin_checkout', 'purchase', 'search', 'newsletter_signup']);
+export const AnalyticsEventName = z.enum(['page_view', 'view_item', 'add_to_bag', 'begin_checkout', 'purchase', 'search', 'newsletter_signup', 'trial_request']);
 export const AnalyticsEvent = z.object({
   name: AnalyticsEventName,
   sessionId: z.string().min(8).max(64),

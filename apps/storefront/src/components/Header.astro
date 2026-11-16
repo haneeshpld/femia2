@@ -4,106 +4,87 @@ import Logo from './ui/Logo.astro';
 import { t } from '@femia/i18n';
 const path = Astro.url.pathname;
 type Item = { href: string; label: string; active: boolean };
-const left: Item[] = [
+const nav: Item[] = [
   { href: '/', label: t('nav.home'), active: path === '/' },
   { href: '/shop', label: t('nav.shop'), active: path.startsWith('/shop') || path.startsWith('/products') },
-];
-const right: Item[] = [
   { href: '/collections', label: t('nav.collections'), active: path.startsWith('/collections') },
+  { href: '/about', label: t('nav.about'), active: path.startsWith('/about') },
   { href: '/visit', label: t('nav.visit'), active: path.startsWith('/visit') },
 ];
 ---
 <header class="hdr" data-header>
-  <!-- Cream plate that dips into a shallow arch beneath the logo, edged with a zari thread. Shape is drawn by script. -->
   <div class="hdr__plate" aria-hidden="true"><div class="hdr__bg" data-hdr-bg></div></div>
-  <svg class="hdr__thread" aria-hidden="true" data-hdr-thread>
-    <path data-thread-half pathLength="1" />
-    <path data-thread-half pathLength="1" />
-  </svg>
 
   <div class="container hdr__inner">
     <div class="hdr__m-left hdr__m-only">
       <button class="icon-btn" type="button" data-ui="search:open" aria-label={t('nav.search')}><Icon name="search" /></button>
       <a class="icon-btn hdr__acct" href="/account" aria-label="Your account" data-account-link><Icon name="user" /><span class="hdr__acct-dot" data-account-dot hidden></span></a>
     </div>
-    <nav class="hdr__nav hdr__nav--l" aria-label="Main">
-      <ul role="list">
-        {left.map((n) => (
-          <li><a href={n.href} aria-current={n.active ? 'page' : undefined}><span class="roll-txt"><span>{n.label}</span><span aria-hidden="true">{n.label}</span></span></a></li>
-        ))}
-      </ul>
-    </nav>
 
     <a href="/" class="hdr__brand" aria-label="Femia home" data-hdr-brand><Logo /></a>
 
-    <div class="hdr__right">
-      <nav class="hdr__nav hdr__nav--r" aria-label="Collections and boutique">
-        <ul role="list">
-          {right.map((n) => (
-            <li><a href={n.href} aria-current={n.active ? 'page' : undefined}><span class="roll-txt"><span>{n.label}</span><span aria-hidden="true">{n.label}</span></span></a></li>
-          ))}
-        </ul>
-      </nav>
-      <div class="hdr__actions">
-        <button class="icon-btn hdr__d-only" type="button" data-ui="search:open" aria-label={t('nav.search')}><Icon name="search" /></button>
-        <a class="icon-btn hdr__acct hdr__d-only" href="/account" aria-label="Your account" data-account-link>
-          <Icon name="user" /><span class="hdr__acct-dot" data-account-dot hidden></span>
-        </a>
-        <a class="icon-btn" href="/wishlist" aria-label={t('nav.wishlist')}>
-          <Icon name="heart" /><span class="badge" data-wish-count hidden></span>
-        </a>
-        <button class="icon-btn" type="button" data-ui="cart:open" aria-label={t('nav.bag')} data-bag-button>
-          <Icon name="bag" /><span class="badge" data-cart-count hidden></span>
-        </button>
-      </div>
+    <nav class="hdr__nav" aria-label="Main">
+      <ul role="list">
+        {nav.map((n) => <li><a href={n.href} aria-current={n.active ? 'page' : undefined}>{n.label}</a></li>)}
+      </ul>
+    </nav>
+
+    <div class="hdr__actions">
+      <button class="icon-btn hdr__d-only" type="button" data-ui="search:open" aria-label={t('nav.search')}><Icon name="search" /></button>
+      <a class="icon-btn hdr__acct hdr__d-only" href="/account" aria-label="Your account" data-account-link>
+        <Icon name="user" /><span class="hdr__acct-dot" data-account-dot hidden></span>
+      </a>
+      <a class="icon-btn" href="/wishlist" aria-label={t('nav.wishlist')}>
+        <Icon name="heart" /><span class="badge" data-wish-count hidden></span>
+      </a>
+      <button class="icon-btn" type="button" data-ui="cart:open" aria-label={t('nav.bag')} data-bag-button>
+        <Icon name="bag" /><span class="badge" data-cart-count hidden></span>
+      </button>
     </div>
   </div>
 </header>
 
 <style>
+  /* Flat white bar: logo left, menu centred, icons right. Slims a little as you scroll. */
   .hdr {
-    --h-open: 92px; --h-closed: 64px; --dip-open: 20px;
-    --hdr-h: var(--h-open); --dip: var(--dip-open); --brand-s: 1;
+    --h-open: 84px; --h-closed: 64px; --dip-open: 0px;
+    --hdr-h: var(--h-open); --dip: 0px; --brand-s: 1;
     position: sticky; top: 0; z-index: 40; height: var(--hdr-h);
     /* Constant layout height while the header slims: no content jump on scroll. */
     margin-bottom: calc(var(--h-open) - var(--hdr-h));
   }
-  .hdr__plate { position: absolute; inset: 0 0 auto 0; height: calc(var(--hdr-h) + var(--dip) + 2px); pointer-events: none; filter: drop-shadow(0 10px 18px rgba(74, 20, 22, var(--shade, 0))); }
-  .hdr__bg { position: absolute; inset: 0; background: color-mix(in srgb, var(--c-cream) 88%, transparent); backdrop-filter: saturate(1.4) blur(14px); -webkit-backdrop-filter: saturate(1.4) blur(14px); }
-  .hdr__thread { position: absolute; left: 0; top: 0; width: 100%; height: calc(var(--hdr-h) + var(--dip) + 4px); overflow: visible; pointer-events: none; }
-  .hdr__thread path { fill: none; stroke: var(--c-zari); stroke-width: 1; stroke-linecap: round; }
-  :global(.motion) .hdr__thread path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: thread-out 1.6s .25s cubic-bezier(.65, 0, .35, 1) forwards; }
-  @keyframes thread-out { to { stroke-dashoffset: 0; } }
+  .hdr::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: var(--c-line); pointer-events: none; }
+  .hdr__plate { position: absolute; inset: 0 0 auto 0; height: calc(var(--hdr-h) + 2px); pointer-events: none; filter: drop-shadow(0 8px 16px rgba(60, 40, 20, var(--shade, 0))); }
+  .hdr__bg { position: absolute; inset: 0; background: color-mix(in srgb, #FFFFFF 94%, transparent); backdrop-filter: saturate(1.2) blur(14px); -webkit-backdrop-filter: saturate(1.2) blur(14px); }
 
-  .hdr__inner { position: relative; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; height: 100%; gap: var(--sp-6); }
-  .hdr__brand { justify-self: center; display: block; transform: translateY(calc(var(--dip) * .35)) scale(var(--brand-s)); transform-origin: 50% 50%; }
-  .hdr__right { display: flex; align-items: center; justify-content: flex-end; gap: clamp(var(--sp-5), 3vw, var(--sp-10)); }
-  .hdr__nav ul { display: flex; gap: clamp(var(--sp-5), 3vw, var(--sp-10)); }
-  .hdr__nav a { position: relative; display: inline-flex; align-items: center; min-height: 44px; color: var(--c-ink); transition: color var(--motion-fast) ease; }
-  /* Label rolls up to reveal the same word in Bodoni italic. */
-  .roll-txt { display: inline-block; height: 1.5em; overflow: hidden; line-height: 1.5em; text-align: center; }
-  .roll-txt > span { display: block; transition: transform 520ms var(--motion-ease-out); }
-  .roll-txt > span:first-child { font-size: .76rem; font-weight: 500; letter-spacing: .2em; text-transform: uppercase; }
-  .roll-txt > span:last-child { font-family: var(--font-display); font-style: italic; font-size: 1.125rem; font-weight: 450; letter-spacing: -0.01em; color: var(--c-maroon); }
-  .hdr__nav a:hover .roll-txt > span, .hdr__nav a:focus-visible .roll-txt > span { transform: translateY(-100%); }
-  .hdr__nav a::before { content: ''; position: absolute; left: 50%; bottom: 4px; width: 6px; height: 6px; background: var(--c-zari); transform: translateX(-50%) rotate(45deg) scale(0); transition: transform 320ms var(--motion-ease-out); }
-  .hdr__nav a[aria-current='page'] { color: var(--c-maroon); }
-  .hdr__nav a[aria-current='page']::before { transform: translateX(-50%) rotate(45deg) scale(1); }
-  .hdr__actions { display: flex; gap: var(--sp-1); margin-right: -10px; }
+  .hdr__inner { position: relative; display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: 'brand nav actions'; align-items: center; height: 100%; gap: var(--sp-8); }
+  .hdr__brand { grid-area: brand; display: block; transform: scale(var(--brand-s)); transform-origin: 0 50%; }
+  .hdr__nav { grid-area: nav; justify-self: center; }
+  .hdr__nav ul { display: flex; gap: clamp(var(--sp-6), 3.2vw, var(--sp-12)); }
+  .hdr__nav a { position: relative; display: inline-flex; align-items: center; min-height: 44px; color: var(--c-ink);
+    font-size: .8125rem; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; transition: color var(--motion-fast) ease; }
+  .hdr__nav a:hover, .hdr__nav a:focus-visible { color: var(--c-accent); }
+  /* the current page gets a fine caramel underline */
+  .hdr__nav a::before { content: ''; position: absolute; left: 0; right: .12em; bottom: 8px; height: 1.5px; background: var(--c-accent); transform: scaleX(0); transform-origin: left; transition: transform 320ms var(--motion-ease-out); }
+  .hdr__nav a[aria-current='page'] { color: var(--c-accent); }
+  .hdr__nav a[aria-current='page']::before { transform: scaleX(1); }
+  .hdr__actions { grid-area: actions; display: flex; gap: var(--sp-1); margin-right: -10px; }
   .hdr__actions :global(.badge) { overflow: hidden; }
   .hdr__actions :global(.roll) { display: flex; flex-direction: column; line-height: 18px; }
   .hdr__actions :global(.roll span) { display: block; height: 18px; }
   .hdr__m-only { display: none; }
   .hdr__acct { position: relative; }
-  .hdr__acct-dot { position: absolute; top: 9px; right: 8px; width: 9px; height: 9px; border-radius: 50%; background: var(--c-zari); box-shadow: 0 0 0 2px var(--c-cream); }
+  .hdr__acct-dot { position: absolute; top: 9px; right: 8px; width: 9px; height: 9px; border-radius: 50%; background: var(--c-zari); box-shadow: 0 0 0 2px #FFFFFF; }
 
   @media (max-width: 1023px) {
-    .hdr { --h-open: 72px; --h-closed: 58px; --dip-open: 14px; }
+    .hdr { --h-open: 64px; --h-closed: 56px; }
+    .hdr__inner { grid-template-columns: 1fr auto 1fr; grid-template-areas: 'mleft brand actions'; gap: var(--sp-4); }
+    .hdr__brand { justify-self: center; transform-origin: 50% 50%; }
     .hdr__nav { display: none; }
     .hdr__m-only { display: inline-grid; margin-left: -10px; justify-self: start; }
-    .hdr__m-left { display: flex; }
+    .hdr__m-left { grid-area: mleft; display: flex; }
+    .hdr__actions { justify-self: end; }
     .hdr__d-only { display: none; }
-    .hdr__inner { grid-template-columns: 1fr auto 1fr; }
   }
   @media print { .hdr { position: static; } }
 </style>
@@ -125,7 +106,7 @@ const right: Item[] = [
   window.addEventListener('storage', (e) => { if (e.key === 'femia.account.v1') syncAccount(); });
 
   // Header and tab bar persist across client-router navigations: mark the current section on every page.
-  const section = (p: string) => (p === '/' ? '/' : p.startsWith('/shop') || p.startsWith('/products') ? '/shop' : p.startsWith('/collections') ? '/collections' : p.startsWith('/visit') ? '/visit' : null);
+  const section = (p: string) => (p === '/' ? '/' : p.startsWith('/shop') || p.startsWith('/products') ? '/shop' : p.startsWith('/collections') ? '/collections' : p.startsWith('/visit') ? '/visit' : p.startsWith('/about') ? '/about' : null);
   onPage(() => {
     const cur = section(location.pathname);
     document.querySelectorAll<HTMLAnchorElement>('.hdr__nav a, .tabbar a').forEach((a) => {
@@ -133,17 +114,13 @@ const right: Item[] = [
     });
   });
 
-  // ── Masthead: slims, flattens its arch and tucks the logo in as you scroll ──
+  // ── Masthead: slims a little and gains a soft shadow as you scroll ──
   const header = document.querySelector<HTMLElement>('[data-header]');
   if (header) {
-    const bg = header.querySelector<HTMLElement>('[data-hdr-bg]')!;
-    const brand = header.querySelector<HTMLElement>('[data-hdr-brand]')!;
-    const [lh, rh] = header.querySelectorAll<SVGPathElement>('[data-thread-half]');
     const num = (v: string) => parseFloat(getComputedStyle(header).getPropertyValue(v));
-    let start = 0, hOpen = 92, hClosed = 64, dOpen = 20, last = -1;
-
+    let start = 0, hOpen = 84, hClosed = 64, last = -1;
     const measure = () => {
-      hOpen = num('--h-open'); hClosed = num('--h-closed'); dOpen = num('--dip-open');
+      hOpen = num('--h-open'); hClosed = num('--h-closed');
       // Progress starts once the announcement bar has scrolled away and the header is pinned.
       start = document.querySelector<HTMLElement>('.announce')?.offsetHeight ?? 0;
       last = -1; update();
@@ -153,27 +130,14 @@ const right: Item[] = [
       if (p === last) return;
       last = p;
       const e = 1 - Math.pow(1 - p, 3); // ease-out so it settles softly
-      const h = hOpen + (hClosed - hOpen) * e;
-      const d = dOpen * (1 - e);
-      header.style.setProperty('--hdr-h', `${h}px`);
-      header.style.setProperty('--dip', `${d}px`);
-      header.style.setProperty('--brand-s', String(1 - 0.14 * e));
-      header.style.setProperty('--shade', String(0.18 * e));
-      const W = header.clientWidth;
-      const b = brand.getBoundingClientRect(), hr = header.getBoundingClientRect();
-      const cx = b.left - hr.left + b.width / 2;
-      const a = Math.max(70, b.width / 2 + 44);
-      const y = h, yd = h + d;
-      // Plate: full width, bottom edge dips in a soft arch under the logo.
-      bg.style.clipPath = `path('M0 0 H${W} V${y} H${cx + a} C${cx + a * 0.55} ${y}, ${cx + a * 0.5} ${yd}, ${cx} ${yd} C${cx - a * 0.5} ${yd}, ${cx - a * 0.55} ${y}, ${cx - a} ${y} H0 Z')`;
-      lh?.setAttribute('d', `M${cx} ${yd} C${cx - a * 0.5} ${yd}, ${cx - a * 0.55} ${y}, ${cx - a} ${y} H0`);
-      rh?.setAttribute('d', `M${cx} ${yd} C${cx + a * 0.5} ${yd}, ${cx + a * 0.55} ${y}, ${cx + a} ${y} H${W}`);
+      header.style.setProperty('--hdr-h', `${hOpen + (hClosed - hOpen) * e}px`);
+      header.style.setProperty('--brand-s', String(1 - 0.12 * e));
+      header.style.setProperty('--shade', String(0.12 * e));
       header.classList.toggle('is-scrolled', p > 0.02);
     };
     let raf = 0;
     addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; update(); }); }, { passive: true });
     new ResizeObserver(measure).observe(header);
-    document.fonts?.ready.then(measure);
     measure();
   }
 
@@ -202,6 +166,6 @@ const right: Item[] = [
     const el = (e.target as Element).closest<HTMLElement>('[data-ui]');
     if (!el) return;
     e.preventDefault();
-    emit({ type: el.dataset.ui as 'cart:open' | 'search:open' });
+    emit({ type: el.dataset.ui as 'cart:open' | 'search:open' | 'trial:open' });
   });
 </script>

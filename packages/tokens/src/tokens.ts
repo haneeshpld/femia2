@@ -29,8 +29,8 @@ export const color = {
 } as const;
 
 export const font = {
-  display: "'Bodoni Moda Variable', 'Bodoni Moda', 'Didot', 'Bodoni 72', Georgia, serif",
-  body: "'Jost Variable', 'Jost', 'Futura', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+  display: "'Cormorant Garamond Variable', 'Cormorant Garamond', 'Hoefler Text', Garamond, Georgia, serif",
+  body: "'DM Sans Variable', 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
 } as const;
 
 /** Fluid type scale (clamp between 360px and 1440px viewports). */
@@ -39,10 +39,10 @@ export const fontSize = {
   sm: '0.875rem',
   base: '1rem',
   md: '1.125rem',
-  lg: 'clamp(1.25rem, 1.13rem + 0.5vw, 1.5rem)',
-  xl: 'clamp(1.75rem, 1.5rem + 1.1vw, 2.5rem)',
-  '2xl': 'clamp(2.25rem, 1.7rem + 2.4vw, 3.75rem)',
-  '3xl': 'clamp(2.75rem, 1.9rem + 3.8vw, 5.5rem)',
+  lg: 'clamp(1.25rem, 1.18rem + 0.3vw, 1.5rem)',
+  xl: 'clamp(1.75rem, 1.55rem + 0.9vw, 2.375rem)',
+  '2xl': 'clamp(2.375rem, 1.8rem + 2.6vw, 4rem)',
+  '3xl': 'clamp(2.875rem, 2.1rem + 3.4vw, 5rem)',
 } as const;
 
 /** Spacing scale: the only spacings allowed in layouts (4px base). */

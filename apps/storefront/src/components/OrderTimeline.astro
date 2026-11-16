@@ -33,15 +33,15 @@ const fmt = (iso?: string) => iso ? new Intl.DateTimeFormat('en-IN', { day: 'num
   .tl__step { position: relative; display: grid; grid-template-columns: 32px 1fr; gap: var(--sp-4); padding-bottom: var(--sp-6); color: var(--c-muted); }
   .tl__step::before { content: ''; position: absolute; left: 15px; top: 32px; bottom: 0; width: 2px; background: var(--c-line); }
   .tl__step:last-child::before { display: none; }
-  .tl__step.is-done::before { background: var(--c-maroon); }
+  .tl__step.is-done::before { background: var(--c-accent); }
   .tl__dot { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--c-line); background: var(--c-surface); color: var(--c-white); }
-  .tl__step.is-done .tl__dot { background: var(--c-maroon); border-color: var(--c-maroon); }
-  .tl__step.is-current .tl__dot { box-shadow: 0 0 0 5px rgba(122, 22, 40, .15); }
-  .tl__step.is-current:not(.is-done) .tl__dot { color: var(--c-maroon); border-color: var(--c-maroon); }
+  .tl__step.is-done .tl__dot { background: var(--c-accent); border-color: var(--c-accent); }
+  .tl__step.is-current .tl__dot { box-shadow: 0 0 0 5px rgba(138, 98, 54, .15); }
+  .tl__step.is-current:not(.is-done) .tl__dot { color: var(--c-accent); border-color: var(--c-accent); }
   .tl__step div { display: grid; padding-top: 4px; }
   .tl__step.is-done strong, .tl__step.is-current strong { color: var(--c-ink); }
   .tl__step .muted { font-size: .875rem; }
   .tl__ship { font-size: .9375rem; color: var(--c-text); }
-  .tl__ship a { color: var(--c-maroon); text-decoration: underline; }
+  .tl__ship a { color: var(--c-accent); text-decoration: underline; }
   .tl-cancel { display: flex; gap: var(--sp-2); align-items: center; padding: var(--sp-4); border-radius: var(--r-md); background: #FBEAEA; color: var(--c-danger); font-weight: 600; }
 </style>

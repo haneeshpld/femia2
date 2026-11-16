@@ -158,8 +158,11 @@ const theme: FestiveTheme = {
       const hdr = document.querySelector<HTMLElement>('[data-header]');
       const brand = hdr?.querySelector<HTMLElement>('[data-hdr-brand]');
       if (!hdr || !brand) return;
-      const a = Math.max(70, brand.getBoundingClientRect().width / 2 + 44);
+      const b = brand.getBoundingClientRect(), h = hdr.getBoundingClientRect();
+      const a = Math.max(70, b.width / 2 + 44);
       hdr.style.setProperty('--xm-s', String(a / 120));
+      // The garland hangs from the logo, wherever the header places it.
+      hdr.style.setProperty('--xm-x', `${b.left - h.left + b.width / 2}px`);
     };
 
     const refresh = () => {

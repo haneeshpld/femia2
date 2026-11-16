@@ -39,5 +39,6 @@ export const ICONS = {
   cash: '<rect x="2.5" y="6.5" width="19" height="11" rx="1.5"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9.5v5M18 9.5v5"/>',
   upi: '<rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/><path d="m10 8.5 2.5 2.5L10 13.5M13 8.5l2.5 2.5L13 13.5"/>',
   sparkle: '<path d="M12 3.5 13.8 10l6.7 2-6.7 2L12 20.5 10.2 14l-6.7-2 6.7-2z"/>',
+  hanger: '<path d="M10 6a2 2 0 1 1 2 2v1.6"/><path d="M12 9.6 3.6 15.4a1 1 0 0 0 .6 1.8h15.6a1 1 0 0 0 .6-1.8z"/>',
 } as const;
 export type IconName = keyof typeof ICONS;

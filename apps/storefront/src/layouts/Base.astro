@@ -1,14 +1,14 @@
 ---
-import '@fontsource-variable/bodoni-moda/opsz.css';
-import '@fontsource-variable/bodoni-moda/opsz-italic.css';
-import '@fontsource-variable/jost/wght.css';
+import '@fontsource-variable/cormorant-garamond/wght.css';
+import '@fontsource-variable/cormorant-garamond/wght-italic.css';
+import '@fontsource-variable/dm-sans/wght.css';
 import '../styles/global.css';
 // Styles for the bag, search, size picker and toasts. Loaded with every page (not with the lazily loaded shell),
 // because the client router replaces <head> on navigation and would drop styles injected later.
 import '../components/islands/shell.css';
-import displayFont from '@fontsource-variable/bodoni-moda/files/bodoni-moda-latin-opsz-normal.woff2?url';
-import displayItalic from '@fontsource-variable/bodoni-moda/files/bodoni-moda-latin-opsz-italic.woff2?url';
-import bodyFont from '@fontsource-variable/jost/files/jost-latin-wght-normal.woff2?url';
+import displayFont from '@fontsource-variable/cormorant-garamond/files/cormorant-garamond-latin-wght-normal.woff2?url';
+import displayItalic from '@fontsource-variable/cormorant-garamond/files/cormorant-garamond-latin-wght-italic.woff2?url';
+import bodyFont from '@fontsource-variable/dm-sans/files/dm-sans-latin-wght-normal.woff2?url';
 import AnnouncementBar from '../components/AnnouncementBar.astro';
 import Header from '../components/Header.astro';
 import { scriptJson } from '../lib/format.ts';
@@ -58,7 +58,7 @@ const ld = [org, ...(jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [])]
     <meta name="description" content={desc} />
     <link rel="canonical" href={canonical} />
     {noindex && <meta name="robots" content="noindex" />}
-    <meta name="theme-color" content="#7A1628" />
+    <meta name="theme-color" content="#FFFFFF" />
     <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="preload" href={displayFont} as="font" type="font/woff2" crossorigin />
@@ -116,7 +116,7 @@ const ld = [org, ...(jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [])]
     <div class="persist" transition:persist={minimal ? 'footer-min' : 'footer'}><Footer settings={settings} categories={categories} newsletter={c.newsletter ?? {}} minimal={minimal} /></div>
     <div class="persist" transition:persist="tabbar"><MobileTabBar /></div>
     <div class="persist" transition:persist="festive"><div id="festive-root"></div></div>
-    <ShellLoader freeShippingThreshold={settings.shipping.freeShippingThreshold} sizeGuide={c.sizeGuide?.chart ?? ''} />
+    <ShellLoader freeShippingThreshold={settings.shipping.freeShippingThreshold} sizeGuide={c.sizeGuide?.chart ?? ''} store={store} />
     <script>
       import '../scripts/motion.ts';
       import '../festive/index.ts';

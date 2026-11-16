@@ -2,6 +2,7 @@
 export type UiEvent =
   | { type: 'cart:open' }
   | { type: 'search:open' }
+  | { type: 'trial:open' }
   | { type: 'quick-add'; slug: string; colour?: string | null; origin?: DOMRect; imageUrl?: string | null }
   | { type: 'toast'; message: string };
 

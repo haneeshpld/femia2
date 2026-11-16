@@ -32,7 +32,7 @@
         "width": 1800,
         "height": 2000
       },
-      "help": "Computers (1200 px and wider). Fills the right side of the banner and fades into the background behind the headline, so keep the outfit in the right two-thirds."
+      "help": "Computers (1200 px and wider). Hangs first on the rail of new pieces, beside the headline; keep the outfit centred."
     },
     {
       "id": "heroTablet",
@@ -44,7 +44,7 @@
         "width": 1536,
         "height": 2048
       },
-      "help": "Tablets (768 to 1199 px). A taller crop for the right side of the banner. Keep the outfit in the right two-thirds."
+      "help": "Tablets (768 to 1199 px). Hangs first on the rail of new pieces; keep the outfit centred."
     },
     {
       "id": "heroMobile",
@@ -56,7 +56,7 @@
         "width": 1080,
         "height": 1800
       },
-      "help": "Phones (under 768 px). Fills the whole first screen like a magazine cover, with the headline over the bottom third, so keep faces and the outfit in the top two-thirds."
+      "help": "Phones (under 768 px). The first card on the swipeable rail under the headline; keep the outfit centred."
     },
     {
       "id": "arch",

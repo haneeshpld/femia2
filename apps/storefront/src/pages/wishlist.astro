@@ -4,11 +4,17 @@ import Icon from '../components/ui/Icon.astro';
 import { getCommon } from '../lib/content.ts';
 import { t } from '@femia/i18n';
 const { site, categories } = await getCommon();
+const canTry = !!site.settings.store.whatsapp;
 ---
 <Base site={site} categories={categories} title={t('wishlist.title')} noindex>
   <section class="section container">
-    <h1 class="h2">{t('wishlist.title')}</h1>
-    <p class="muted" style="margin-top: var(--sp-2)">Saved on this device.</p>
+    <div class="wl-head">
+      <div>
+        <h1 class="h2">{t('wishlist.title')}</h1>
+        <p class="muted" style="margin-top: var(--sp-2)">Saved on this device.</p>
+      </div>
+      {canTry && <button type="button" class="btn btn--outline btn--sm" data-try-all hidden><Icon name="hanger" size={18} /> Try these at the boutique</button>}
+    </div>
     <ul role="list" class="grid-products wl" data-wishlist></ul>
     <div class="wl-empty" data-wl-empty hidden>
       <span class="wl-empty__icon"><Icon name="heart" size={32} /></span>
@@ -18,12 +24,13 @@ const { site, categories } = await getCommon();
   </section>
 </Base>
 <style>
+  .wl-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--sp-4); }
   .wl { margin-top: var(--sp-8); }
   .wl-empty { display: grid; justify-items: center; gap: var(--sp-4); text-align: center; padding-block: var(--sp-16); }
-  .wl-empty__icon { display: grid; place-items: center; width: 80px; height: 80px; border-radius: 50%; background: var(--c-blush); color: var(--c-maroon); }
+  .wl-empty__icon { display: grid; place-items: center; width: 80px; height: 80px; border-radius: 50%; background: var(--c-blush); color: var(--c-accent); }
 </style>
 <script>
-  import { $wishlist, toggleWish } from '../lib/stores.ts';
+  import { $wishlist, addTrial, toggleWish } from '../lib/stores.ts';
   import { emit } from '../lib/ui-events.ts';
   import { formatINR } from '@femia/contracts/money';
   import { onPage } from '../lib/lifecycle.ts';
@@ -32,8 +39,16 @@ const { site, categories } = await getCommon();
   const empty = document.querySelector<HTMLElement>('[data-wl-empty]');
   if (!list || !empty) return;
   const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+  const tryAll = document.querySelector<HTMLButtonElement>('[data-try-all]');
+  // Saved pieces go straight onto the try-on list; their sizes are looked up when the panel opens.
+  const onTryAll = () => {
+    for (const w of $wishlist.get()) addTrial({ productId: w.productId, slug: w.slug, title: w.title, price: w.price, image: w.image, colour: null, sizes: [], sizeOptions: null });
+    emit({ type: 'trial:open' });
+  };
+  tryAll?.addEventListener('click', onTryAll);
   const unsubscribe = $wishlist.subscribe((items) => {
     empty.hidden = items.length > 0;
+    if (tryAll) tryAll.hidden = items.length === 0;
     list.innerHTML = items.map((w) => `
       <li><article class="pcard">
         <div class="pcard__media">${w.image ? `<img class="is-active" src="${esc(w.image)}" alt="" width="480" height="640" loading="lazy">` : ''}
@@ -51,6 +66,6 @@ const { site, categories } = await getCommon();
     const add = t.closest<HTMLElement>('[data-add]');
     if (add) { const img = add.closest('.pcard')?.querySelector('img'); emit({ type: 'quick-add', slug: add.dataset.add!, origin: img?.getBoundingClientRect(), imageUrl: img?.currentSrc }); }
   });
-  return unsubscribe;
+  return () => { unsubscribe(); tryAll?.removeEventListener('click', onTryAll); };
   });
 </script>

@@ -31,6 +31,13 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
           {s.whatsapp && <a class="btn btn--outline" href={`https://wa.me/${s.whatsapp.replace(/\D/g, '').replace(/^(\d{10})$/, '91$1')}`} target="_blank" rel="noopener"><Icon name="whatsapp" size={20} /> WhatsApp</a>}
         </div>
       </div>
+      {s.whatsapp && (
+        <div class="visit__block">
+          <h2 class="h3"><Icon name="hanger" /> Try before you buy</h2>
+          <p>Save pieces to a try-on list as you browse, choose a time, and send it to us on WhatsApp. We'll confirm before you come in.</p>
+          <div class="visit__ctas"><button type="button" class="btn" data-ui="trial:open">Plan a try-on visit <Icon name="arrowRight" size={18} class="arrow" /></button></div>
+        </div>
+      )}
     </div>
     {mapEmbed && <div class="visit__map"><iframe title={`Map showing ${s.name} boutique`} src={mapEmbed} loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div>}
   </section>
@@ -40,7 +47,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
   .visit__info { display: grid; gap: var(--sp-8); }
   .visit__block { display: grid; gap: var(--sp-3); }
   .visit__block h2 { display: flex; align-items: center; gap: var(--sp-3); font-size: 1.625rem; }
-  .visit__block h2 :global(svg) { color: var(--c-maroon); }
+  .visit__block h2 :global(svg) { color: var(--c-accent); }
   .visit__hours th { text-align: left; font-weight: 500; padding: 4px var(--sp-8) 4px 0; }
   .visit__ctas { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
   .visit__map { border-radius: var(--r-lg); overflow: hidden; aspect-ratio: 4 / 3; background: var(--c-sand); box-shadow: var(--shadow-card); }

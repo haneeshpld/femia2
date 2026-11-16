@@ -19,8 +19,8 @@ function ghost(box: Box, imageUrl?: string | null) {
   Object.assign(g.style, {
     position: 'fixed', left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px`,
     borderRadius: '14px', zIndex: '95', pointerEvents: 'none', willChange: 'transform',
-    background: imageUrl ? `#ECD5C7 center / cover no-repeat url("${imageUrl}")` : 'var(--c-maroon)',
-    boxShadow: '0 18px 40px -16px rgba(74, 20, 22, .55)', transformOrigin: '50% 50%',
+    background: imageUrl ? `#EEE5D9 center / cover no-repeat url("${imageUrl}")` : 'var(--c-accent)',
+    boxShadow: '0 18px 40px -16px rgba(60, 40, 20, .55)', transformOrigin: '50% 50%',
   });
   document.body.appendChild(g);
   return g;
@@ -58,7 +58,7 @@ export async function flyToBag(from: Element | DOMRect | null | undefined, image
   const p = { t: 0 };
   await new Promise<void>((done) => {
     gsap.timeline({ onComplete: done })
-      .to(g, { scale: 1.06, boxShadow: '0 26px 50px -18px rgba(74, 20, 22, .6)', duration: 0.18, ease: 'power2.out' })
+      .to(g, { scale: 1.06, boxShadow: '0 26px 50px -18px rgba(60, 40, 20, .6)', duration: 0.18, ease: 'power2.out' })
       .to(p, {
         t: 1, duration: 0.85, ease: 'power2.inOut',
         onUpdate: () => {

@@ -18,33 +18,35 @@ const place = [store.address.line1, store.address.city].filter(Boolean).join(', 
       <H id={`${uid}-title`} class="h2" set:html={emph(b.title)} />
       <p>{b.body}</p>
       <ul role="list" class="boutique__facts">
-        {place && <li><Icon name="pin" /> <strong>{place}</strong></li>}
-        {store.hoursSummary && <li><Icon name="clock" /> <span>{store.hoursSummary}</span></li>}
+        {place && <li><span class="boutique__icon"><Icon name="pin" size={20} /></span> <strong>{place}</strong></li>}
+        {store.hoursSummary && <li><span class="boutique__icon"><Icon name="clock" size={20} /></span> <span>{store.hoursSummary}</span></li>}
       </ul>
       <div class="boutique__ctas">
-        {store.mapUrl && <a class="btn" data-magnetic href={store.mapUrl} target="_blank" rel="noopener"><Icon name="navigate" size={20} /> {t('home.boutique.directions')}</a>}
+        {store.mapUrl && <a class="btn" href={store.mapUrl} target="_blank" rel="noopener"><Icon name="navigate" size={20} /> {t('home.boutique.directions')}</a>}
         {wa && <a class="btn btn--outline" href={wa} target="_blank" rel="noopener"><Icon name="whatsapp" size={20} /> {t('home.boutique.whatsapp')}</a>}
       </div>
     </div>
   </div>
 </section>
 <style>
-  .boutique { position: relative; background: radial-gradient(80% 120% at 0% 50%, #F9E8DF 0%, var(--c-blush) 60%); padding-block: clamp(var(--sp-12), 7vw, var(--sp-20)); }
+  .boutique { position: relative; background: linear-gradient(90deg, #FBF6EF 0%, var(--c-blush) 100%); padding-block: clamp(var(--sp-12), 7vw, var(--sp-20)); }
   .boutique::before, .boutique::after { content: ''; position: absolute; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--c-zari), transparent); opacity: .5; }
   .boutique::before { top: 10px; } .boutique::after { bottom: 10px; }
   .boutique__inner { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr); gap: clamp(var(--sp-8), 6vw, var(--sp-20)); align-items: center; }
-  .boutique__media { aspect-ratio: 1.4; box-shadow: var(--shadow-card-hover); }
+  .boutique__media { aspect-ratio: 1.4; border-radius: var(--r-card); box-shadow: var(--shadow-card-hover); }
   .boutique__media img { width: 100%; height: 100%; object-fit: cover; }
   .boutique__copy { display: grid; gap: var(--sp-4); justify-items: start; }
-  .boutique__copy h2 :global(em), .boutique__copy h1 :global(em) { font-style: italic; color: var(--c-maroon); font-weight: 400; }
+  .boutique__copy h2 :global(em), .boutique__copy h1 :global(em) { font-style: italic; color: var(--c-accent); font-weight: 500; }
   .boutique__copy > p { font-size: var(--fs-md); max-width: 46ch; }
-  .boutique__facts { display: flex; flex-wrap: wrap; gap: var(--sp-3) var(--sp-10); }
-  .boutique__facts li { display: flex; align-items: center; gap: var(--sp-2); color: var(--c-ink); }
-  .boutique__facts :global(svg) { color: var(--c-maroon); }
+  .boutique__facts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3) var(--sp-6); margin-top: var(--sp-1); }
+  .boutique__facts li + li { padding-left: var(--sp-6); border-left: 1px solid var(--c-line); }
+  .boutique__facts li { display: flex; align-items: center; gap: var(--sp-3); color: var(--c-ink); }
+  .boutique__icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; color: var(--c-accent); background: var(--c-surface); box-shadow: inset 0 0 0 1px rgba(199, 154, 62, .55); }
   .boutique__ctas { display: flex; flex-wrap: wrap; gap: var(--sp-4); margin-top: var(--sp-2); }
   @media (max-width: 767px) {
     .boutique__inner { grid-template-columns: 1fr; }
-    .boutique__facts { flex-direction: column; }
+    .boutique__facts { flex-direction: column; align-items: flex-start; }
+    .boutique__facts li + li { padding-left: 0; border-left: 0; }
     .boutique__ctas { width: 100%; flex-direction: column; }
     .boutique__ctas .btn { width: 100%; }
   }

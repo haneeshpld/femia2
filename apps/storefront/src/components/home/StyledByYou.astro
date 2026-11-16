@@ -26,6 +26,13 @@ const imgs = (b.images ?? []).map((i: { image: string; link?: string; caption?: 
 )}
 <style>
   .styled { padding-bottom: 0; }
+  /* Wide screens: heading and handle on the left, the prints to the right. */
+  @media (min-width: 1100px) {
+    .styled { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); align-items: center; padding-left: calc(max(0px, (100vw - var(--layout-max-width)) / 2) + var(--layout-gutter)); }
+    .styled > .section-head { width: auto; max-width: none; padding: 0; margin: 0; grid-template-columns: 1fr; grid-template-areas: 'title' 'rule' 'aside'; justify-items: start; text-align: left; row-gap: var(--sp-4); }
+    .styled > .section-head :global(.thread-rule), .styled > .section-head > :global(:not(h2)) { justify-self: start; }
+    .styled .styled__track { padding-inline: var(--sp-6) var(--layout-gutter); }
+  }
   .styled__handle { text-decoration: underline; }
   .styled__track { display: flex; gap: var(--sp-4); overflow-x: auto; scrollbar-width: none; padding-inline: var(--layout-gutter); scroll-snap-type: x proximity; }
   .styled__track::-webkit-scrollbar { display: none; }
@@ -35,5 +42,5 @@ const imgs = (b.images ?? []).map((i: { image: string; link?: string; caption?: 
   .styled__track li:nth-child(odd) { transform: rotate(-1.2deg); } .styled__track li:nth-child(even) { transform: rotate(1deg) translateY(10px); }
   .styled__track img { width: 100%; aspect-ratio: 0.95; object-fit: cover; border-radius: 2px; background: var(--c-sand); }
   .styled__track { padding-block: var(--sp-4) var(--sp-8); }
-  .print__caption { font-family: var(--font-display); font-style: italic; font-size: .9375rem; color: var(--c-ink); text-align: center; margin-top: 6px; line-height: 1.2; }
+  .print__caption { font-family: var(--font-display); font-style: italic; font-weight: 500; font-size: 1.125rem; color: var(--c-ink); text-align: center; margin-top: 6px; line-height: 1.2; }
 </style>

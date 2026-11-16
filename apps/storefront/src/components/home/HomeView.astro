@@ -44,7 +44,7 @@ const uid = (s: HomeSection) => `sec-${s.id}`.replace(/[^a-zA-Z0-9_-]/g, '');
   const d = s.data;
   switch (s.type) {
     case 'hero':
-      return <Hero hero={d} images={deviceImages(d, site.media)} city={site.settings.store.address.city} />;
+      return <Hero hero={d} images={deviceImages(d, site.media)} city={site.settings.store.address.city} hours={site.settings.store.hours} />;
     case 'categories': {
       const items = (d.items ?? []).length ? d.items : categories.map((c) => ({ category: c.id }));
       const tiles = items.map((i: { category: string; image?: string }) => ({ category: catById.get(i.category)!, image: media(i.image) ?? catById.get(i.category)?.image ?? null })).filter((x: { category?: unknown }) => x.category);
