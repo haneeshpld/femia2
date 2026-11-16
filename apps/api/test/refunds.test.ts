@@ -26,6 +26,8 @@ beforeEach(async () => {
       const id = `rfnd_${++n}`; refunds[id] = 'pending';
       return Response.json({ id, status: 'pending', payment_id: rf[1] });
     }
+    // before a retry, the API asks which refunds this payment already has (none made it in these tests)
+    if (/\/v1\/payments\/[^/]+\/refunds\?/.test(url)) return Response.json({ items: [] });
     const st = /\/v1\/refunds\/([^/]+)$/.exec(url);
     if (st) return Response.json({ id: st[1], status: refunds[st[1]!] ?? 'pending' });
     throw new Error(`unexpected fetch ${method} ${url}`);

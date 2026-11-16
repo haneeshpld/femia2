@@ -221,7 +221,7 @@ adminRoutes.get('/stock/low', can('catalog.read'), async (c) => {
 });
 
 // ── media ──
-adminRoutes.get('/media', can('catalog.read'), async (c) => c.json(await listMedia(c.env.DB, Number(c.req.query('page') ?? 1))));
+adminRoutes.get('/media', can('catalog.read'), async (c) => c.json(await listMedia(c.env.DB, Math.max(1, Math.floor(Number(c.req.query('page')) || 1)))));
 adminRoutes.post('/media', can('media.write'), async (c) => c.json(await uploadMedia(c.env, await c.req.formData(), actorOf(c)), 201));
 adminRoutes.patch('/media/:id', can('media.write'), async (c) => {
   const { alt } = await readJson(c, MediaPatch);
@@ -356,7 +356,9 @@ adminRoutes.get('/orders/:number/document', can('orders.read'), async (c) => {
   if (!o) throw notFound('Order not found');
   const [items, settings, discounts] = await Promise.all([orderItems(c.env.DB, o.id), getSettings(c.env.DB),
     all(c.env.DB, 'SELECT label, code, amount FROM order_discounts WHERE order_id = ? ORDER BY id', o.id)]);
-  return c.json({ order: o, items, store: settings.store, discounts }); // Admin renders bill / packing slip for print
+  // The order's secret link token lets its holder cancel (and so refund) as the shopper: staff who only print bills never get it.
+  const { access_token: _token, ...order } = o;
+  return c.json({ order, items, store: settings.store, discounts }); // Admin renders bill / packing slip for print
 });
 
 // ── content ──
@@ -566,7 +568,10 @@ adminRoutes.get('/customers/:id', can('orders.read'), async (c) => {
     listAddresses(c.env.DB, id),
     first<{ n: number }>(c.env.DB, "SELECT COUNT(*) AS n FROM sessions WHERE kind = 'customer' AND subject_id = ? AND revoked_at IS NULL AND expires_at > ?", id, new Date().toISOString()),
   ]);
-  return c.json({ customer: cu, addresses, ...history, signedInDevices: sessions?.n ?? 0 });
+  // The shopper's own order links carry each order's secret token (it lets the holder cancel, and so refund, as
+  // the shopper). Admin opens orders by number instead, so the links never leave the shopper's account.
+  const orders = history.orders.map(({ url: _url, ...o }) => o);
+  return c.json({ customer: cu, addresses, ...history, orders, signedInDevices: sessions?.n ?? 0 });
 });
 adminRoutes.post('/customers/:id/access', can('people.manage'), async (c) => {
   const { disabled } = await readJson(c, z.object({ disabled: z.boolean() }));
@@ -584,4 +589,4 @@ adminRoutes.post('/customers/:id/sign-out', can('people.manage'), async (c) => {
   return c.json({ ok: true });
 });
 adminRoutes.get('/audit', can('audit.read'), async (c) =>
-  c.json(await all(c.env.DB, 'SELECT id, actor, action, entity, entity_id AS entityId, summary, created_at AS at FROM audit_log ORDER BY id DESC LIMIT ?', Math.min(Number(c.req.query('limit') ?? 100), 500))));
+  c.json(await all(c.env.DB, 'SELECT id, actor, action, entity, entity_id AS entityId, summary, created_at AS at FROM audit_log ORDER BY id DESC LIMIT ?', Math.min(Math.max(1, Math.floor(Number(c.req.query('limit')) || 100)), 500))));

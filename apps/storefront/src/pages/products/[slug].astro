@@ -4,7 +4,7 @@ import PCard from '../../components/ProductCard.astro';
 import Icon from '../../components/ui/Icon.astro';
 import { api } from '../../lib/api.ts';
 import { getCommon } from '../../lib/content.ts';
-import { formatINR, percentOff, richText, scriptJson, srcset } from '../../lib/format.ts';
+import { formatINR, freeShippingText, percentOff, richText, scriptJson, srcset } from '../../lib/format.ts';
 import { ApiError } from '@femia/sdk';
 import { t } from '@femia/i18n';
 
@@ -16,6 +16,7 @@ const [{ site, categories }, product] = await Promise.all([
 if (!product) return Astro.rewrite('/404');
 const p = product;
 const store = site.settings.store;
+const freeShip = freeShippingText(site.settings.shipping);
 const firstColour = p.option2Values[0]?.value ?? null;
 const imagesFor = (colour: string | null) => {
   const own = p.images.filter((i) => i.option2 === colour);
@@ -85,7 +86,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
         <span data-price-now>{formatINR(p.price)}</span>
         {pct > 0 && <><s data-price-was><span class="sr-only">MRP </span>{formatINR(p.compareAtPrice!)}</s><span class="off" data-price-off>{t('common.off', { pct })}</span></>}
       </p>
-      <p class="muted info__tax">Inclusive of all taxes. Free shipping above ₹999.</p>
+      <p class="muted info__tax">Inclusive of all taxes. {freeShip}.</p>
       {(p.badges.length > 0 || p.saleEndsAt) && (
         <div class="info__offers">
           {p.badges.map((b) => <span class={`offer-tag offer-tag--${b.style} offer-tag--shine`}>{b.label}</span>)}
@@ -140,7 +141,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
       <div class="acc">
         <details open><summary>Description <Icon name="plus" size={18} /></summary><div class="acc__body prose" set:html={richText(p.description)} /></details>
         <details><summary>{t('product.fabricCare')} <Icon name="plus" size={18} /></summary><div class="acc__body">{p.fabric && <p><strong>Fabric:</strong> {p.fabric}</p>}<p>{p.care}</p></div></details>
-        <details><summary>{t('product.delivery')} <Icon name="plus" size={18} /></summary><div class="acc__body"><p>{t('product.deliveryBody')}</p><p><a href="/policies/shipping">Shipping policy</a> · <a href="/policies/returns">Returns policy</a></p></div></details>
+        <details><summary>{t('product.delivery')} <Icon name="plus" size={18} /></summary><div class="acc__body"><p>{t('product.deliveryBody', { shipping: freeShip })}</p><p><a href="/policies/shipping">Shipping policy</a> · <a href="/policies/returns">Returns policy</a></p></div></details>
       </div>
     </section>
   </div>

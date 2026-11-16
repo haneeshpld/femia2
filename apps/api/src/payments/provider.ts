@@ -57,9 +57,10 @@ export interface PaymentProvider<Keys = Record<string, string>> {
   refundStatus(providerRefundId: string, keys: Keys): Promise<RefundState>;
   /**
    * Did the gateway already make the refund we call `refundId`? Asked whenever an earlier answer was lost, and
-   * before every retry, so the same money is never sent back twice. Null = the gateway has no such refund.
+   * before every retry, so the same money is never sent back twice. Returns the refund that is done or on its way;
+   * null = the gateway has none (never made, or it failed at the bank), so sending it is safe.
    */
-  findRefund(providerPaymentId: string, refundId: string, keys: Keys): Promise<{ providerRefundId: string; status: RefundState } | null>;
+  findRefund(providerPaymentId: string, refundId: string, keys: Keys): Promise<{ providerRefundId: string; status: 'pending' | 'processed' } | null>;
   /**
    * The checkout options for paying an existing gateway order a particular way (UPI first, or cards / netbanking),
    * so a shopper who closes the window can come back and pay the same order differently.

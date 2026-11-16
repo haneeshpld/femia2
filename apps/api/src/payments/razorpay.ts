@@ -94,7 +94,8 @@ export const razorpay: PaymentProvider<Keys> = {
     const res = await fetch(`https://api.razorpay.com/v1/payments/${encodeURIComponent(providerPaymentId)}/refund`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Basic ' + btoa(`${keys.keyId}:${keys.keySecret}`) },
-      body: JSON.stringify({ amount, speed: 'normal', notes, receipt: notes.refund_id }),
+      // notes.refund_id is how findRefund recognises this refund again; the receipt is new for every attempt
+      body: JSON.stringify({ amount, speed: 'normal', notes, receipt: `${notes.refund_id}-${Date.now().toString(36)}` }),
     });
     const data = (await res.json().catch(() => ({}))) as { id?: string; status?: string; error?: { description?: string } };
     if (!res.ok || !data.id) {
@@ -109,9 +110,11 @@ export const razorpay: PaymentProvider<Keys> = {
     const res = await fetch(`https://api.razorpay.com/v1/payments/${encodeURIComponent(providerPaymentId)}/refunds?count=100`, { headers: { Authorization: 'Basic ' + btoa(`${keys.keyId}:${keys.keySecret}`) } });
     if (!res.ok) throw new Error(`razorpay refunds of payment ${res.status}`);
     const { items = [] } = (await res.json()) as { items?: { id: string; status?: string; receipt?: string | null; notes?: unknown }[] };
-    // refund() sends our id as both the receipt and notes.refund_id
-    const made = items.find((r) => r.receipt === refundId || (r.notes as { refund_id?: string } | null)?.refund_id === refundId);
-    return made ? { providerRefundId: made.id, status: refundState(made.status) } : null;
+    // refund() sends our id in notes.refund_id and at the start of the receipt. An attempt that failed at the bank
+    // moved no money, so it doesn't count: only one that is done or still on its way does.
+    const made = items.find((r) => refundState(r.status) !== 'failed'
+      && ((r.notes as { refund_id?: string } | null)?.refund_id === refundId || (r.receipt ?? '').startsWith(refundId)));
+    return made ? { providerRefundId: made.id, status: refundState(made.status) === 'processed' ? 'processed' : 'pending' } : null;
   },
 
   async refundStatus(providerRefundId, keys) {

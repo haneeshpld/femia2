@@ -59,7 +59,8 @@ export const OrderTransitionInput = z.object({
   note: z.string().trim().max(500).optional(),
   courier: z.string().trim().max(60).optional(),
   trackingNumber: z.string().trim().max(60).optional(),
-  trackingUrl: z.url().optional().or(z.literal('').transform(() => undefined)),
+  // shown to the shopper as a link (order page, email): web addresses only, never javascript: or other schemes
+  trackingUrl: z.url().refine((u) => /^https?:\/\//i.test(u), 'Use a link that starts with https://').optional().or(z.literal('').transform(() => undefined)),
   reason: z.string().trim().max(200).optional(),
   /** When cancelling a paid order: give the money back (Razorpay refunds automatically; UPI/cash is recorded to send). */
   refund: z.boolean().default(true),

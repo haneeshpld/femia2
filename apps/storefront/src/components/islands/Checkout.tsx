@@ -331,6 +331,8 @@ export default function Checkout({ payments }: { payments: PublicSettings['payme
           {method === 'gateway' && <p className="co__rzp"><Icon name="lock" size={15} /> Secured by Razorpay. You'll pay in the next step without leaving this page.</p>}
           {method === 'cod' && payments.codMax !== null && total > payments.codMax && <p className="field-error">Cash on Delivery is available for orders up to {formatINR(payments.codMax)}.</p>}
           <label className="co__nl"><input type="checkbox" checked={newsletter} onChange={(e) => setNewsletter(e.target.checked)} /> {t('checkout.newsletter')}</label>
+          {/* What the shopper agrees to, said before they pay (terms, cancellation and how their details are used). */}
+          <p className="co__secure co__terms"><span>By placing this order you agree to our <a href="/policies/terms" target="_blank" rel="noopener">Terms</a>, <a href="/policies/returns" target="_blank" rel="noopener">Returns &amp; refunds</a> and <a href="/policies/privacy" target="_blank" rel="noopener">Privacy policy</a>.</span></p>
         </fieldset>
       </div>
       <aside className={`co__side${sumOpen ? ' is-open' : ''}`} aria-labelledby="co-sum">

@@ -1,5 +1,14 @@
 export { formatINR, percentOff } from '@femia/contracts';
+import { formatINR as inr } from '@femia/contracts';
 import type { MediaRef } from '@femia/contracts';
+import { t } from '@femia/i18n';
+
+/**
+ * "Free shipping above ₹999", from the amount the owner set in Admin → Settings. Pages must never spell the amount
+ * out themselves: once the owner changes it, the shop would be promising one thing and charging another.
+ */
+export const freeShippingText = (s: { freeShippingThreshold: number; flatFee: number }) =>
+  s.flatFee === 0 || s.freeShippingThreshold === 0 ? t('shipping.freeAlways') : t('shipping.freeAbove', { amount: inr(s.freeShippingThreshold) });
 
 /** srcset for a MediaRef: "/media/..480.webp 480w, ..." */
 export const srcset = (m: MediaRef | null | undefined) =>

@@ -66,7 +66,10 @@ export default function OrderDetail() {
 
       <div className="row no-print" style={{ marginBottom: 'var(--sp-4)' }}>
         {primary}
-        {write && d.status === 'new' && d.paymentStatus === 'unpaid' && d.paymentMethod !== 'gateway' && <button className="btn btn--quiet" onClick={() => paid.mutate()}>Mark paid</button>}
+        {/* WhatsApp / phone orders are often confirmed or shipped before the money arrives: paying must stay recordable at every stage */}
+        {write && ['new', 'confirmed', 'packed', 'shipped', 'delivered'].includes(d.status) && d.paymentStatus === 'unpaid' && d.paymentMethod !== 'gateway' && (
+          <button className="btn btn--quiet" disabled={paid.isPending} onClick={() => confirm(`Have you received ${formatINR(d.total)} for ${d.number}?`) && paid.mutate()}>Mark paid</button>
+        )}
         <span className="spacer" />
         <Link className="btn btn--quiet" to={`/orders/${d.number}/print/bill`}><Icon name="printer" /> Bill</Link>
         <Link className="btn btn--quiet" to={`/orders/${d.number}/print/slip`}><Icon name="printer" /> Packing slip</Link>
