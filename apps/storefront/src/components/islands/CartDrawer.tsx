@@ -5,6 +5,7 @@ import type { Quote } from '@femia/contracts';
 import { formatINR } from '@femia/contracts/money';
 import { t } from '@femia/i18n';
 import { $cart, $trial, removeLine, setQty } from '../../lib/stores.ts';
+import { TRY_ON_ENABLED } from '../../lib/features.ts';
 import { emit } from '../../lib/ui-events.ts';
 import { track } from '../../lib/analytics.ts';
 import { Icon } from './Icon.tsx';
@@ -67,7 +68,7 @@ export function CartDrawer({ open, onClose, threshold }: { open: boolean; onClos
     </>
   );
 
-  const trialLink = trialCount > 0 && (
+  const trialLink = TRY_ON_ENABLED && trialCount > 0 && (
     <button type="button" className="trial-link" onClick={() => emit({ type: 'trial:open' })}>
       <Icon name="hanger" size={20} />
       <span>{trialCount} {trialCount === 1 ? 'piece' : 'pieces'} to try at the boutique</span>

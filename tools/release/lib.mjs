@@ -115,6 +115,8 @@ export function writeClientConfig(app, c) {
   base.preview_urls = false;
   if (base.services) base.services = base.services.map((s) => (s.service === 'femia-api' ? { ...s, service: workerName(c, 'api') } : s));
   if (app === 'api') {
+    // "crons": false (e.g. a preview stack): no scheduled jobs, so it doesn't use up the account's cron-trigger allowance
+    if (c.crons === false) base.triggers = { crons: [] };
     base.d1_databases[0].database_id = c.d1.id;
     base.d1_databases[0].database_name = c.d1.name;
     base.r2_buckets[0].bucket_name = c.r2.bucket;

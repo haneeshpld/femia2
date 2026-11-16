@@ -16,7 +16,7 @@ const { messages } = Astro.props;
   </div>
 )}
 <style>
-  .announce { position: relative; background: #F4EDE3; color: var(--c-ink); font-size: .8125rem; font-weight: 500; letter-spacing: .02em; line-height: 1.4; }
+  .announce { position: relative; background: var(--c-blush); color: var(--c-ink); font-size: .8125rem; font-weight: 500; letter-spacing: .02em; line-height: 1.4; }
   .announce__rot { display: grid; align-items: center; min-height: 38px; padding-block: 8px; text-align: center; }
   .announce__msg { grid-area: 1 / 1; display: flex; align-items: center; justify-content: center; gap: var(--sp-4); opacity: 0; visibility: hidden; transition: opacity 600ms ease, visibility 0s linear 600ms; }
   .announce__msg[data-on] { opacity: 1; visibility: visible; transition: opacity 600ms ease, visibility 0s; }

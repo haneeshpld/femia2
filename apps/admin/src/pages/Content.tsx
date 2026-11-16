@@ -1,22 +1,26 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useBlocker } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError, get, post, put } from '../lib/api.ts';
 import { dateTime } from '../lib/format.ts';
-import { ratioLabel, recommendedSize, type MediaRef } from '../lib/image.ts';
+import type { MediaRef } from '../lib/image.ts';
 import { useCan } from '../lib/me.ts';
 import { Icon } from '../components/Icon.tsx';
-import { MediaPicker } from '../components/MediaPicker.tsx';
 import type { Slot } from '../components/PhotoUpload.tsx';
-import { ErrorBox, Field, Sheet, Skeleton, useToast } from '../components/ui.tsx';
-import { AddInline } from '../components/AddInline.tsx';
-import { useCatalogMutations } from '../lib/catalog.ts';
+import { ErrorBox, Sheet, Skeleton, useToast } from '../components/ui.tsx';
+import { FieldList, type F } from '../components/ContentFields.tsx';
 import { HomeSections, type Block } from '../components/HomeSections.tsx';
 import { homeSections, type HomeSection } from '@femia/contracts/home';
 
-type F = { id: string; type: string; label: string; help?: string; required?: boolean; maxLength?: number; slot?: string; options?: { value: string; label: string }[]; itemLabel?: string; min?: number; max?: number; fields?: F[] };
 interface Manifest { sections: { id: string; label: string; page: string; fields: F[] }[]; blocks?: (Block & { fields: F[] })[]; imageSlots: Slot[] }
 const STOREFRONT = import.meta.env.VITE_STOREFRONT_URL ?? 'http://localhost:4321';
+type Tab = 'home' | 'every' | 'pages';
+const TABS: { id: Tab; label: string; lead: string }[] = [
+  { id: 'home', label: 'Home page', lead: '' },
+  { id: 'every', label: 'On every page', lead: 'The announcement bar at the top, and the promises and newsletter above the footer, on every page of the website.' },
+  { id: 'pages', label: 'Other pages', lead: 'The Visit us and Our story pages, your policies and the size guide.' },
+];
+const PAGE_NAMES: Record<string, string> = { product: 'Shown on product pages' };
 
 /** Homepage & content: forms generated from the storefront's site.manifest.json. */
 export default function Content() {
@@ -30,7 +34,8 @@ export default function Content() {
   const colls = useQuery({ queryKey: ['collections'], queryFn: () => get<{ id: string; name: string }[]>('/admin/collections') });
   const [data, setData] = useState<Record<string, any> | null>(null);
   const [media, setMedia] = useState<Record<string, MediaRef>>({});
-  const [open, setOpen] = useState<string>('hero');
+  const [open, setOpen] = useState<string>('');
+  const [tab, setTab] = useState<Tab>('home');
   const [dirty, setDirty] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -53,7 +58,17 @@ export default function Content() {
     currentLocation.pathname !== nextLocation.pathname && (dirty || (unpublished && canPublish)));
 
   const refresh = () => { qc.invalidateQueries({ queryKey: ['content-draft'] }); qc.invalidateQueries({ queryKey: ['content-versions'] }); };
-  const onErr = (e: unknown) => { if (e instanceof ApiError && e.code === 'validation') { setErrors(e.fields); setOpen(Object.keys(e.fields)[0]?.split('.')[0] ?? open); } toast({ text: (e as Error).message, bad: true }); };
+  const onErr = (e: unknown) => {
+    if (e instanceof ApiError && e.code === 'validation') {
+      setErrors(e.fields);
+      // Open the tab and the part with the first problem.
+      const first = Object.keys(e.fields)[0]?.split('.')[0] ?? '';
+      const sec = manifest.data?.sections.find((x) => x.id === first);
+      setTab(first === 'home' || !sec ? 'home' : sec.page === 'all' ? 'every' : 'pages');
+      if (sec) setOpen(sec.id);
+    }
+    toast({ text: (e as Error).message, bad: true });
+  };
   const save = useMutation({ mutationFn: () => put('/admin/content/draft', { data, note: '' }), onSuccess: () => { setDirty(false); setErrors({}); refresh(); }, onError: onErr });
   const publish = useMutation({
     mutationFn: async () => { if (dirty) await put('/admin/content/draft', { data, note: '' }); return post('/admin/content/publish'); },
@@ -84,6 +99,11 @@ export default function Content() {
     setDirty(true);
   };
   const ctx = { slots, media, setMedia, cats: cats.data ?? [], colls: colls.data ?? [], errors };
+  const tabErr = (t: Tab) => Object.keys(errors).some((k) => {
+    const id = k.split('.')[0]; const sec = manifest.data.sections.find((x) => x.id === id);
+    return t === 'home' ? id === 'home' : !!sec && (t === 'every') === (sec.page === 'all');
+  });
+  const pageSections = manifest.data.sections.filter((sec) => (tab === 'every') === (sec.page === 'all'));
 
   return (
     <>
@@ -119,30 +139,45 @@ export default function Content() {
         </Sheet>
       )}
       <div className="stack">
-        {(manifest.data.blocks?.length ?? 0) > 0 && (
+        <div className="seg ct-tabs" role="tablist" aria-label="What to edit">
+          {TABS.map((t) => (
+            <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>
+              {t.label}{tabErr(t.id) && <span className="ct-tabs__dot" aria-label="has problems" />}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'home' && (manifest.data.blocks?.length ?? 0) > 0 && (
           <HomeSections
             blocks={manifest.data.blocks!}
             sections={(data.home?.sections ?? []) as HomeSection[]}
             errors={errors}
             onChange={(next) => update(['home', 'sections'], next)}
-            renderFields={(block, i) => (block as Block & { fields: F[] }).fields.map((f) => (
-              <FieldEditor key={f.id} f={f} value={data.home.sections[i]?.data?.[f.id]} path={['home', 'sections', i, 'data', f.id]} onChange={update} ctx={ctx} />
-            ))}
+            renderFields={(block, i) => (
+              <FieldList fields={(block as Block & { fields: F[] }).fields} values={data.home.sections[i]?.data ?? {}} path={['home', 'sections', i, 'data']} onChange={update} ctx={ctx} />
+            )}
           />
         )}
-        <h2 style={{ marginTop: 'var(--sp-4)' }}>Every page & other pages</h2>
-        {manifest.data.sections.map((sec) => (
-          <details key={sec.id} className="card" open={open === sec.id} onToggle={(e) => (e.currentTarget as HTMLDetailsElement).open && setOpen(sec.id)}>
-            <summary style={{ cursor: 'pointer', listStyle: 'none', display: 'flex', alignItems: 'center', gap: 12, minHeight: 44 }}>
-              <strong style={{ flex: 1 }}>{sec.label}</strong>
-              {Object.keys(errors).some((k) => k.startsWith(sec.id)) && <span className="badge badge--bad">Check fields</span>}
-              <span className="muted small">{sec.page === 'all' ? 'Every page' : sec.page}</span><Icon name="chevronDown" />
-            </summary>
-            <div className="stack" style={{ marginTop: 'var(--sp-4)' }}>
-              {sec.fields.map((f) => <FieldEditor key={f.id} f={f} value={data[sec.id]?.[f.id]} path={[sec.id, f.id]} onChange={update} ctx={ctx} />)}
-            </div>
-          </details>
-        ))}
+
+        {tab !== 'home' && (
+          <>
+            <p className="muted">{TABS.find((t) => t.id === tab)!.lead}</p>
+            {pageSections.map((sec) => (
+              <details key={sec.id} className="card ct-part" open={open === sec.id} onToggle={(e) => { if ((e.currentTarget as HTMLDetailsElement).open) setOpen(sec.id); }}>
+                <summary>
+                  <strong>{sec.label}</strong>
+                  {Object.keys(errors).some((k) => k.startsWith(`${sec.id}.`)) && <span className="badge badge--bad">Check fields</span>}
+                  {PAGE_NAMES[sec.page] && <span className="muted small">{PAGE_NAMES[sec.page]}</span>}
+                  <Icon name="chevronDown" />
+                </summary>
+                <div className="stack ct-part__body">
+                  <FieldList fields={sec.fields as F[]} values={data[sec.id] ?? {}} path={[sec.id]} onChange={update} ctx={ctx} />
+                </div>
+              </details>
+            ))}
+          </>
+        )}
+
         {can('content.publish') && (
           <div className="card">
             <div className="card__head"><h2>Published versions</h2><button className="btn btn--quiet" onClick={() => confirm('Go back to the previous published version?') && undo.mutate()} disabled={undo.isPending || (versions.data?.length ?? 0) < 2}><Icon name="undo" /> Undo last publish</button></div>
@@ -153,91 +188,5 @@ export default function Content() {
         )}
       </div>
     </>
-  );
-}
-
-type Ctx = { slots: Record<string, Slot>; media: Record<string, MediaRef>; setMedia: (f: (m: Record<string, MediaRef>) => Record<string, MediaRef>) => void; cats: { id: string; name: string }[]; colls: { id: string; name: string }[]; errors: Record<string, string> };
-
-function FieldEditor({ f, value, path, onChange, ctx }: { f: F; value: any; path: (string | number)[]; onChange: (p: (string | number)[], v: unknown) => void; ctx: Ctx }) {
-  const [picking, setPicking] = useState(false);
-  const err = ctx.errors[path.join('.')];
-  const label = f.label + (f.required ? '' : '');
-  const counter = f.maxLength ? `${String(value ?? '').length}/${f.maxLength}` : undefined;
-  switch (f.type) {
-    case 'text': case 'url':
-      return <Field label={label} hint={f.help ?? counter} error={err}><input className="input" type={f.type === 'url' ? 'text' : 'text'} inputMode={f.type === 'url' ? 'url' : undefined} maxLength={f.maxLength} value={value ?? ''} onChange={(e) => onChange(path, e.target.value)} placeholder={f.type === 'url' ? '/shop or https://…' : undefined} /></Field>;
-    case 'textarea': case 'richtext':
-      return <Field label={label} hint={f.type === 'richtext' ? 'Blank line = new paragraph. ## Heading, - list item, **bold**, [link](/url)' : counter} error={err}><textarea className="textarea" rows={f.type === 'richtext' ? 10 : 3} maxLength={f.maxLength} value={value ?? ''} onChange={(e) => onChange(path, e.target.value)} /></Field>;
-    case 'boolean':
-      return <label className="check"><input type="checkbox" checked={!!value} onChange={(e) => onChange(path, e.target.checked)} /> {label}</label>;
-    case 'number':
-      return <Field label={label} error={err}><input className="input" style={{ maxWidth: 120 }} inputMode="numeric" value={value ?? ''} onChange={(e) => onChange(path, Number(e.target.value.replace(/\D/g, '')) || 0)} /></Field>;
-    case 'select':
-      return <Field label={label} error={err}><select className="select" value={value ?? ''} onChange={(e) => onChange(path, e.target.value)}>{f.options?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></Field>;
-    case 'category': case 'collection': {
-      const opts = f.type === 'category' ? ctx.cats : ctx.colls;
-      return (
-        <Field label={label} error={err}>
-          <select className="select" value={value ?? ''} onChange={(e) => onChange(path, e.target.value || null)}>{!f.required && <option value="">None</option>}{opts.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</select>
-          <NewRef kind={f.type} onCreated={(id) => onChange(path, id)} />
-        </Field>
-      );
-    }
-    case 'image': {
-      const slot = ctx.slots[f.slot ?? 'page'] ?? { id: 'page', label: 'Photo', aspect: 1.5, minWidth: 1200, mask: 'rect' as const };
-      const m = value ? ctx.media[value] : null;
-      const rec = recommendedSize(slot);
-      return (
-        <Field label={label} hint={`Best at ${rec.width} × ${rec.height} px (${ratioLabel(slot.aspect)}). ${f.help ?? ''}`.trim()} error={err}>
-          <div className="row">
-            <div style={{ width: 120, aspectRatio: String(slot.aspect), borderRadius: slot.mask === 'arch' ? '999px 999px 8px 8px' : 8, overflow: 'hidden', background: 'var(--c-sand)' }}>
-              {m && <img src={m.src['480']} alt={m.alt} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
-            </div>
-            <button type="button" className="btn btn--quiet" onClick={() => setPicking(true)}><Icon name="image" /> {m ? 'Change' : 'Choose photo'}</button>
-            {m && !f.required && <button type="button" className="btn btn--ghost" onClick={() => onChange(path, null)}>Remove</button>}
-          </div>
-          {picking && <MediaPicker slot={slot} onClose={() => setPicking(false)} onPick={(pm) => { ctx.setMedia((x) => ({ ...x, [pm.id]: pm })); onChange(path, pm.id); }} />}
-        </Field>
-      );
-    }
-    case 'list': {
-      const items: any[] = Array.isArray(value) ? value : [];
-      const blank = () => Object.fromEntries((f.fields ?? []).map((c) => [c.id, c.type === 'boolean' ? false : c.type === 'number' ? 0 : c.type === 'image' || c.type === 'category' || c.type === 'collection' ? null : c.type === 'select' ? c.options?.[0]?.value ?? '' : '']));
-      return (
-        <fieldset style={{ border: '1px solid var(--c-line)', borderRadius: 'var(--r-md)', padding: 'var(--sp-4)' }}>
-          <legend className="small" style={{ fontWeight: 700, padding: '0 6px' }}>{label}</legend>
-          {err && <p className="err">{err}</p>}
-          <div className="stack">
-            {items.map((it, i) => (
-              <div key={i} className="stack" style={{ background: 'var(--c-cream)', borderRadius: 'var(--r-md)', padding: 'var(--sp-3)' }}>
-                <div className="row"><strong className="small" style={{ flex: 1 }}>{f.itemLabel} {i + 1}</strong>
-                  <button type="button" className="icon-btn" aria-label="Move up" disabled={i === 0} onClick={() => { const a = [...items]; [a[i - 1], a[i]] = [a[i], a[i - 1]]; onChange(path, a); }}><Icon name="chevronLeft" className="rot90" /></button>
-                  <button type="button" className="icon-btn" aria-label="Remove" disabled={f.min !== undefined && items.length <= f.min} onClick={() => onChange(path, items.filter((_, j) => j !== i))}><Icon name="trash" /></button>
-                </div>
-                {(f.fields ?? []).map((c) => <FieldEditor key={c.id} f={c} value={it?.[c.id]} path={[...path, i, c.id]} onChange={onChange} ctx={ctx} />)}
-              </div>
-            ))}
-            {(f.max === undefined || items.length < f.max) && <button type="button" className="btn btn--ghost" onClick={() => onChange(path, [...items, blank()])}><Icon name="plus" /> Add {f.itemLabel?.toLowerCase()}</button>}
-          </div>
-        </fieldset>
-      );
-    }
-    default: return null;
-  }
-}
-
-/** Create a category / collection without leaving the homepage editor, and select it. */
-function NewRef({ kind, onCreated }: { kind: 'category' | 'collection'; onCreated: (id: string) => void }) {
-  const m = useCatalogMutations();
-  const toast = useToast();
-  return (
-    <div style={{ marginTop: 6 }}>
-      <AddInline compact label={kind === 'category' ? 'New category' : 'New collection'} placeholder={kind === 'category' ? 'e.g. Kaftans' : 'e.g. Onam Edit'}
-        onAdd={async (name) => {
-          const r = kind === 'category' ? await m.createCategory.mutateAsync({ name }) : await m.createCollection.mutateAsync({ name, kind: 'occasion' });
-          onCreated(r.id);
-          toast({ text: `${name} added. Give it a photo in Catalog setup.` });
-        }} />
-    </div>
   );
 }

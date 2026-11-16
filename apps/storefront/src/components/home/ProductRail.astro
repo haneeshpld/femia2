@@ -1,38 +1,182 @@
 ---
+/**
+ * Product section ("Just landed" and other product rows): the gallery.
+ * A fashion-house gallery: large photos with no card boxes, the name and price in fine type beneath. On hover the
+ * photo turns to the piece's second photo, a slim "Add to bag" bar rises from its foot and the heart appears; touch
+ * screens keep the heart and a round bag button visible. Wide screens show four pieces then "View all"; phones
+ * swipe through every piece. Page scroll is never touched.
+ */
 import type { ProductCard } from '@femia/contracts';
-import PCard from '../ProductCard.astro';
 import Icon from '../ui/Icon.astro';
-import { emph } from '../../lib/format.ts';
+import { emph, formatINR, percentOff, srcset } from '../../lib/format.ts';
+import { t } from '@femia/i18n';
 interface Props { title: string; linkLabel: string; products: ProductCard[]; viewAll: string; id: string }
 const { title, linkLabel, products, viewAll, id } = Astro.props;
+const items = products.filter((p) => p.images.length).map((p) => {
+  const main = (p.images.find((i) => i.role === 'main') ?? p.images[0])!;
+  const alt = p.images.find((i) => i.role === 'alt' && i !== main && i.option2 === main.option2) ?? p.images.find((i) => i.role === 'alt' && i !== main);
+  // One understated tag: the live offer first, else "New".
+  const tag = p.soldOut ? t('common.soldOut') : p.badges[0]?.label ?? (p.isNew ? t('common.new') : null);
+  return { p, main, alt, tag, pct: percentOff(p.price, p.compareAtPrice), sale: p.badges.some((b) => b.kind === 'sale') };
+});
+const sizes = '(min-width: 1024px) 24vw, (min-width: 768px) 44vw, 68vw';
 ---
-{products.length > 0 && (
-  <section class="section rail" aria-labelledby={id}>
+{items.length > 0 && (
+  <section class="section gal" aria-labelledby={id} data-gal>
     <div class="container">
-      <div class="section-head">
+      <div class="gal__head">
         <h2 id={id} data-split set:html={emph(title)} />
-        <span class="thread-rule" aria-hidden="true"></span>
         <a class="link-arrow" href={viewAll}>{linkLabel} <Icon name="arrowRight" size={18} /></a>
       </div>
-      <ul role="list" class="rail__track" data-cards>
-        {products.map((p) => <li><PCard product={p} /></li>)}
+      <ul role="list" class="gal__grid">
+        {items.map(({ p, main, alt, tag, pct, sale }) => (
+          <li class="piece">
+            <div class="piece__media">
+              <a class="piece__photo" href={`/products/${p.slug}`} tabindex="-1" aria-hidden="true">
+                <img class="piece__img" src={main.src['480']} srcset={srcset(main)} sizes={sizes} width={main.width} height={main.height}
+                  alt="" loading="lazy" decoding="async" style={main.placeholder ? `background:${main.placeholder}` : undefined} />
+                {alt && <img class="piece__img piece__img--alt" src={alt.src['480']} srcset={srcset(alt)} sizes={sizes} width={alt.width} height={alt.height} alt="" loading="lazy" decoding="async" />}
+              </a>
+              {tag && <span class:list={['piece__tag', { 'piece__tag--sale': sale && !p.soldOut }]}>{tag}</span>}
+              <button type="button" class="piece__wish" aria-pressed="false" aria-label={t('common.saveToWishlist', { title: p.title })}
+                data-gal-wish={JSON.stringify({ productId: p.id, slug: p.slug, title: p.title, price: p.price, image: main.src['480'] })}>
+                <Icon name="heart" size={18} />
+              </button>
+              {!p.soldOut && (
+                <button type="button" class="piece__add" data-gal-add={p.slug} aria-label={`${t('common.addToBag')}: ${p.title}`}>
+                  <Icon name="bag" size={16} /><span>{t('common.addToBag')}</span>
+                </button>
+              )}
+            </div>
+            <div class="piece__info">
+              <h3 class="piece__name"><a href={`/products/${p.slug}`}>{p.title}</a></h3>
+              <p class:list={['piece__price', { 'is-sale': sale }]}>
+                <span>{formatINR(p.price)}</span>
+                {pct > 0 && <s><span class="sr-only">Was </span>{formatINR(p.compareAtPrice!)}</s>}
+              </p>
+              {p.colours.length > 1 && (
+                <p class="piece__colours"><span class="sr-only">Colours: {p.colours.map((c) => c.label).join(', ')}</span>
+                  {p.colours.slice(0, 5).map((c) => <i style={`--sw:${c.swatch ?? '#ccc'}`} aria-hidden="true" />)}
+                </p>
+              )}
+            </div>
+          </li>
+        ))}
       </ul>
     </div>
   </section>
 )}
 <style>
-  .rail { padding-top: clamp(var(--sp-4), 2vw, var(--sp-8)); }
-  /* Wide screens: the heading becomes an intro column on the left, the pieces sit to its right. */
-  @media (min-width: 1100px) {
-    .rail > .container { display: grid; grid-template-columns: minmax(220px, .9fr) 4fr; gap: clamp(var(--sp-10), 4vw, var(--sp-16)); align-items: start; }
-    .rail .section-head { grid-template-columns: 1fr; grid-template-areas: 'title' 'rule' 'aside'; justify-items: start; text-align: left; margin: var(--sp-6) 0 0; row-gap: var(--sp-4); }
-    .rail .section-head h2 { font-size: clamp(2.25rem, 1.6rem + 1.4vw, 3rem); }
-    .rail .section-head :global(.thread-rule), .rail .section-head > :global(:not(h2)) { justify-self: start; }
+  .gal__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--sp-3) var(--sp-6); margin-bottom: clamp(var(--sp-6), 2.6vw, var(--sp-10)); }
+  .gal__head h2 { font-size: var(--fs-section); }
+  .gal__head > .link-arrow { flex: none; white-space: nowrap; }
+  .gal__grid { position: relative; /* contains the screen-reader-only price text, so it scrolls with the row instead of widening the page */ display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(var(--sp-4), 2vw, var(--sp-8)); }
+  .gal__grid > li:nth-child(n + 5) { display: none; } /* four pieces, then "View all" */
+
+  /* ── the photo ── */
+  .piece__media { position: relative; aspect-ratio: 3 / 4; overflow: hidden; border-radius: var(--r-img); background: var(--c-sand); }
+  .piece__photo { position: absolute; inset: 0; display: block; }
+  .piece__img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; transition: opacity 700ms ease, scale 1400ms var(--motion-ease-out); }
+  .piece__img--alt { opacity: 0; }
+
+  .piece__tag {
+    position: absolute; z-index: 1; top: 12px; left: 12px; padding: 5px 10px; border-radius: 999px; pointer-events: none;
+    background: rgba(255, 253, 248, .92); color: var(--c-ink); font-size: .75rem; font-weight: 500; letter-spacing: .01em; line-height: 1.2;
   }
-  .rail__track { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-10) clamp(var(--sp-5), 1.8vw, var(--sp-8)); }
+  .piece__tag--sale { color: var(--c-accent); }
+
+  .piece__wish {
+    position: absolute; z-index: 2; top: 6px; right: 6px; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%;
+    color: var(--c-ink); transition: opacity 300ms ease, color 200ms ease;
+  }
+  .piece__wish::before { content: ''; position: absolute; inset: 6px; border-radius: 50%; background: rgba(255, 253, 248, .92); z-index: -1; }
+  .piece__wish:hover, .piece__wish[aria-pressed='true'] { color: var(--c-accent); }
+  .piece__wish[aria-pressed='true'] :global(svg) { fill: currentColor; }
+
+  .piece__add {
+    position: absolute; z-index: 2; left: 10px; right: 10px; bottom: 10px; display: flex; align-items: center; justify-content: center; gap: var(--sp-2);
+    min-height: 46px; border-radius: 999px; background: rgba(255, 253, 248, .94); color: var(--c-ink);
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: 0 6px 18px -10px rgba(80, 36, 32, .45);
+    font-size: .875rem; font-weight: 500; letter-spacing: .01em;
+    transition: transform 450ms var(--motion-ease-out), opacity 300ms ease, background 200ms ease, color 200ms ease;
+  }
+  .piece__add:hover { background: var(--c-accent); color: #FFFDF8; }
+  .piece__wish:focus-visible, .piece__add:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
+
+  /* pointer devices: the second photo, the bar and the heart come with hover (or keyboard focus) */
+  @media (hover: hover) {
+    .piece:hover .piece__img--alt { opacity: 1; }
+    .piece:hover .piece__img { scale: 1.03; }
+    .piece__add { opacity: 0; transform: translateY(calc(100% + 12px)); }
+    .piece:hover .piece__add, .piece:focus-within .piece__add { opacity: 1; transform: none; }
+    .piece__wish { opacity: 0; }
+    .piece:hover .piece__wish, .piece:focus-within .piece__wish, .piece__wish[aria-pressed='true'] { opacity: 1; }
+  }
+  /* touch screens: a round bag button instead of the bar */
+  @media (hover: none) {
+    .piece__add { left: auto; right: 8px; bottom: 8px; width: 44px; min-height: 44px; padding: 0; }
+    .piece__add span { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { .piece__img, .piece__add { transition-duration: 1ms; } }
+
+  /* ── beneath ── */
+  .piece__info { display: grid; gap: 4px; padding-top: var(--sp-4); }
+  .piece__name { font-family: var(--font-body); font-size: 1rem; font-weight: 500; line-height: 1.35; letter-spacing: 0; color: var(--c-ink); }
+  .piece__name a:hover { color: var(--c-accent); }
+  .piece__name a:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; border-radius: 2px; }
+  .piece__price { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--sp-2); font-size: .9375rem; color: var(--c-ink); font-variant-numeric: tabular-nums lining-nums; }
+  .piece__price.is-sale > span:first-child { color: var(--c-accent); font-weight: 600; }
+  .piece__price s { color: var(--c-muted); font-size: .875rem; }
+  .piece__colours { display: flex; gap: 6px; margin-top: 4px; }
+  .piece__colours i { width: 10px; height: 10px; border-radius: 50%; background: var(--sw); box-shadow: inset 0 0 0 1px rgba(47, 39, 33, .18); }
+
+  /* ── tablets and phones: swipe through every piece ── */
   @media (max-width: 1023px) {
-    .rail__track { display: flex; gap: var(--sp-4); overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; margin-inline: calc(var(--layout-gutter) * -1); padding: var(--sp-2) var(--layout-gutter) var(--sp-10); }
-    .rail__track::-webkit-scrollbar { display: none; }
-    .rail__track > li { flex: 0 0 clamp(210px, 48vw, 290px); scroll-snap-align: start; }
+    .gal__grid {
+      display: flex; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none;
+      margin-inline: calc(var(--layout-gutter) * -1); padding-inline: var(--layout-gutter); scroll-padding-inline: var(--layout-gutter);
+    }
+    .gal__grid::-webkit-scrollbar { display: none; }
+    .gal__grid > li { flex: 0 0 clamp(220px, 44vw, 340px); scroll-snap-align: start; }
+    .gal__grid > li:nth-child(n + 5) { display: block; }
   }
+  @media (max-width: 599px) { .gal__grid > li { flex-basis: 68vw; } }
 </style>
+<script>
+  import { onPage } from '../../lib/lifecycle.ts';
+  import { $wishlist, toggleWish } from '../../lib/stores.ts';
+  import { emit } from '../../lib/ui-events.ts';
+  import { showSaleEnds } from '../../lib/sale-ends.ts';
+
+  const syncHearts = () => {
+    const ids = new Set($wishlist.get().map((w) => w.productId));
+    document.querySelectorAll<HTMLButtonElement>('[data-gal-wish]').forEach((b) => {
+      const { productId, title } = JSON.parse(b.dataset.galWish!);
+      const on = ids.has(productId);
+      b.setAttribute('aria-pressed', String(on));
+      b.setAttribute('aria-label', on ? `Remove ${title} from wishlist` : `Save ${title} to wishlist`);
+    });
+  };
+  $wishlist.listen(syncHearts);
+
+  onPage(() => {
+    const offs: (() => void)[] = [];
+    document.querySelectorAll<HTMLElement>('[data-gal]').forEach((root) => {
+      const click = (e: Event) => {
+        const target = e.target as Element;
+        const wish = target.closest<HTMLButtonElement>('[data-gal-wish]');
+        if (wish) { toggleWish(JSON.parse(wish.dataset.galWish!)); return; }
+        const add = target.closest<HTMLButtonElement>('[data-gal-add]');
+        if (add) {
+          const img = add.closest('.piece')?.querySelector<HTMLImageElement>('.piece__img');
+          emit({ type: 'quick-add', slug: add.dataset.galAdd!, colour: null, origin: img?.getBoundingClientRect(), imageUrl: img?.currentSrc || img?.src });
+        }
+      };
+      root.addEventListener('click', click);
+      offs.push(() => root.removeEventListener('click', click));
+    });
+    syncHearts();
+    showSaleEnds();
+    return () => offs.forEach((f) => f());
+  });
+</script>

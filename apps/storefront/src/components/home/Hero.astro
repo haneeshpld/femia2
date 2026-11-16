@@ -12,11 +12,11 @@ import { formatINR, srcset } from '../../lib/format.ts';
 import { api } from '../../lib/api.ts';
 import { boutiqueStatus, type DayHours } from '../../lib/hours.ts';
 import { PHONE, TABLET, type DeviceImages } from '../../lib/hero.ts';
-interface Props { hero: Record<string, any>; images: DeviceImages; city?: string; hours?: DayHours[] | null }
-const { hero: h, images, city, hours = null } = Astro.props;
+interface Props { hero: Record<string, any>; images: DeviceImages; city?: string; hours?: DayHours[] | null; rail?: { sort: 'new' | 'popular'; collection?: string; category?: string } }
+const { hero: h, images, city, hours = null, rail = { sort: 'new' } } = Astro.props;
 const status = boutiqueStatus(hours);
-// The four newest pieces still in stock hang beside the photo.
-const pieces = await api().catalog.products({ sort: 'new', pageSize: 8 })
+// Four pieces still in stock hang beside the photo: the newest unless the owner picked another source in Admin.
+const pieces = await api().catalog.products({ ...rail, pageSize: 8 })
   .then((r) => r.items.filter((p) => !p.soldOut && p.images.length).slice(0, 4)).catch(() => []);
 // Desktop / tablet / phone photos from Admin; each falls back to the next larger one.
 const { desktop: image, tablet, mobile } = images;
@@ -80,10 +80,33 @@ const { desktop: image, tablet, mobile } = images;
 <style>
   .hero {
     --rail-h: clamp(360px, calc(100svh - 240px), 660px);   /* garment height on wide screens */
-    --hang: 24px;                                           /* rod + hanger space above the garments */
+    --hang: 0px;                                            /* premium pass: the rod and hangers are retired, garments sit flush */
     --rod: linear-gradient(90deg, var(--c-zari-deep), var(--c-zari) 30%, var(--c-zari-deep) 65%, var(--c-zari));
-    position: relative; isolation: isolate; overflow: hidden; background: var(--c-cream);
+    position: relative; isolation: isolate; overflow: hidden;
+    /* the boutique wall: sunlit plaster with window light and leaf shadows on the rail's side (public/brand/hero-wall*-v2.webp),
+       an ivory wash over the copy side so the text always reads, and a fade into the page at the foot */
+    background: var(--c-cream);
     padding-block: clamp(var(--sp-5), 4vh, var(--sp-12));
+    --wall: url('/brand/hero-wall-v2.webp') 70% 50% / cover no-repeat;
+    --wash:
+      linear-gradient(90deg, rgba(251, 247, 244, .6) 0%, rgba(251, 247, 244, .3) 34%, rgba(251, 247, 244, 0) 52%),
+      linear-gradient(180deg, rgba(251, 247, 244, 0) 80%, var(--c-cream) 100%),
+      linear-gradient(115deg, rgba(247, 235, 221, 0) 40%, rgba(241, 217, 214, .4) 100%);  /* champagne warming to rose on the rail's side */
+  }
+  /* The living wall: the photo (window light and leaf shadows) drifts very slowly, as if a breeze is moving the
+     leaves outside; the readability wash and the fade at the foot stay still above it. */
+  .hero::before, .hero::after { content: ''; position: absolute; pointer-events: none; }
+  .hero::before { inset: -3%; z-index: -2; background: var(--wall); transform-origin: 70% 20%; }
+  .hero::after { inset: 0; z-index: -1; background: var(--wash); }
+  @media (prefers-reduced-motion: no-preference) {
+    .hero::before { animation: wall-breeze 14s ease-in-out infinite alternate; will-change: transform; }
+  }
+  @keyframes wall-breeze {
+    0% { transform: translate3d(0, 0, 0) skewX(0deg) scale(1.02); }
+    45% { transform: translate3d(-0.7%, 0.35%, 0) skewX(-0.9deg) scale(1.035); }
+    100% { transform: translate3d(0.5%, -0.25%, 0) skewX(0.6deg) scale(1.025); }
+  }
+  .hero {
   }
 
   /* ── wide screens: copy on the left, the rail running off the right edge ── */
@@ -111,9 +134,9 @@ const { desktop: image, tablet, mobile } = images;
   .rail {
     grid-column: 2; grid-row: 1 / -1; display: flex; gap: 10px;
     height: calc(var(--rail-h) + var(--hang)); padding-top: var(--hang);
-    background: var(--rod) 0 9px / 100% 2px no-repeat;   /* the brass rod */
   }
   .rail__item { position: relative; flex: 1 1 0; min-width: 0; }
+  .rail__item::before, .rail__item::after { display: none; } /* premium pass: rings and hooks retired, the rod stays */
   .rail__item::before { /* hanger ring around the rod */
     content: ''; position: absolute; top: calc(-1 * var(--hang) + 4px); left: calc(50% - 6px); width: 12px; height: 12px;
     border: 1.5px solid var(--c-zari-deep); border-radius: 50%;
@@ -121,12 +144,12 @@ const { desktop: image, tablet, mobile } = images;
   .rail__item::after { /* the hook down to the garment */
     content: ''; position: absolute; top: calc(-1 * var(--hang) + 16px); left: calc(50% - .75px); width: 1.5px; height: calc(var(--hang) - 16px); background: var(--c-zari-deep);
   }
-  .rail__frame { position: absolute; inset: 0; display: block; overflow: hidden; border-radius: 12px; background: var(--c-sand); box-shadow: var(--shadow-card); }
+  .rail__frame { position: absolute; inset: 0; display: block; overflow: hidden; border-radius: var(--r-img); background: var(--c-sand); box-shadow: var(--shadow-card); }
   .rail__frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 25%; }
   .rail__frame picture { display: contents; }
   .rail__item:last-child .rail__frame { border-start-end-radius: 0; border-end-end-radius: 0; } /* runs off the edge */
 
-  .rail__link::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(0deg, rgba(36, 24, 12, .62), rgba(36, 24, 12, 0) 48%); }
+  .rail__link::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(0deg, rgba(60, 26, 24, .62), rgba(60, 26, 24, 0) 48%); }
   .rail__link:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 3px; }
   .rail__tag { /* name running up the side, like a garment tag */
     position: absolute; z-index: 1; left: 50%; bottom: 18px; max-height: calc(100% - 36px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -151,9 +174,6 @@ const { desktop: image, tablet, mobile } = images;
     .rail__item, .rail__cap { transition: none; }
   }
 
-  /* Christmas seal (festive/christmas): stamped on the lead photo's upper corner. */
-  .hero :global(.xm-seal) { right: auto; bottom: auto; left: 44%; top: clamp(40px, 7vh, 80px); width: 120px; }
-
   /* Held only while GSAP prepares the entrance (removed by script, or after 1.6s by the head guard). */
   :global(.hero-pending) [data-hero-line] { transform: translateY(105%); }
   :global(.hero-pending) [data-hero-fade] { opacity: 0; }
@@ -161,9 +181,13 @@ const { desktop: image, tablet, mobile } = images;
 
   /* ── phones and small tablets: headline, the rail as a swipeable strip, then the buttons ── */
   @media (max-width: 899px) {
-    .hero { padding-block: var(--sp-6) var(--sp-8); }
+    .hero {
+      padding-block: var(--sp-6) var(--sp-8);
+      --wall: url('/brand/hero-wall-phone-v2.webp') 50% 45% / cover no-repeat;
+      --wash: linear-gradient(180deg, rgba(251, 247, 244, .5) 0%, rgba(251, 247, 244, 0) 24%, rgba(251, 247, 244, 0) 76%, var(--c-cream) 100%);
+    }
     .hero__stage { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; padding-inline: var(--layout-gutter); }
-    .hero__title { grid-row: 1; font-size: clamp(2.5rem, 1.4rem + 4.6vw, 4rem); }
+    .hero__title { grid-row: 1; font-size: clamp(2.25rem, 1.25rem + 4.6vw, 4rem); }
     .rail {
       grid-column: 1; grid-row: 2; height: auto; margin: var(--sp-5) calc(-1 * var(--layout-gutter)) 0;
       padding: var(--hang) var(--layout-gutter) var(--sp-2); gap: 12px;
@@ -173,12 +197,11 @@ const { desktop: image, tablet, mobile } = images;
     .rail::-webkit-scrollbar { display: none; }
     .rail__item { flex: 0 0 46vw; height: clamp(300px, 50svh, 460px); scroll-snap-align: start; }
     .rail__item--lead { flex-basis: 72vw; }
-    .rail__item:last-child .rail__frame { border-radius: 12px; }
+    .rail__item:last-child .rail__frame { border-radius: var(--r-img); }
     .rail__tag { display: none; }
     .hero__act { grid-row: 3; margin-top: var(--sp-6); }
     .hero__ctas { order: -1; }
     .hero__foot { grid-row: 4; margin-top: var(--sp-4); }
-    .hero :global(.xm-seal) { left: auto; right: 16px; top: 150px; width: 84px; }
   }
   @media (max-width: 479px) {
     .hero__act { justify-items: stretch; }

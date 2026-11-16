@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="36" height="46" viewBox="0 0 36 46"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F6E3AE"/><stop offset=".45" stop-color="#D9AE55"/><stop offset="1" stop-color="#9A6E22"/></linearGradient>
+<linearGradient id="gv" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6E3AE"/><stop offset=".5" stop-color="#D2A24A"/><stop offset="1" stop-color="#8E6420"/></linearGradient>
+<linearGradient id="gh" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9A6E22"/><stop offset=".35" stop-color="#E4C27A"/><stop offset=".55" stop-color="#F6E3AE"/><stop offset="1" stop-color="#9A6E22"/></linearGradient>
+<radialGradient id="pearl" cx=".38" cy=".35" r=".75"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".7" stop-color="#F6EBDD"/><stop offset="1" stop-color="#D8C3A8"/></radialGradient><radialGradient id="bulb" cx=".36" cy=".32" r=".8"><stop offset="0" stop-color="#C9405C"/><stop offset=".55" stop-color="#8E1D33"/><stop offset="1" stop-color="#4A0C18"/></radialGradient></defs>
+<path d="M18 0.8a2.6 2.6 0 1 1 0 5.2a2.6 2.6 0 1 1 0-5.2Z" fill="none" stroke="url(#g)" stroke-width="1.1"/>
+<rect x="13" y="5.6" width="10" height="5.4" rx="1.2" fill="url(#gh)" stroke="#7A5418" stroke-width=".5"/>
+<path d="M13.6 7.4h8.8M13.6 9.2h8.8" stroke="#7A5418" stroke-width=".35" opacity=".7"/>
+<circle cx="18" cy="27" r="16" fill="url(#bulb)"/>
+<path d="M2.6 25.4q15.4 6 30.8 0" stroke="url(#gh)" stroke-width="2.2" fill="none"/>
+<path d="M2.4 28.6q15.6 6 31.2 0" stroke="url(#gh)" stroke-width=".8" fill="none" opacity=".9"/>
+<circle cx="5" cy="27.53" r=".7" fill="#FFF4D0"/><circle cx="9.5" cy="28.74" r=".7" fill="#FFF4D0"/><circle cx="14" cy="29.55" r=".7" fill="#FFF4D0"/><circle cx="18" cy="29.8" r=".7" fill="#FFF4D0"/><circle cx="22" cy="29.55" r=".7" fill="#FFF4D0"/><circle cx="26.5" cy="28.74" r=".7" fill="#FFF4D0"/><circle cx="31" cy="27.53" r=".7" fill="#FFF4D0"/>
+<ellipse cx="11.5" cy="19.5" rx="4.2" ry="2.6" transform="rotate(-35 11.5 19.5)" fill="#fff" opacity=".35"/>
+<circle cx="10.2" cy="20.2" r="1.1" fill="#fff" opacity=".7"/></svg>

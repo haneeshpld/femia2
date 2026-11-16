@@ -22,10 +22,10 @@ Kerala-only delivery at launch (pincode check). Free shipping above ₹999. Easy
 Astro storefront on Cloudflare free tier; Lighthouse mobile ≥ 90 performance, ≥ 95 accessibility/SEO/best practices; WCAG AA; 44px tap targets; reduced motion respected. Femia sells women's dresses and kurta-style wear, **not sarees**. Coupons, Malayalam UI and interstate shipping arrive in 1.1.
 
 ## Brand Commitments
-Name Femia; emblem (crowned woman in a gold ring) and calligraphic wordmark in `design/reference/`. The storefront palette is ivory and caramel gold (owner's redesign, 16 Nov 2026; supersedes the maroon palette of the original mockups in `design/reference/`). The silk-ribbon hero and gold zari thread remain. Copy says "Add to Bag".
+Name Femia; emblem (crowned woman in a gold ring) and calligraphic wordmark in `design/reference/`. The storefront palette is rose & champagne: ivory drifting into blush, rosewood and rose-gold accents, gold zari thread, rosewood footer (owner's choice, 16 Nov 2026; supersedes ivory & caramel and the maroon palette of the original mockups in `design/reference/`). The silk-ribbon hero and gold zari thread remain. Copy says "Add to Bag".
 
 ## Evidence on Hand
-Mockups and logo files in `design/reference/`. No real product photography, testimonials or press yet: the current catalogue is dev placeholder cropped from the mockups and must not be presented as real.
+Mockups and logo files in `design/reference/`. No real product photography, testimonials or press yet: the dev catalogue uses mockup crops and generated editorial concepts, which must not be presented as photographs of real stock.
 
 ## Product Principles
 1. The boutique is real: Kochi, the shop, WhatsApp and the people behind it are the proof.

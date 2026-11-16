@@ -22,7 +22,7 @@ const { site, categories } = Astro.props;
 const sections = homeSections(site.content).filter((s) => s.enabled);
 const media = (id?: string | null) => (id ? site.media[id] : undefined);
 
-const needsCollections = sections.some((s) => s.type === 'occasions' || (s.type === 'products' && s.data.source === 'collection'));
+const needsCollections = sections.some((s) => s.type === 'occasions' || (s.type === 'products' && s.data.source === 'collection') || (s.type === 'hero' && s.data.railSource === 'collection'));
 const collections = needsCollections ? await api().catalog.collections() : [];
 const catById = new Map(categories.map((x) => [x.id, x]));
 const collById = new Map(collections.map((x) => [x.id, x]));
@@ -38,13 +38,20 @@ const rows = new Map<string, Row>(await Promise.all(sections.filter((s) => s.typ
   return [s.id, { products: list.items, viewAll: coll ? `/collections/${coll.slug}` : cat ? `/shop/${cat.slug}` : d.source === 'popular' ? '/shop?sort=popular' : '/shop?sort=new' }];
 })));
 
+// The pieces hanging beside the hero photo: newest (default), most popular, a collection or a category.
+const railQuery = (d: Record<string, any>) => ({
+  sort: d.railSource === 'popular' ? 'popular' as const : 'new' as const,
+  collection: d.railSource === 'collection' ? collById.get(d.railCollection)?.slug : undefined,
+  category: d.railSource === 'category' ? catById.get(d.railCategory)?.slug : undefined,
+});
+
 const uid = (s: HomeSection) => `sec-${s.id}`.replace(/[^a-zA-Z0-9_-]/g, '');
 ---
 {sections.map((s) => {
   const d = s.data;
   switch (s.type) {
     case 'hero':
-      return <Hero hero={d} images={deviceImages(d, site.media)} city={site.settings.store.address.city} hours={site.settings.store.hours} />;
+      return <Hero hero={d} images={deviceImages(d, site.media)} city={site.settings.store.address.city} hours={site.settings.store.hours} rail={railQuery(d)} />;
     case 'categories': {
       const items = (d.items ?? []).length ? d.items : categories.map((c) => ({ category: c.id }));
       const tiles = items.map((i: { category: string; image?: string }) => ({ category: catById.get(i.category)!, image: media(i.image) ?? catById.get(i.category)?.image ?? null })).filter((x: { category?: unknown }) => x.category);
@@ -59,7 +66,7 @@ const uid = (s: HomeSection) => `sec-${s.id}`.replace(/[^a-zA-Z0-9_-]/g, '');
       return items.length > 0 && <Occasions title={d.heading ?? ''} items={items} uid={uid(s)} />;
     }
     case 'boutique':
-      return <Boutique block={{ ...d, title: d.heading }} image={media(d.image)} store={site.settings.store} uid={uid(s)} />;
+      return <Boutique block={{ ...d, title: d.heading }} image={media(d.image) ?? media(site.content.boutique?.image)} store={site.settings.store} uid={uid(s)} />; // no photo of its own: the Visit page's boutique photo
     case 'instagram':
       return <StyledByYou block={{ enabled: true, eyebrow: d.heading, handle: d.handle, images: d.images }} media={site.media} instagram={site.settings.store.socials.instagram} uid={uid(s)} />;
     case 'banner':

@@ -4,6 +4,7 @@ import { CartDrawer } from './CartDrawer.tsx';
 import { QuickAdd } from './QuickAdd.tsx';
 import { SearchOverlay } from './SearchOverlay.tsx';
 import { TrialSheet, type TrialStore } from './TrialSheet.tsx';
+import { TRY_ON_ENABLED } from '../../lib/features.ts';
 import { Icon } from './Icon.tsx';
 
 /** One island for every overlay, hydrated on idle. Static markup talks to it through ui-events. */
@@ -45,7 +46,7 @@ export default function Shell({ freeShippingThreshold, sizeGuide, store, onReady
     <>
       <CartDrawer open={cart} onClose={closeCart} threshold={freeShippingThreshold} />
       <SearchOverlay open={search} onClose={closeSearch} />
-      {store.wa && <TrialSheet open={trial} onClose={closeTrial} store={store} />}
+      {TRY_ON_ENABLED && store.wa && <TrialSheet open={trial} onClose={closeTrial} store={store} />}
       <QuickAdd slug={quick?.slug ?? null} colour={quick?.colour} origin={quick?.origin} imageUrl={quick?.imageUrl} onClose={closeQuick}
         onAdded={(item) => setToast({ title: 'Added to your bag', detail: item })} sizeGuide={sizeGuide} />
       <div className={`toast${toast ? ' is-on' : ''}`} role="status" aria-live="polite">

@@ -60,15 +60,15 @@ export type CatalogPresets = z.infer<typeof CatalogPresets>;
  * Each theme keeps its own options so switching between them never loses choices. New festivals add a key here
  * and a folder in the storefront (src/festive/<id>).
  */
-export const FESTIVE_THEMES = ['christmas'] as const;
+export const FESTIVE_THEMES = ['christmas', 'ramzan', 'bakrid', 'onam', 'vishu', 'india'] as const;
 export const FestiveThemeId = z.enum(FESTIVE_THEMES);
 export type FestiveThemeId = z.infer<typeof FestiveThemeId>;
 export const ChristmasOptions = z.object({
   /** gold dust and glints, or soft snow */
   sparkle: z.enum(['gold', 'snow', 'off']).default('gold'),
-  /** embroidered gold pine garland following the logo's arch, with a hanging star */
+  /** an embroidered gold pine garland with berries along the header */
   garland: z.boolean().default(true),
-  /** a few zari stars hanging from the header on gold threads */
+  /** zari stars and pine and berry baubles hanging from the header on gold threads */
   stars: z.boolean().default(true),
   /** the circular "Christmas Edit" seal on the home page hero */
   seal: z.boolean().default(true),
@@ -80,12 +80,104 @@ export const ChristmasOptions = z.object({
   christmasDay: z.boolean().default(true),
 });
 export type ChristmasOptions = z.infer<typeof ChristmasOptions>;
+const sealText = (d: string) => z.string().trim().max(32).default(d);
+const sealLink = z.string().trim().max(200).regex(/^\//, 'Use a page on your website, like /shop').default('/shop');
+/** Optional greeting on the festival day itself (dates follow the moon, so the owner sets the day). */
+const greetingDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Pick a date').nullable().default(null);
+/** Ramzan and Eid al-Fitr (id ramzan): brass lanterns and crescents, a strand of warm lights, mehndi details. */
+export const RamzanOptions = z.object({
+  /** warm motes of lantern light drifting up the page */
+  sparkle: z.enum(['glow', 'off']).default('glow'),
+  /** a strand of warm lights along the header, with small stars and a crescent */
+  lights: z.boolean().default(true),
+  /** lanterns and crescents hanging from the header (computers and tablets) */
+  lanterns: z.boolean().default(true),
+  seal: z.boolean().default(true),
+  sealText: sealText('The Festive Edit'),
+  sealLink,
+  /** night-blue announcement bar, a mehndi border on the footer, crescents for the gold diamonds */
+  details: z.boolean().default(true),
+  /** on this day the seal shows the greeting */
+  greetingDay,
+  greetingText: z.string().trim().max(24).default('Eid Mubarak'),
+});
+export type RamzanOptions = z.infer<typeof RamzanOptions>;
+/** Bakrid: a teal-and-gold toran along the header, eight-point star medallions and tassels, jaali details. */
+export const BakridOptions = z.object({
+  /** a little gold dust drifting down */
+  sparkle: z.enum(['gold', 'off']).default('gold'),
+  /** the scalloped toran (doorway hanging) along the header */
+  toran: z.boolean().default(true),
+  /** star medallions and tassels hanging from the header (computers and tablets) */
+  medallions: z.boolean().default(true),
+  seal: z.boolean().default(true),
+  sealText: sealText('The Celebration Edit'),
+  sealLink,
+  /** teal announcement bar, a jaali border on the footer, eight-point stars for the gold diamonds */
+  details: z.boolean().default(true),
+  greetingDay,
+  greetingText: z.string().trim().max(24).default('Eid Mubarak'),
+});
+export type BakridOptions = z.infer<typeof BakridOptions>;
+/** Onam: a mango-leaf and marigold thoranam, pookalam medallions and marigold strings, falling petals, kasavu details. */
+export const OnamOptions = z.object({
+  /** marigold and chethi petals drifting down */
+  sparkle: z.enum(['petals', 'off']).default('petals'),
+  /** mango leaves and marigolds strung along the header */
+  thoranam: z.boolean().default(true),
+  /** pookalam medallions and marigold strings hanging from the header (computers and tablets) */
+  flowers: z.boolean().default(true),
+  seal: z.boolean().default(true),
+  sealText: sealText('The Harvest Edit'),
+  sealLink,
+  /** kasavu-cream announcement bar, a kasavu gold border on the footer, small flowers for the gold diamonds */
+  details: z.boolean().default(true),
+  greetingDay,
+  greetingText: z.string().trim().max(24).default('Happy Onam'),
+});
+export type OnamOptions = z.infer<typeof OnamOptions>;
+/** Vishu: a konna branch along the header, golden-shower clusters hanging from it, falling yellow petals. */
+export const VishuOptions = z.object({
+  sparkle: z.enum(['petals', 'off']).default('petals'),
+  /** a leafy konna branch with blossom sprays along the header */
+  branch: z.boolean().default(true),
+  /** golden-shower flower clusters hanging from the header (computers and tablets) */
+  blossoms: z.boolean().default(true),
+  seal: z.boolean().default(true),
+  sealText: sealText('The Golden Edit'),
+  sealLink,
+  /** leaf-green announcement bar, konna flowers along the footer, flowers for the gold diamonds */
+  details: z.boolean().default(true),
+  greetingDay,
+  greetingText: z.string().trim().max(24).default('Happy Vishu'),
+});
+export type VishuOptions = z.infer<typeof VishuOptions>;
+/** India's national days: tricolour bunting, kites and rosettes, falling tricolour petals, the chakra. */
+export const IndiaOptions = z.object({
+  /** saffron, white and green petals drifting down */
+  sparkle: z.enum(['petals', 'off']).default('petals'),
+  /** tricolour pennants strung along the header */
+  bunting: z.boolean().default(true),
+  /** tricolour kites and rosettes hanging from the header (computers and tablets) */
+  kites: z.boolean().default(true),
+  seal: z.boolean().default(true),
+  sealText: sealText('Celebrating India'),
+  sealLink,
+  /** navy announcement bar with a tricolour edge, a tricolour border on the footer, the chakra for the gold diamonds */
+  details: z.boolean().default(true),
+  /** on 26 January and 15 August the seal wishes shoppers a happy Republic Day or Independence Day */
+  dayGreeting: z.boolean().default(true),
+});
+export type IndiaOptions = z.infer<typeof IndiaOptions>;
 const when = z.string().datetime({ offset: true }).nullable().default(null);
 export const FestiveSettings = z.object({
   theme: FestiveThemeId.nullable().default(null),
   startsAt: when,
   endsAt: when,
-  themes: z.object({ christmas: ChristmasOptions.prefault({}) }).prefault({}),
+  themes: z.object({
+    christmas: ChristmasOptions.prefault({}), ramzan: RamzanOptions.prefault({}), bakrid: BakridOptions.prefault({}),
+    onam: OnamOptions.prefault({}), vishu: VishuOptions.prefault({}), india: IndiaOptions.prefault({}),
+  }).prefault({}),
 }).refine((f) => !f.startsAt || !f.endsAt || Date.parse(f.endsAt) > Date.parse(f.startsAt), { message: 'The end must be after the start', path: ['endsAt'] });
 export type FestiveSettings = z.infer<typeof FestiveSettings>;
 /** Which theme the website shows right now (schedule applied). */

@@ -1,53 +1,103 @@
 ---
+/**
+ * Visit the boutique: an editorial two-column section.
+ * Left, the boutique photo in an arched doorway frame (a fine gold line just inside the arch); as the section scrolls
+ * in, the arch opens gently from narrow to full width (CSS scroll-driven; the finished frame without it). Right,
+ * left-aligned: the heading, a line of copy, then Address and Hours under a hairline, the live open/closed line, and
+ * one clear action (Get directions) with WhatsApp as a quiet link. Phones: the photo, then the text.
+ * Used on the home page (h2) and the Visit page (h1).
+ */
 import type { MediaRef, PublicSettings } from '@femia/contracts';
 import Icon from '../ui/Icon.astro';
 import { emph, srcset } from '../../lib/format.ts';
+import { boutiqueStatus } from '../../lib/hours.ts';
 import { t } from '@femia/i18n';
 interface Props { block: Record<string, any>; image?: MediaRef; store: PublicSettings['store']; headingLevel?: 'h1' | 'h2'; uid?: string }
 const { block: b, image, store, headingLevel = 'h2', uid = 'boutique' } = Astro.props;
 const H = headingLevel;
 const wa = store.whatsapp ? `https://wa.me/${store.whatsapp.replace(/\D/g, '').replace(/^(\d{10})$/, '91$1')}?text=${encodeURIComponent('Hi Femia! I would like to visit the boutique.')}` : null;
-const place = [store.address.line1, store.address.city].filter(Boolean).join(', ');
+const street = [store.address.line1, store.address.line2].filter(Boolean).join(', ');
+const town = store.address.city;
+const status = boutiqueStatus(store.hours);
 ---
-<section class="boutique" aria-labelledby={`${uid}-title`}>
-  <div class="container boutique__inner">
-    <div class="boutique__media arch ph" data-doorway>
-      {image && <img data-doorway-img src={image.src['960']} srcset={srcset(image)} sizes="(min-width: 768px) 42vw, 92vw" width={image.width} height={image.height} alt={image.alt} loading="lazy" decoding="async" />}
+<section class="section boutique" aria-labelledby={`${uid}-title`}>
+  <div class="container boutique__grid">
+    <div class="boutique__frame">
+      <div class="boutique__door">
+        {image && <img src={image.src['960']} srcset={srcset(image)} sizes="(min-width: 900px) 46vw, 92vw" width={image.width} height={image.height} alt={image.alt} loading="lazy" decoding="async" />}
+      </div>
     </div>
-    <div class="boutique__copy" data-reveal style="--delay:120ms">
-      <H id={`${uid}-title`} class="h2" set:html={emph(b.title)} />
-      <p>{b.body}</p>
-      <ul role="list" class="boutique__facts">
-        {place && <li><span class="boutique__icon"><Icon name="pin" size={20} /></span> <strong>{place}</strong></li>}
-        {store.hoursSummary && <li><span class="boutique__icon"><Icon name="clock" size={20} /></span> <span>{store.hoursSummary}</span></li>}
-      </ul>
+
+    <div class="boutique__copy">
+      <H id={`${uid}-title`} class="boutique__title" set:html={emph(b.title)} />
+      {b.body && <p class="boutique__body">{b.body}</p>}
+      <dl class="boutique__facts">
+        {(street || town) && (
+          <div>
+            <dt>Address</dt>
+            <dd>{street}{street && town && <br />}{town}</dd>
+          </div>
+        )}
+        {store.hoursSummary && (
+          <div>
+            <dt>Hours</dt>
+            <dd>{store.hoursSummary}</dd>
+          </div>
+        )}
+      </dl>
+      {status && (
+        <a class:list={['boutique__status', { 'is-open': status.open }]} href="/visit" data-hours={JSON.stringify(store.hours)}>
+          <span class="boutique__dot" aria-hidden="true"></span><span data-status-text>{status.text}</span>
+        </a>
+      )}
       <div class="boutique__ctas">
-        {store.mapUrl && <a class="btn" href={store.mapUrl} target="_blank" rel="noopener"><Icon name="navigate" size={20} /> {t('home.boutique.directions')}</a>}
-        {wa && <a class="btn btn--outline" href={wa} target="_blank" rel="noopener"><Icon name="whatsapp" size={20} /> {t('home.boutique.whatsapp')}</a>}
+        {store.mapUrl && <a class="btn" href={store.mapUrl} target="_blank" rel="noopener"><Icon name="navigate" size={18} /> {t('home.boutique.directions')}</a>}
+        {wa && <a class="link-arrow" href={wa} target="_blank" rel="noopener"><Icon name="whatsapp" size={18} /> {t('home.boutique.whatsapp')}</a>}
       </div>
     </div>
   </div>
 </section>
 <style>
-  .boutique { position: relative; background: linear-gradient(90deg, #FBF6EF 0%, var(--c-blush) 100%); padding-block: clamp(var(--sp-12), 7vw, var(--sp-20)); }
-  .boutique::before, .boutique::after { content: ''; position: absolute; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--c-zari), transparent); opacity: .5; }
-  .boutique::before { top: 10px; } .boutique::after { bottom: 10px; }
-  .boutique__inner { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr); gap: clamp(var(--sp-8), 6vw, var(--sp-20)); align-items: center; }
-  .boutique__media { aspect-ratio: 1.4; border-radius: var(--r-card); box-shadow: var(--shadow-card-hover); }
-  .boutique__media img { width: 100%; height: 100%; object-fit: cover; }
-  .boutique__copy { display: grid; gap: var(--sp-4); justify-items: start; }
-  .boutique__copy h2 :global(em), .boutique__copy h1 :global(em) { font-style: italic; color: var(--c-accent); font-weight: 500; }
-  .boutique__copy > p { font-size: var(--fs-md); max-width: 46ch; }
-  .boutique__facts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3) var(--sp-6); margin-top: var(--sp-1); }
-  .boutique__facts li + li { padding-left: var(--sp-6); border-left: 1px solid var(--c-line); }
-  .boutique__facts li { display: flex; align-items: center; gap: var(--sp-3); color: var(--c-ink); }
-  .boutique__icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; color: var(--c-accent); background: var(--c-surface); box-shadow: inset 0 0 0 1px rgba(199, 154, 62, .55); }
-  .boutique__ctas { display: flex; flex-wrap: wrap; gap: var(--sp-4); margin-top: var(--sp-2); }
-  @media (max-width: 767px) {
-    .boutique__inner { grid-template-columns: 1fr; }
-    .boutique__facts { flex-direction: column; align-items: flex-start; }
-    .boutique__facts li + li { padding-left: 0; border-left: 0; }
-    .boutique__ctas { width: 100%; flex-direction: column; }
+  .boutique__grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(var(--sp-10), 6vw, var(--sp-24)); align-items: center; }
+
+  /* the arched doorway */
+  .boutique__frame { position: relative; }
+  .boutique__door { position: relative; aspect-ratio: 1.12; overflow: clip; border-radius: 999px 999px var(--r-img) var(--r-img); background: var(--c-sand); }
+  .boutique__door img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 70%; }
+  .boutique__door::after { /* a fine gold line just inside the arch */
+    content: ''; position: absolute; inset: 12px 12px 0; border: 1px solid rgba(230, 207, 164, .85); border-bottom: 0;
+    border-radius: 999px 999px 0 0; pointer-events: none;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (animation-timeline: view()) {
+      .boutique__door { animation: door-open linear both; animation-timeline: view(); animation-range: entry 0% cover 40%; }
+      .boutique__door img { animation: door-settle linear both; animation-timeline: view(); animation-range: entry 0% cover 40%; }
+    }
+  }
+  @keyframes door-open { from { clip-path: inset(0 22% 0 22% round 999px 999px 0 0); } to { clip-path: inset(0 0 0 0 round 999px 999px 0 0); } }
+  @keyframes door-settle { from { scale: 1.12; } to { scale: 1; } }
+
+  /* the text */
+  .boutique__copy { display: grid; justify-items: start; gap: var(--sp-5); max-width: 520px; }
+  .boutique__title { font-family: var(--font-display); font-size: var(--fs-section); font-weight: 500; line-height: 1.02; letter-spacing: -.015em; color: var(--c-ink); text-wrap: balance; }
+  .boutique__title :global(em) { font-style: italic; color: var(--c-accent); font-weight: 500; }
+  .boutique__body { max-width: 44ch; font-size: var(--fs-md); line-height: 1.6; color: var(--c-text); }
+  .boutique__facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-6); width: 100%; margin-top: var(--sp-2); padding-top: var(--sp-5); border-top: 1px solid var(--c-line); }
+  .boutique__facts dt { font-size: .8125rem; color: var(--c-muted); margin-bottom: var(--sp-1); }
+  .boutique__facts dd { font-size: 1rem; line-height: 1.5; color: var(--c-ink); }
+  .boutique__status { display: inline-flex; align-items: center; gap: var(--sp-2); min-height: 32px; font-size: .9375rem; color: var(--c-ink); }
+  .boutique__status:hover [data-status-text] { text-decoration: underline; text-decoration-color: var(--c-zari); text-underline-offset: 3px; }
+  .boutique__dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #B9A79B; }
+  .boutique__status.is-open .boutique__dot { background: var(--c-success); box-shadow: 0 0 0 3px rgba(47, 107, 63, .18); }
+  .boutique__ctas { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3) var(--sp-8); margin-top: var(--sp-2); }
+
+  @media (max-width: 899px) {
+    .boutique__grid { grid-template-columns: minmax(0, 1fr); }
+    .boutique__door { aspect-ratio: 1; }
+    .boutique__copy { max-width: none; }
+  }
+  @media (max-width: 479px) {
+    .boutique__facts { grid-template-columns: minmax(0, 1fr); gap: var(--sp-4); }
     .boutique__ctas .btn { width: 100%; }
   }
 </style>

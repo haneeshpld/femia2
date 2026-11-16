@@ -1,0 +1,90 @@
+/* Festive kit: shared by every theme, present only while a theme is on (or previewed). Colours come from the
+   theme's variables: --fx-bar / --fx-bar-2 / --fx-bar-ink (announcement bar), --fx-disc-1..3 (seal), --fx-ring
+   (seal lettering), --fx-mark (the motif that replaces the gold diamonds). */
+
+/* ── sparkle ── */
+.fx-sparkle { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 35; pointer-events: none; opacity: 0; transition: opacity 1.6s ease; }
+.fx-sparkle.is-on { opacity: 1; }
+
+/* ── the hanging: a strip along the header's lower edge, ornaments on zari threads from its pins ──
+   Behind the header's plate and its menus (z-index -1 inside the header), so nothing ever covers a dropdown. */
+.fx-hdr { position: absolute; z-index: -1; left: 0; right: 0; top: 0; height: calc(var(--hdr-h) + 240px); overflow: hidden; pointer-events: none; }
+.fx-strip {
+  position: absolute; left: 0; right: 0; top: calc(var(--hdr-h) - 2px); height: var(--th);
+  background-repeat: repeat-x; background-position: 50% 0; background-size: var(--tile) var(--th);
+  filter: drop-shadow(0 2px 2px rgba(90, 50, 20, .16));
+  clip-path: inset(0 50% 0 50%); transition: clip-path 1.5s cubic-bezier(.65, 0, .35, 1) .15s, opacity .45s ease, translate .45s ease;
+}
+.fx-hdr.is-on .fx-strip { clip-path: inset(0 0 0 0); } /* stitched outwards from the middle */
+.fx-drop {
+  position: absolute; left: calc(50% + var(--pin) * var(--tile)); top: calc(var(--hdr-h) - 4px); width: var(--w); margin-left: calc(var(--w) / -2);
+  transform-origin: 50% 0; opacity: 0; translate: 0 calc(-1 * (var(--len) + 90px));
+  transition: translate 1.3s cubic-bezier(.34, 1.42, .5, 1) calc(.5s + var(--i) * 110ms), opacity .5s ease calc(.5s + var(--i) * 110ms);
+}
+.fx-hdr.is-on .fx-drop { opacity: 1; translate: 0 0; animation: fx-sway 6.5s ease-in-out infinite alternate; animation-delay: calc(var(--i) * -1.3s); }
+.fx-drop::before { content: ''; display: block; width: 1px; height: var(--len); margin: 0 auto -1px; background: linear-gradient(rgba(199, 154, 62, .25), #B98A35); }
+.fx-drop img { display: block; width: var(--w); height: auto; max-width: none; filter: drop-shadow(0 4px 5px rgba(90, 50, 20, .28)); }
+.fx-drop::after { /* a glint that catches the light now and then */
+  content: ''; position: absolute; left: 50%; top: calc(var(--len) + var(--w) * .45); width: calc(var(--w) * 1.3); aspect-ratio: 1; translate: -50% -50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 250, 230, .9) 0 5%, rgba(255, 236, 180, .3) 22%, transparent 60%);
+  opacity: 0; animation: fx-glint 6s ease-in-out infinite; animation-delay: calc(var(--i) * 1.1s + 2s);
+}
+/* lanterns: a warm light that breathes like a flame */
+.fx-drop--glow::after {
+  width: calc(var(--w) * 2.2); top: calc(var(--len) + var(--w) * 1.25); opacity: .55;
+  background: radial-gradient(circle, rgba(255, 214, 140, .55) 0, rgba(255, 190, 100, .18) 35%, transparent 65%);
+  animation: fx-flame 3.2s ease-in-out infinite alternate; animation-delay: calc(var(--i) * -.7s);
+}
+@keyframes fx-sway { from { rotate: -2.4deg; } to { rotate: 2.4deg; } }
+@keyframes fx-glint { 0%, 80%, 100% { opacity: 0; scale: .4; } 88% { opacity: 1; scale: 1; } }
+@keyframes fx-flame { 0% { opacity: .4; scale: .92; } 45% { opacity: .62; scale: 1.04; } 70% { opacity: .5; scale: .98; } 100% { opacity: .66; scale: 1.06; } }
+
+/* while browsing, the header goes quiet */
+.hdr.is-scrolled .fx-strip { opacity: 0; translate: 0 -8px; }
+.hdr.is-scrolled .fx-drop { opacity: 0; translate: 0 -24px; transition: translate .45s ease, opacity .35s ease; }
+
+.fx-drop.is-out { display: none; }
+@media (max-width: 1023px) { .fx-drop--lg { display: none; } }
+@media (max-width: 767px) {
+  .fx-drop { display: none; }
+  .fx-strip { height: calc(var(--th) * .7); background-size: calc(var(--tile) * .7) calc(var(--th) * .7); }
+}
+
+/* ── the seal: on the lead photo's lower-left corner (wide screens), its upper-right corner inside (phones) ── */
+.fx-seal {
+  position: absolute; z-index: 3; left: 0; bottom: 12%; width: 128px; aspect-ratio: 1; border-radius: 50%; translate: -50% 0;
+  filter: drop-shadow(0 16px 26px rgba(40, 20, 10, .32)); text-decoration: none;
+  animation: fx-seal-in 1s cubic-bezier(.16, 1, .3, 1) 1.6s both; transition: scale .5s cubic-bezier(.16, 1, .3, 1);
+}
+[data-hero] > .fx-seal { left: auto; right: clamp(24px, 6vw, 96px); bottom: clamp(32px, 10%, 96px); translate: none; } /* no rail */
+.fx-seal:hover { scale: 1.05; }
+.fx-seal:focus-visible { outline: 2px solid var(--c-zari); outline-offset: 4px; }
+.fx-seal svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.fx-disc-1 { stop-color: var(--fx-disc-1); } .fx-disc-2 { stop-color: var(--fx-disc-2); } .fx-disc-3 { stop-color: var(--fx-disc-3); }
+.fx-seal__ring { transform-origin: 80px 80px; animation: fx-turn 52s linear infinite; }
+.fx-seal__ringtext { font-family: var(--font-display); font-style: italic; font-size: 13.5px; font-weight: 500; letter-spacing: .02em; fill: var(--fx-ring, #EBCB82); }
+.fx-seal__cta { font-family: var(--font-display); font-style: italic; font-size: 13px; font-weight: 500; text-anchor: middle; fill: var(--fx-seal-ink, #FBF1E9); }
+.fx-seal__script { font-family: var(--font-display); font-style: italic; font-size: 18px; font-weight: 500; text-anchor: middle; fill: var(--fx-seal-ink, #FBF1E9); }
+.fx-seal__motif { transform-origin: 80px 63px; animation: fx-breathe 4s ease-in-out infinite alternate; }
+@keyframes fx-turn { to { rotate: 360deg; } }
+@keyframes fx-breathe { from { scale: .94; } to { scale: 1.06; } }
+@keyframes fx-seal-in { from { opacity: 0; scale: .8; rotate: -20deg; } }
+@media (max-width: 899px) {
+  .fx-seal { left: auto; right: 10px; top: 10px; bottom: auto; width: 88px; translate: none; }
+}
+
+/* ── details ── */
+html[data-fx-details] .announce { background: linear-gradient(180deg, var(--fx-bar), var(--fx-bar-2)); color: var(--fx-bar-ink); }
+html[data-fx-details] .announce__msg::before, html[data-fx-details] .announce__msg::after { background: linear-gradient(90deg, transparent, var(--c-zari)); }
+html[data-fx-details] .lozenge, html[data-fx-details] .hdr__thread::after {
+  width: 12px; height: 12px; transform: none; background: var(--c-zari);
+  -webkit-mask: var(--fx-mark) center / contain no-repeat; mask: var(--fx-mark) center / contain no-repeat;
+}
+html[data-fx-details] .hdr__thread::after { right: -9px; margin-top: -6px; }
+.fx-hem { position: absolute; left: 0; right: 0; top: 4px; height: 36px; pointer-events: none; background-repeat: repeat-x; background-position: 50% 50%; background-size: auto 36px; opacity: .9; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-strip { transition: none; clip-path: none; }
+  .fx-drop { transition: none; translate: none; opacity: 1; }
+  .fx-hdr.is-on .fx-drop, .fx-drop::after, .fx-seal, .fx-seal__ring, .fx-seal__motif { animation: none; }
+}

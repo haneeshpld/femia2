@@ -176,7 +176,9 @@ async function doImport(dir, to) {
       if (ans.trim() !== to.name) throw new Error('Cancelled.');
     }
     // Drop tables that refer to others first (children before parents), so no table loses a parent it still points at.
-    const edges = d1Json(to, "SELECT m.name AS child, p.\"table\" AS parent FROM sqlite_master m JOIN pragma_foreign_key_list(m.name) p WHERE m.type = 'table'");
+    // Foreign keys from each table's own CREATE statement (D1 refuses pragma_foreign_key_list over the remote API).
+    const edges = d1Json(to, "SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%'")
+      .flatMap((r) => [...String(r.sql ?? '').matchAll(/REFERENCES\s+["`]?(\w+)["`]?/gi)].map((m) => ({ child: r.name, parent: m[1] })));
     const order = []; const left = new Set(tables);
     while (left.size) {
       const free = [...left].filter((t) => !edges.some((e) => e.parent === t && e.child !== t && left.has(e.child)));

@@ -1,0 +1,126 @@
+---
+/**
+ * Phone and tablet menu: a drawer from the left, opened by the menu button in the header. It holds what the bottom
+ * tab bar doesn't: categories with photos, collections, the boutique pages, the live open/closed line and socials.
+ * A native modal <dialog> (focus trap, Esc, backdrop); it lives in the persisted header, so it closes on navigation.
+ */
+import Icon from '../ui/Icon.astro';
+import Logo from '../ui/Logo.astro';
+import type { Category, Collection, PublicSettings } from '@femia/contracts';
+import { boutiqueStatus } from '../../lib/hours.ts';
+interface Props { categories: Category[]; collections: Collection[]; store: PublicSettings['store'] }
+const { categories, collections, store: s } = Astro.props;
+const status = boutiqueStatus(s.hours);
+const wa = s.whatsapp ? `https://wa.me/${s.whatsapp.replace(/\D/g, '').replace(/^(\d{10})$/, '91$1')}` : null;
+const tel = s.phone.replace(/[^\d+]/g, '');
+const pages = [
+  { href: '/about', label: 'Our story' },
+  { href: '/visit', label: 'Visit the boutique' },
+  { href: '/track', label: 'Track your order' },
+  { href: '/size-guide', label: 'Size guide' },
+  { href: '/account', label: 'Your account' },
+];
+---
+<dialog class="drawer" aria-label="Menu" data-drawer>
+  <div class="drawer__panel">
+    <div class="drawer__head">
+      <a href="/" aria-label="Femia home"><Logo /></a>
+      <button class="icon-btn" type="button" data-drawer-close aria-label="Close menu"><Icon name="close" /></button>
+    </div>
+    <nav class="drawer__body" aria-label="Menu">
+      {categories.length > 0 && (
+        <section>
+          <h2 class="drawer__h">Shop by category</h2>
+          <ul role="list" class="drawer__cats">
+            {categories.map((c) => (
+              <li>
+                <a href={`/shop/${c.slug}`} class="drawer__cat">
+                  <span class="drawer__ph">{c.image && <img src={c.image.src['480']} width={c.image.width} height={c.image.height} alt="" loading="lazy" decoding="async" />}</span>
+                  <span>{c.name}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+          <a class="drawer__all" href="/shop">Shop everything <Icon name="arrowRight" size={16} /></a>
+        </section>
+      )}
+      {collections.length > 0 && (
+        <section>
+          <h2 class="drawer__h">Collections</h2>
+          <ul role="list" class="drawer__list">
+            {collections.map((c) => <li><a href={`/collections/${c.slug}`}>{c.name}<Icon name="chevronRight" size={18} /></a></li>)}
+          </ul>
+        </section>
+      )}
+      <section>
+        <h2 class="drawer__h">The boutique</h2>
+        <ul role="list" class="drawer__list">
+          {pages.map((p) => <li><a href={p.href}>{p.label}<Icon name="chevronRight" size={18} /></a></li>)}
+        </ul>
+      </section>
+      {status && (
+        <a class:list={['drawer__status', { 'is-open': status.open }]} href="/visit" data-hours={JSON.stringify(s.hours)}>
+          <span class="drawer__dot" aria-hidden="true"></span>
+          <span><span data-status-text>{status.text}</span><span class="drawer__city">, {s.address.city}</span></span>
+        </a>
+      )}
+      <div class="drawer__social">
+        {s.socials.instagram && <a class="drawer__icon" href={s.socials.instagram} rel="noopener" target="_blank" aria-label="Instagram"><Icon name="instagram" size={20} /></a>}
+        {wa && <a class="drawer__icon" href={wa} rel="noopener" target="_blank" aria-label="WhatsApp"><Icon name="whatsapp" size={20} /></a>}
+        {tel && <a class="drawer__icon" href={`tel:${tel}`} aria-label={`Call ${s.phone}`}><Icon name="phone" size={20} /></a>}
+      </div>
+    </nav>
+  </div>
+</dialog>
+
+<style>
+  .drawer {
+    position: fixed; inset: 0 auto 0 0; width: min(88vw, 400px); max-width: none; height: 100dvh; max-height: none; margin: 0; padding: 0; border: 0;
+    background: var(--c-cream) var(--grad-page); color: var(--c-ink); box-shadow: 0 0 60px -10px rgba(80, 36, 32, .35);
+    translate: -100% 0; transition: translate 420ms var(--motion-ease-out), overlay 420ms allow-discrete, display 420ms allow-discrete;
+  }
+  .drawer[open] { translate: 0 0; }
+  @starting-style { .drawer[open] { translate: -100% 0; } }
+  .drawer::backdrop { background: rgba(51, 35, 31, 0); transition: background 420ms ease, overlay 420ms allow-discrete, display 420ms allow-discrete; }
+  .drawer[open]::backdrop { background: rgba(51, 35, 31, .38); }
+  @starting-style { .drawer[open]::backdrop { background: rgba(51, 35, 31, 0); } }
+  :global(html:has(.drawer[open])) { overflow: hidden; }
+
+  .drawer__panel { display: grid; grid-template-rows: auto 1fr; height: 100%; }
+  .drawer__head { display: flex; align-items: center; justify-content: space-between; padding: var(--sp-3) var(--sp-3) var(--sp-3) var(--sp-5); border-bottom: 1px solid var(--c-line); }
+  .drawer__body { overflow-y: auto; overscroll-behavior: contain; padding: var(--sp-5) var(--sp-5) calc(var(--sp-8) + env(safe-area-inset-bottom)); display: grid; gap: var(--sp-8); align-content: start; }
+  .drawer__h { font-family: var(--font-display); font-size: 1.5rem; font-weight: 500; margin-bottom: var(--sp-3); }
+
+  .drawer__cats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-3); }
+  .drawer__cat { display: grid; gap: 6px; font-size: .9375rem; font-weight: 500; color: var(--c-ink); }
+  .drawer__ph { display: block; aspect-ratio: 4 / 3; overflow: hidden; border-radius: var(--r-img); background: var(--c-sand); }
+  .drawer__ph img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 25%; }
+  .drawer__all { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin-top: var(--sp-2); font-weight: 500; color: var(--c-accent); }
+
+  .drawer__list { display: grid; border-top: 1px solid var(--c-line); }
+  .drawer__list a { display: flex; align-items: center; justify-content: space-between; min-height: 52px; border-bottom: 1px solid var(--c-line); font-size: 1rem; color: var(--c-ink); }
+  .drawer__list a :global(svg) { color: var(--c-muted); }
+
+  .drawer__status { display: flex; align-items: center; gap: var(--sp-2); min-height: 44px; font-size: .9375rem; color: var(--c-ink); }
+  .drawer__city { color: var(--c-muted); }
+  .drawer__dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #B9A79B; }
+  .drawer__status.is-open .drawer__dot { background: var(--c-success); box-shadow: 0 0 0 3px rgba(47, 107, 63, .18); }
+  .drawer__social { display: flex; gap: var(--sp-2); }
+  .drawer__icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--c-line); background: var(--c-surface); color: var(--c-ink); }
+
+  @media (prefers-reduced-motion: reduce) { .drawer, .drawer::backdrop { transition: none; } }
+</style>
+
+<script>
+  import { onPage } from '../../lib/lifecycle.ts';
+  const drawer = document.querySelector<HTMLDialogElement>('[data-drawer]');
+  if (drawer) {
+    const close = () => { if (drawer.open) drawer.close(); };
+    document.addEventListener('click', (e) => {
+      const t = e.target as Element;
+      if (t.closest('[data-drawer-open]')) { drawer.showModal(); return; }
+      if (t.closest('[data-drawer-close]') || t === drawer || (drawer.contains(t) && t.closest('a'))) close(); // backdrop, close, or a link
+    });
+    onPage(() => close()); // the header persists across pages
+  }
+</script>

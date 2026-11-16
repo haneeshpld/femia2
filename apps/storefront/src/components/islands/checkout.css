@@ -76,7 +76,7 @@
   /* the pay bar */
   .co__bar { position: fixed; z-index: 60; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: var(--sp-4);
     padding: 10px var(--sp-4) calc(10px + env(safe-area-inset-bottom)); background: rgba(255, 253, 250, .96);
-    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border-top: 1px solid var(--c-line); box-shadow: 0 -10px 30px -18px rgba(60, 40, 20, .35); }
+    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border-top: 1px solid var(--c-line); box-shadow: 0 -10px 30px -18px rgba(80, 36, 32, .35); }
   .co__bar::before { content: ''; position: absolute; left: 0; right: 0; top: -1px; height: 1px; background: linear-gradient(90deg, transparent, var(--c-zari) 30%, var(--c-zari) 70%, transparent); opacity: .7; }
   .co__bar-total { display: grid; gap: 0; min-width: 0; }
   .co__bar-total span { font-size: .75rem; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--c-muted); white-space: nowrap; }
@@ -128,7 +128,7 @@
 .code__seal { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, #F1D99A, var(--c-zari) 50%, var(--c-zari-deep)); color: var(--c-ink); }
 .code__what { flex: 1; min-width: 0; display: grid; gap: 1px; padding-left: var(--sp-3); border-left: 1px dashed rgba(235, 203, 130, .5); }
 .code__what strong { font-size: 1rem; letter-spacing: .18em; color: var(--c-zari-light); }
-.code__what span { font-size: .8125rem; color: rgba(251, 248, 243, .85); }
+.code__what span { font-size: .8125rem; color: rgba(251, 247, 244, .85); }
 .code__remove { flex: none; min-height: 44px; padding: 0 var(--sp-2); font-size: .8125rem; color: var(--c-cream); text-decoration: underline; text-underline-offset: 3px; }
 .co__summary .deal-nudge { margin: var(--sp-3) 0 0; }
 @media (prefers-reduced-motion: reduce) { .code__ticket { animation: none; } }

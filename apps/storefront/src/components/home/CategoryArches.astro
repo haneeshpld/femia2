@@ -1,52 +1,103 @@
 ---
+/**
+ * Shop by category: swing tags on a thread.
+ * Each category is a garment swing tag (cut top corners, a brass eyelet with a real hole) hung on a fine gold
+ * thread that sags across the section, so the tags hang lower towards the middle and the thread shows through each
+ * eyelet. As the section scrolls in the tags drop onto the thread and swing to rest; pointing at one swings it
+ * gently about its eyelet. Phones: a swipeable row of tags on a straight thread.
+ * (Kept by the owner's choice after the premium pass; it shares the zari thread motif.)
+ */
 import type { Category, MediaRef } from '@femia/contracts';
 import Icon from '../ui/Icon.astro';
 import { emph, srcset } from '../../lib/format.ts';
 import { t } from '@femia/i18n';
 interface Props { heading: string; tiles: { category: Category; image: MediaRef | null }[]; uid?: string }
 const { heading, tiles, uid = 'cats' } = Astro.props;
+// The thread's sag (px) and where each tag hangs on it: a quadratic curve, lowest in the middle.
+const SAG = 44;
+const EYE = 26; // eyelet centre, px from the top of a tag
+const n = tiles.length;
+const drop = (i: number) => { const x = (i + 0.5) / n; return Math.round(4 * SAG * x * (1 - x)); };
 ---
 <section class="section cats" aria-labelledby={`${uid}-title`}>
   <div class="container">
     <div class="section-head">
       <h2 id={`${uid}-title`} data-split set:html={emph(heading)} />
-      <span class="thread-rule" aria-hidden="true"></span>
       <a class="link-arrow" href="/shop">{t('common.viewAll')} <Icon name="arrowRight" size={18} /></a>
     </div>
-    <ul role="list" class="cats__track" data-arches>
-      {tiles.map(({ category: c, image }) => (
-        <li>
-          <a href={`/shop/${c.slug}`} class="cat">
-            <span class="cat__arch" data-arch-tile>
-              {image && <img src={image.src['480']} srcset={srcset(image)} sizes="(min-width: 1024px) 18vw, (min-width: 768px) 30vw, 40vw" width={image.width} height={image.height} alt="" loading="lazy" decoding="async" />}
-            </span>
-            <span class="cat__base"><span class="cat__name">{c.name}</span></span>
-          </a>
-        </li>
-      ))}
-    </ul>
+    <div class="cats__line" style={`--n:${n};--eye:${EYE}px`}>
+      <svg class="cats__thread" viewBox={`0 0 1000 ${EYE + SAG * 2 + 4}`} preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id={`${uid}-zari`} x1="0" x2="1">
+            <stop offset="0" stop-color="#94703F" /><stop offset=".35" stop-color="#C8A574" /><stop offset=".7" stop-color="#94703F" /><stop offset="1" stop-color="#C8A574" />
+          </linearGradient>
+        </defs>
+        <path d={`M0 ${EYE} Q500 ${EYE + SAG * 2} 1000 ${EYE}`} fill="none" stroke={`url(#${uid}-zari)`} stroke-width="1.6" vector-effect="non-scaling-stroke" />
+      </svg>
+      <ul role="list" class="cats__tags" data-reveal-group>
+        {tiles.map(({ category: c, image }, i) => (
+          <li style={`--drop:${drop(i)}px;--swing:${i % 2 ? -1 : 1}`}>
+            <a href={`/shop/${c.slug}`} class="tag">
+              <span class="tag__photo">
+                {image && <img src={image.src['480']} srcset={srcset(image)} sizes="(min-width: 1024px) 18vw, 46vw" width={image.width} height={image.height} alt="" loading="lazy" decoding="async" />}
+              </span>
+              <span class="tag__name">{c.name}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
   </div>
 </section>
 <style>
-  .cats__track { display: grid; grid-template-columns: repeat(5, 1fr); gap: clamp(var(--sp-4), 2vw, var(--sp-8)); }
-  /* Square photo cards; the name sits in small capitals on a soft band below. */
-  .cat {
-    position: relative; isolation: isolate; display: grid; height: 100%; overflow: hidden;
-    border-radius: var(--r-card); background: var(--c-surface); box-shadow: var(--shadow-card); transition: box-shadow 400ms ease;
+  .cats__line { position: relative; }
+  .cats__thread { position: absolute; z-index: 0; top: 0; left: 0; width: 100%; height: calc(var(--eye) + 92px); overflow: visible; pointer-events: none;
+    -webkit-mask: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent); mask: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent); }
+  .cats__tags { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); padding-bottom: 60px; }
+  /* each tag hangs at its point on the curve; no gap, so tag centres sit exactly at (i + .5) / n of the thread */
+  .cats__tags > li { padding-inline: clamp(6px, 1vw, 14px); translate: 0 var(--drop); filter: drop-shadow(0 14px 18px rgba(80, 36, 32, .16)); }
+
+  /* the swing tag: cut top corners, a punched eyelet */
+  .tag {
+    position: relative; display: grid; background: var(--c-surface); color: var(--c-ink);
+    clip-path: polygon(22px 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 0 100%, 0 22px);
+    -webkit-mask: radial-gradient(circle 6px at 50% var(--eye), #0000 96%, #000 100%);
+    mask: radial-gradient(circle 6px at 50% var(--eye), #0000 96%, #000 100%);
+    transform-origin: 50% var(--eye);
   }
-  .cat::before { content: ''; position: absolute; inset: 0; z-index: 2; border-radius: inherit; border: 1px solid transparent; pointer-events: none; transition: border-color 400ms ease; }
-  .cat:hover { box-shadow: var(--shadow-card-hover); }
-  .cat:hover::before { border-color: var(--c-zari); }
-  .cat__arch { position: relative; display: block; width: 100%; aspect-ratio: 1; overflow: hidden; background: var(--c-sand); }
-  .cat__arch img { width: 100%; height: 100%; object-fit: cover; transition: transform 1200ms var(--motion-ease-out); }
-  .cat:hover .cat__arch img { transform: scale(1.05); }
-  .cat__base { display: grid; place-items: center; min-height: 50px; padding: var(--sp-2) var(--sp-3); background: var(--c-blush); color: var(--c-ink); transition: color var(--motion-fast) ease; }
-  .cat__name { font-size: .8125rem; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; text-align: center; }
-  .cat:hover .cat__base { color: var(--c-accent); }
+  .tag::before { /* brass grommet round the hole */
+    content: ''; position: absolute; z-index: 1; top: calc(var(--eye) - 10px); left: calc(50% - 10px); width: 20px; height: 20px; border-radius: 50%; pointer-events: none;
+    background: radial-gradient(circle, transparent 6px, #7E5E33 6.5px, #C8A574 8px, #E6CFA4 8.8px, #94703F 9.6px, transparent 10px);
+  }
+  .tag__photo { display: block; margin: calc(var(--eye) + 18px) 10px 0; aspect-ratio: 3 / 4; overflow: hidden; border-radius: var(--r-img); background: var(--c-sand); }
+  .tag__photo img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 25%; transition: scale 1200ms var(--motion-ease-out); }
+  .tag__name {
+    display: grid; place-items: center; min-height: 58px; padding: var(--sp-2) var(--sp-3);
+    font-family: var(--font-display); font-size: 1.5rem; font-weight: 500; line-height: 1.1; text-align: center; transition: color 300ms ease;
+  }
+  .tag:hover .tag__photo img { scale: 1.04; }
+  .tag:hover .tag__name, .tag:focus-visible .tag__name { color: var(--c-accent); }
+  .tag:focus-visible { outline: none; }
+  .cats__tags > li:has(.tag:focus-visible) { outline: 2px solid var(--c-accent); outline-offset: 2px; border-radius: 10px; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    /* dropped onto the thread, the tags swing to rest (springy overshoot); pointing at one swings it */
+    .tag { transition: rotate 1400ms cubic-bezier(.3, 1.7, .5, 1); }
+    :global(.js) .cats__tags > li:not(.is-in) .tag { rotate: calc(var(--swing) * 9deg); }
+    :global(.js) .cats__tags > li.is-in .tag { transition-delay: var(--delay, 0ms); }
+    .cats__tags > li.is-in .tag:hover, .cats__tags > li:not([data-reveal]) .tag:hover { rotate: calc(var(--swing) * -3deg); transition-delay: 0ms; transition-duration: 1100ms; }
+  }
+
+  /* phones and tablets: a swipeable row on a straight thread */
   @media (max-width: 1023px) {
-    .cats__track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; margin-inline: calc(var(--layout-gutter) * -1); padding: 4px var(--layout-gutter) var(--sp-6); }
-    .cats__track::-webkit-scrollbar { display: none; }
-    .cats__track li { flex: 0 0 clamp(132px, 34vw, 210px); scroll-snap-align: start; }
-    .cat__name { font-size: .75rem; letter-spacing: .1em; }
+    .cats__thread { display: none; }
+    .cats__tags {
+      display: flex; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none;
+      margin-inline: calc(var(--layout-gutter) * -1); padding: 0 calc(var(--layout-gutter) - 6px) var(--sp-8); scroll-padding-inline: var(--layout-gutter);
+      background: linear-gradient(90deg, #94703F, #C8A574 35%, #94703F 70%, #C8A574) 0 calc(var(--eye) - 1px) / 100% 1.6px no-repeat; background-attachment: local;
+    }
+    .cats__tags::-webkit-scrollbar { display: none; }
+    .cats__tags > li { flex: 0 0 clamp(150px, 44vw, 230px); padding-inline: 6px; translate: none; scroll-snap-align: start; }
+    .tag__name { font-size: 1.3125rem; min-height: 52px; }
   }
 </style>

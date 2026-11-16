@@ -12,6 +12,15 @@ const BaseField = z.object({
   label: z.string(),
   help: z.string().optional(),
   required: z.boolean().default(false),
+  // ── Admin form hints (how the field is presented; content validation ignores them) ──
+  /** show the field only while a sibling field has one of these values */
+  showIf: z.object({ field: z.string(), in: z.array(z.string()) }).optional(),
+  /** fields sharing a group are folded under one optional "show more" heading with this text */
+  group: z.string().optional(),
+  /** a heading where the owner taps words to set them in italics (stored as *words*) */
+  emphasis: z.boolean().optional(),
+  /** a number picked from a few buttons instead of typed */
+  choices: z.array(z.object({ value: z.number(), label: z.string() })).optional(),
 });
 
 export type ManifestField =
@@ -68,6 +77,8 @@ export const ManifestBlock = z.object({
   type: z.string().regex(/^[a-z][a-zA-Z0-9]*$/),
   label: z.string(),
   description: z.string().default(''),
+  /** shown in Admin inside the section: where its other details come from (e.g. Settings) */
+  note: z.string().optional(),
   single: z.boolean().default(false),
   pinned: z.enum(['first']).optional(),
   defaults: z.record(z.string(), z.unknown()).default({}),

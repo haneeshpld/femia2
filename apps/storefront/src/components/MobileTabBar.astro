@@ -1,28 +1,86 @@
 ---
+/**
+ * App tab bar (phones and tablets, where the header menu is hidden): Home, Shop, Collections, Wishlist, Bag.
+ * Persists across client-router navigations (Base.astro), so its script marks the current tab on every page and keeps
+ * the Wishlist and Bag counts live. Bag opens the cart drawer (data-ui) and is where added pieces fly to.
+ * Everything else fixed to the bottom of the screen sits above it via --tabbar-h (global.css).
+ */
 import Icon from './ui/Icon.astro';
 import { t } from '@femia/i18n';
 const p = Astro.url.pathname;
 const tabs = [
   { href: '/', icon: 'home', label: t('nav.home'), active: p === '/' },
-  { href: '/shop', icon: 'bag', label: t('nav.shop'), active: p.startsWith('/shop') || p.startsWith('/products') },
+  { href: '/shop', icon: 'hanger', label: t('nav.shop'), active: p.startsWith('/shop') || p.startsWith('/products') },
   { href: '/collections', icon: 'layers', label: t('nav.collections'), active: p.startsWith('/collections') },
-  { href: '/visit', icon: 'pin', label: t('nav.visit'), active: p.startsWith('/visit') },
+  { href: '/wishlist', icon: 'heart', label: t('nav.wishlist'), active: p.startsWith('/wishlist'), count: 'wish' },
 ] as const;
 ---
-<nav class="tabbar" aria-label="Main">
+<nav class="tabbar" aria-label="App">
   {tabs.map((tab) => (
-    <a href={tab.href} aria-current={tab.active ? 'page' : undefined}><Icon name={tab.icon} size={22} /><span>{tab.label}</span></a>
+    <a class="tab" href={tab.href} aria-current={tab.active ? 'page' : undefined}>
+      <span class="tab__icon"><Icon name={tab.icon} size={22} />{'count' in tab && <span class="tab__badge" data-tab-wish-count hidden></span>}</span>
+      <span class="tab__label">{tab.label}</span>
+    </a>
   ))}
+  <button class="tab" type="button" data-ui="cart:open" data-bag-button data-tab-bag aria-label={t('nav.bag')}>
+    <span class="tab__icon"><Icon name="bag" size={22} /><span class="tab__badge" data-tab-bag-count hidden></span></span>
+    <span class="tab__label">{t('nav.bag')}</span>
+  </button>
 </nav>
 <style>
   .tabbar { display: none; }
-  @media (max-width: 767px) {
+  @media (max-width: 1023px) {
     .tabbar {
-      position: fixed; inset: auto 0 0 0; z-index: 45; display: grid; grid-template-columns: repeat(4, 1fr);
-      background: color-mix(in srgb, var(--c-cream) 94%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-      border-top: 1px solid var(--c-line); padding-bottom: env(safe-area-inset-bottom);
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 45;
+      display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+      padding: 0 max(var(--sp-2), calc((100% - 640px) / 2)) env(safe-area-inset-bottom);
+      background: rgba(255, 255, 255, .9); -webkit-backdrop-filter: saturate(1.4) blur(18px); backdrop-filter: saturate(1.4) blur(18px);
+      border-top: 1px solid var(--c-line); box-shadow: 0 -12px 30px -20px rgba(80, 36, 32, .3);
     }
-    .tabbar a { display: grid; justify-items: center; gap: 2px; padding: 8px 0 6px; min-height: 56px; font-size: .75rem; color: var(--c-muted); }
-    .tabbar a[aria-current='page'] { color: var(--c-accent); font-weight: 600; }
+    .tab {
+      display: grid; justify-items: center; align-content: center; gap: 3px; min-width: 0; height: var(--tabbar-h);
+      background: none; border: 0; padding: 0; color: var(--c-muted); cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    /* the current tab: a soft caramel pill behind its icon */
+    .tab__icon { position: relative; display: grid; place-items: center; width: 54px; height: 30px; border-radius: 999px; transition: background-color 250ms ease, transform 180ms var(--motion-ease-out); }
+    .tab__label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .6875rem; font-weight: 500; letter-spacing: .01em; line-height: 1.2; }
+    .tab[aria-current='page'] { color: var(--c-accent); }
+    .tab[aria-current='page'] .tab__label { font-weight: 600; }
+    .tab[aria-current='page'] .tab__icon { background: rgba(142, 74, 67, .13); }
+    .tab:active .tab__icon { transform: scale(.9); }
+    .tab:focus-visible { outline: none; }
+    .tab:focus-visible .tab__icon { outline: 2px solid var(--c-accent); outline-offset: 2px; }
+    .tab__badge {
+      position: absolute; top: -3px; left: calc(50% + 5px); min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px;
+      background: var(--c-accent); color: #FFFDF8; font-size: 10px; font-weight: 600; line-height: 17px; text-align: center; box-shadow: 0 0 0 2px #FFFFFF;
+    }
+    .tab__badge[hidden] { display: none; }
   }
+  @media (prefers-reduced-motion: reduce) { .tab__icon { transition: none; } }
 </style>
+<script>
+  import { onPage } from '../lib/lifecycle.ts';
+  import { $cartCount, $wishlist } from '../lib/stores.ts';
+
+  // Mark the current tab on every page (the bar persists across navigations).
+  const tabFor = (p: string) => (p === '/' ? '/' : p.startsWith('/shop') || p.startsWith('/products') ? '/shop'
+    : p.startsWith('/collections') ? '/collections' : p.startsWith('/wishlist') ? '/wishlist' : null);
+  onPage(() => {
+    const cur = tabFor(location.pathname);
+    document.querySelectorAll<HTMLAnchorElement>('.tabbar a.tab').forEach((a) => {
+      if (a.getAttribute('href') === cur) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    });
+  });
+
+  const badge = (sel: string, n: number) => {
+    const el = document.querySelector<HTMLElement>(sel);
+    if (!el) return;
+    el.hidden = n === 0;
+    el.textContent = n > 9 ? '9+' : String(n);
+  };
+  $cartCount.subscribe((n) => {
+    badge('[data-tab-bag-count]', n);
+    document.querySelector('[data-tab-bag]')?.setAttribute('aria-label', n ? `Bag, ${n} items` : 'Bag');
+  });
+  $wishlist.subscribe((w) => badge('[data-tab-wish-count]', w.length));
+</script>

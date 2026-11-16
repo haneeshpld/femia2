@@ -1,19 +1,26 @@
 /**
  * Festive themes. The owner picks one in Admin; the server marks it on <html data-festive="christmas">.
- * Each theme lives in its own folder (./<id>/) with its decorations and styles, and is only downloaded when it's on.
+ * Themes decorate the home page only: leaving it takes the decorations down, coming back puts them up again.
+ * Each theme lives in its own folder (./<id>/) and builds on the shared kit (./kit.ts); it is only downloaded when it's on.
  * A theme's start() mounts its decorations and returns refresh() (run after every page change) and stop().
  *
  * Preview without switching it on for everyone: add ?festive=christmas to any page (remembered for this tab),
- * ?festive=off to see the site plain, and ?festive=live to go back to what shoppers see.
+ * ?festive=off to see the site plain, and ?festive=live to go back to what shoppers see. ?festive-day=1 previews
+ * the festival-day greeting (0 to stop).
  */
 export interface FestiveInstance { refresh(): void; stop(): void }
 export interface FestiveTheme { start(root: HTMLElement, options: Record<string, unknown>): FestiveInstance }
 
 const THEMES: Record<string, () => Promise<{ default: FestiveTheme }>> = {
   christmas: () => import('./christmas/index.ts'),
+  ramzan: () => import('./ramzan/index.ts'),
+  bakrid: () => import('./bakrid/index.ts'),
+  onam: () => import('./onam/index.ts'),
+  vishu: () => import('./vishu/index.ts'),
+  india: () => import('./india/index.ts'),
 };
 const PREVIEW_KEY = 'femia.festive.preview';
-const NAMES: Record<string, string> = { christmas: 'Christmas' };
+const NAMES: Record<string, string> = { christmas: 'Christmas', ramzan: 'Ramzan & Eid', bakrid: 'Bakrid', onam: 'Onam', vishu: 'Vishu', india: 'national days' };
 
 let current: { id: string; inst: FestiveInstance } | null = null;
 let pending: symbol | null = null;
@@ -47,7 +54,8 @@ function apply() {
   const live = html.dataset.festive || null;
   const preview = readPreview();
   const want = preview === 'off' ? null : preview ?? live;
-  const id = want && THEMES[want] ? want : null;
+  const home = location.pathname === '/';
+  const id = home && want && THEMES[want] ? want : null;
   previewBadge(preview);
 
   if (id) html.dataset.festiveOn = id; else delete html.dataset.festiveOn;

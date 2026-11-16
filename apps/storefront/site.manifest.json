@@ -134,7 +134,7 @@
   "sections": [
     {
       "id": "announcement",
-      "label": "Announcement bar",
+      "label": "Announcement bar (top of every page)",
       "page": "all",
       "fields": [
         {
@@ -168,7 +168,7 @@
     },
     {
       "id": "boutique",
-      "label": "Visit Us page",
+      "label": "Visit us page",
       "page": "visit",
       "fields": [
         {
@@ -176,7 +176,7 @@
           "type": "text",
           "label": "Heading",
           "maxLength": 40,
-          "help": "Wrap one word in *asterisks* to set it in italics."
+          "emphasis": true
         },
         {
           "id": "body",
@@ -194,14 +194,14 @@
     },
     {
       "id": "trust",
-      "label": "Trust strip",
+      "label": "Our promises (above the footer)",
       "page": "all",
       "fields": [
         {
           "id": "items",
           "type": "list",
-          "label": "Items",
-          "itemLabel": "Item",
+          "label": "Promises",
+          "itemLabel": "Promise",
           "min": 2,
           "max": 4,
           "fields": [
@@ -251,7 +251,7 @@
     },
     {
       "id": "newsletter",
-      "label": "Newsletter",
+      "label": "Newsletter sign-up (in the footer)",
       "page": "all",
       "fields": [
         {
@@ -270,7 +270,7 @@
     },
     {
       "id": "about",
-      "label": "About page",
+      "label": "Our story page",
       "page": "about",
       "fields": [
         {
@@ -302,7 +302,7 @@
     },
     {
       "id": "policies",
-      "label": "Policies",
+      "label": "Policy pages",
       "page": "policies",
       "fields": [
         {
@@ -370,92 +370,142 @@
   "blocks": [
     {
       "type": "hero",
-      "label": "Hero banner",
-      "description": "The big opening banner with your headline and main button.",
+      "label": "Main banner",
+      "description": "The first thing shoppers see: your headline, two buttons and the main photo, with a few pieces hanging beside it.",
       "single": true,
       "pinned": "first",
       "defaults": {
         "title": "Everyday Styles for",
         "titleAccent": "Modern Women",
         "ctaLabel": "Shop New Arrivals",
-        "ctaLink": "/shop?sort=new"
+        "ctaLink": "/shop?sort=new",
+        "railSource": "newest"
       },
       "fields": [
         {
-          "id": "eyebrow",
-          "type": "text",
-          "label": "Tagline under the buttons",
-          "maxLength": 40
-        },
-        {
           "id": "title",
           "type": "text",
-          "label": "Headline",
+          "label": "Headline, first line",
           "required": true,
           "maxLength": 40
         },
         {
           "id": "titleAccent",
           "type": "text",
-          "label": "Headline accent (italic, second line)",
+          "label": "Headline, second line (in italics)",
           "maxLength": 30
         },
         {
           "id": "body",
           "type": "textarea",
-          "label": "Intro text",
+          "label": "A sentence under the headline",
           "maxLength": 160
         },
         {
           "id": "ctaLabel",
           "type": "text",
-          "label": "Button text",
+          "label": "Main button text",
           "required": true,
           "maxLength": 24
         },
         {
           "id": "ctaLink",
           "type": "url",
-          "label": "Button link",
+          "label": "Main button opens",
           "required": true
         },
         {
           "id": "secondaryLabel",
           "type": "text",
-          "label": "Second link text",
+          "label": "Second button text",
           "maxLength": 24
         },
         {
           "id": "secondaryLink",
           "type": "url",
-          "label": "Second link"
+          "label": "Second button opens"
         },
         {
           "id": "image",
           "type": "image",
-          "label": "Desktop photo",
+          "label": "Main photo",
           "slot": "hero"
         },
         {
           "id": "imageTablet",
           "type": "image",
-          "label": "Tablet photo (optional)",
+          "label": "Tablet photo",
           "slot": "heroTablet",
-          "help": "Leave empty to use the desktop photo on tablets."
+          "help": "Leave empty to use the desktop photo on tablets.",
+          "group": "Use a different photo on tablets or phones"
         },
         {
           "id": "imageMobile",
           "type": "image",
-          "label": "Phone photo (optional)",
+          "label": "Phone photo",
           "slot": "heroMobile",
-          "help": "Leave empty to use the tablet or desktop photo on phones."
+          "help": "Leave empty to use the tablet or desktop photo on phones.",
+          "group": "Use a different photo on tablets or phones"
+        },
+        {
+          "id": "railSource",
+          "type": "select",
+          "label": "Pieces hanging beside the photo",
+          "options": [
+            {
+              "value": "newest",
+              "label": "Newest arrivals"
+            },
+            {
+              "value": "popular",
+              "label": "Most popular"
+            },
+            {
+              "value": "collection",
+              "label": "A collection"
+            },
+            {
+              "value": "category",
+              "label": "A category"
+            }
+          ],
+          "help": "Up to four pieces that are in stock."
+        },
+        {
+          "id": "railCollection",
+          "type": "collection",
+          "label": "Which collection",
+          "showIf": {
+            "field": "railSource",
+            "in": [
+              "collection"
+            ]
+          }
+        },
+        {
+          "id": "railCategory",
+          "type": "category",
+          "label": "Which category",
+          "showIf": {
+            "field": "railSource",
+            "in": [
+              "category"
+            ]
+          }
+        },
+        {
+          "id": "eyebrow",
+          "type": "text",
+          "label": "Small line under the buttons (optional)",
+          "maxLength": 40
         }
-      ]
+      ],
+      "note": "The open / closed line under the buttons uses the opening hours in Settings → Store."
     },
     {
       "type": "categories",
       "label": "Shop by category",
-      "description": "Arched tiles linking to each category.",
+      "description": "Your categories as swing tags hanging on a gold thread. Leave the list empty to show every category.",
       "defaults": {
         "heading": "Shop by *category*",
         "items": []
@@ -465,14 +515,14 @@
           "id": "heading",
           "type": "text",
           "label": "Heading",
-          "help": "Wrap one word in *asterisks* to set it in italics.",
-          "maxLength": 40
+          "maxLength": 40,
+          "emphasis": true
         },
         {
           "id": "items",
           "type": "list",
-          "label": "Tiles",
-          "itemLabel": "Tile",
+          "label": "Category tags",
+          "itemLabel": "Tag",
           "min": 0,
           "max": 8,
           "fields": [
@@ -485,7 +535,7 @@
             {
               "id": "image",
               "type": "image",
-              "label": "Tile photo (optional, uses the category photo otherwise)",
+              "label": "Photo (optional: uses the category photo otherwise)",
               "slot": "arch"
             }
           ]
@@ -494,8 +544,8 @@
     },
     {
       "type": "products",
-      "label": "Products row",
-      "description": "A row of products: newest arrivals, a collection or a category. Add as many rows as you like.",
+      "label": "Row of products",
+      "description": "A row of products: your newest arrivals, the most popular, a collection or a category. Add as many rows as you like.",
       "defaults": {
         "heading": "Just *landed*",
         "linkLabel": "View all",
@@ -507,20 +557,20 @@
           "id": "heading",
           "type": "text",
           "label": "Heading",
-          "help": "Wrap one word in *asterisks* to set it in italics.",
-          "maxLength": 40
+          "maxLength": 40,
+          "emphasis": true
         },
         {
           "id": "linkLabel",
           "type": "text",
-          "label": "Link text",
-          "help": "e.g. All new arrivals",
+          "label": "Link text beside the heading",
+          "help": "For example: All new arrivals",
           "maxLength": 30
         },
         {
           "id": "source",
           "type": "select",
-          "label": "Show products from",
+          "label": "Show",
           "options": [
             {
               "value": "newest",
@@ -543,24 +593,50 @@
         {
           "id": "collection",
           "type": "collection",
-          "label": "Collection (when showing a collection)"
+          "label": "Which collection",
+          "showIf": {
+            "field": "source",
+            "in": [
+              "collection"
+            ]
+          }
         },
         {
           "id": "category",
           "type": "category",
-          "label": "Category (when showing a category)"
+          "label": "Which category",
+          "showIf": {
+            "field": "source",
+            "in": [
+              "category"
+            ]
+          }
         },
         {
           "id": "count",
           "type": "number",
-          "label": "How many products (4 = one row, 8 = two rows)"
+          "label": "How many",
+          "choices": [
+            {
+              "value": 4,
+              "label": "4 (one row)"
+            },
+            {
+              "value": 8,
+              "label": "8 (two rows)"
+            },
+            {
+              "value": 12,
+              "label": "12 (three rows)"
+            }
+          ]
         }
       ]
     },
     {
       "type": "occasions",
       "label": "Shop by occasion",
-      "description": "Photo cards for occasions such as Everyday, Festive and Work.",
+      "description": "Photo cards for occasions such as Everyday, Festive and Work, each opening a collection.",
       "defaults": {
         "heading": "Dressed for every *moment*",
         "items": []
@@ -570,13 +646,13 @@
           "id": "heading",
           "type": "text",
           "label": "Heading",
-          "help": "Wrap one word in *asterisks* to set it in italics.",
-          "maxLength": 40
+          "maxLength": 40,
+          "emphasis": true
         },
         {
           "id": "items",
           "type": "list",
-          "label": "Cards",
+          "label": "Occasion cards",
           "itemLabel": "Card",
           "min": 0,
           "max": 6,
@@ -607,7 +683,7 @@
     {
       "type": "boutique",
       "label": "Visit our boutique",
-      "description": "Your shop photo, address and opening hours, with directions and WhatsApp buttons.",
+      "description": "Your shop photo and a short welcome, with the address, opening hours, directions and WhatsApp.",
       "defaults": {
         "heading": "Try it on *in person*",
         "body": "Step into our boutique to explore the full collection, feel the fabrics and find your perfect fit."
@@ -617,13 +693,13 @@
           "id": "heading",
           "type": "text",
           "label": "Heading",
-          "help": "Wrap one word in *asterisks* to set it in italics.",
-          "maxLength": 40
+          "maxLength": 40,
+          "emphasis": true
         },
         {
           "id": "body",
           "type": "textarea",
-          "label": "Text",
+          "label": "Welcome text",
           "maxLength": 220
         },
         {
@@ -632,12 +708,13 @@
           "label": "Boutique photo",
           "slot": "boutique"
         }
-      ]
+      ],
+      "note": "The address, opening hours, map link and WhatsApp number come from Settings → Store."
     },
     {
       "type": "instagram",
-      "label": "Styled by you (Instagram)",
-      "description": "Customer or Instagram photos shown as printed photos.",
+      "label": "Photo wall",
+      "description": "Up to 8 photos of customers or looks, laid out like prints on a table around your heading.",
       "defaults": {
         "heading": "Styled *by you*",
         "handle": "@femia__boutique",
@@ -648,14 +725,15 @@
           "id": "heading",
           "type": "text",
           "label": "Heading",
-          "help": "Wrap one word in *asterisks* to set it in italics.",
-          "maxLength": 40
+          "maxLength": 40,
+          "emphasis": true
         },
         {
           "id": "handle",
           "type": "text",
-          "label": "Instagram handle",
-          "maxLength": 40
+          "label": "Instagram handle (optional)",
+          "maxLength": 40,
+          "help": "For example @femia__boutique"
         },
         {
           "id": "images",
@@ -685,12 +763,13 @@
             }
           ]
         }
-      ]
+      ],
+      "note": "Leave the Instagram handle empty to use the Instagram link in Settings → Store."
     },
     {
       "type": "banner",
       "label": "Promo banner",
-      "description": "A wide photo with a short message and a button, for a sale, a launch or a festival.",
+      "description": "A wide photo with a short message and a button: for a sale, a launch or a festival.",
       "defaults": {
         "heading": "The Festive Edit",
         "ctaLabel": "Shop now",
@@ -702,14 +781,14 @@
           "id": "heading",
           "type": "text",
           "label": "Heading",
-          "help": "Wrap one word in *asterisks* to set it in italics.",
           "required": true,
-          "maxLength": 50
+          "maxLength": 50,
+          "emphasis": true
         },
         {
           "id": "body",
           "type": "textarea",
-          "label": "Text",
+          "label": "Message",
           "maxLength": 180
         },
         {
@@ -721,40 +800,42 @@
         {
           "id": "ctaLink",
           "type": "url",
-          "label": "Button link"
+          "label": "Button opens"
         },
         {
           "id": "image",
           "type": "image",
-          "label": "Desktop photo",
+          "label": "Photo",
           "slot": "banner"
         },
         {
           "id": "imageTablet",
           "type": "image",
-          "label": "Tablet photo (optional)",
+          "label": "Tablet photo",
           "slot": "bannerTablet",
-          "help": "Leave empty to use the desktop photo on tablets."
+          "help": "Leave empty to use the desktop photo on tablets.",
+          "group": "Use a different photo on tablets or phones"
         },
         {
           "id": "imageMobile",
           "type": "image",
-          "label": "Phone photo (optional)",
+          "label": "Phone photo",
           "slot": "bannerMobile",
-          "help": "Leave empty to use the tablet or desktop photo on phones."
+          "help": "Leave empty to use the tablet or desktop photo on phones.",
+          "group": "Use a different photo on tablets or phones"
         },
         {
           "id": "align",
           "type": "select",
-          "label": "Text position",
+          "label": "Message on the",
           "options": [
             {
               "value": "left",
-              "label": "Text on the left"
+              "label": "Left"
             },
             {
               "value": "right",
-              "label": "Text on the right"
+              "label": "Right"
             }
           ]
         }
@@ -762,8 +843,8 @@
     },
     {
       "type": "story",
-      "label": "Story",
-      "description": "A short paragraph about Femia, centred, with an optional link.",
+      "label": "A few words about us",
+      "description": "A short paragraph about Femia in the middle of the page, with an optional link.",
       "defaults": {
         "heading": "Made for the way you live",
         "linkLabel": "Our story",
@@ -774,8 +855,8 @@
           "id": "heading",
           "type": "text",
           "label": "Heading",
-          "help": "Wrap one word in *asterisks* to set it in italics.",
-          "maxLength": 60
+          "maxLength": 60,
+          "emphasis": true
         },
         {
           "id": "body",
@@ -786,13 +867,13 @@
         {
           "id": "linkLabel",
           "type": "text",
-          "label": "Link text",
+          "label": "Link text (optional)",
           "maxLength": 30
         },
         {
           "id": "link",
           "type": "url",
-          "label": "Link"
+          "label": "Link opens"
         }
       ]
     }

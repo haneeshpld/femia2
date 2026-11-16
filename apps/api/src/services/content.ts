@@ -22,7 +22,7 @@ export async function getPublished(db: D1Database) {
 export async function resolveMedia(db: D1Database, data: unknown): Promise<Record<string, MediaRef>> {
   const ids = new Set<string>();
   const walk = (v: unknown) => {
-    if (typeof v === 'string' && /^med_[a-z0-9]+$/.test(v)) ids.add(v);
+    if (typeof v === 'string' && /^med_[a-z0-9_]+$/.test(v)) ids.add(v);
     else if (Array.isArray(v)) v.forEach(walk);
     else if (v && typeof v === 'object') Object.values(v).forEach(walk);
   };

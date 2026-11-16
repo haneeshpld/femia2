@@ -23,8 +23,8 @@ const wish = JSON.stringify({ productId: p.id, slug: p.slug, title: p.title, pri
     )}
     {p.soldOut ? <span class="pcard__tag pcard__tag--soldout">{t('common.soldOut')}</span> : (
       <div class="pcard__tags">
-        {p.badges.slice(0, 2).map((b) => <span class={`offer-tag offer-tag--${b.style}`}>{b.label}</span>)}
-        {p.isNew && p.badges.length < 2 && <span class="pcard__tag">{t('common.new')}</span>}
+        {p.badges.slice(0, 1).map((b) => <span class={`offer-tag offer-tag--${b.style}`}>{b.label}</span>)}
+        {p.isNew && p.badges.length === 0 && <span class="pcard__tag">{t('common.new')}</span>}
       </div>
     )}
     <button class="icon-btn pcard__wish" type="button" data-wish={wish} aria-pressed="false" aria-label={t('common.saveToWishlist', { title: p.title })}>

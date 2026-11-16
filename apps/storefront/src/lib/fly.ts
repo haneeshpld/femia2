@@ -20,14 +20,17 @@ function ghost(box: Box, imageUrl?: string | null) {
     position: 'fixed', left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px`,
     borderRadius: '14px', zIndex: '95', pointerEvents: 'none', willChange: 'transform',
     background: imageUrl ? `#EEE5D9 center / cover no-repeat url("${imageUrl}")` : 'var(--c-accent)',
-    boxShadow: '0 18px 40px -16px rgba(60, 40, 20, .55)', transformOrigin: '50% 50%',
+    boxShadow: '0 18px 40px -16px rgba(80, 36, 32, .55)', transformOrigin: '50% 50%',
   });
   document.body.appendChild(g);
   return g;
 }
 
+/** The bag button that is on screen: the header's on desktop, the tab bar's on phones and tablets. */
+const visibleBag = () => [...document.querySelectorAll<HTMLElement>('[data-bag-button]')].find((b) => b.getClientRects().length > 0) ?? null;
+
 export async function bagBounce() {
-  const bag = document.querySelector<HTMLElement>('[data-bag-button]');
+  const bag = visibleBag();
   if (!bag) return;
   if (reduced()) { bag.animate([{ opacity: 0.4 }, { opacity: 1 }], { duration: 300 }); return; }
   const gsap = await gsapP();
@@ -42,7 +45,7 @@ export async function bagBounce() {
 }
 
 export async function flyToBag(from: Element | DOMRect | null | undefined, imageUrl?: string | null) {
-  const bag = document.querySelector('[data-bag-button]');
+  const bag = visibleBag();
   const a = boxOf(from);
   if (!bag || !a || reduced()) return bagBounce();
   const gsap = await gsapP();
@@ -58,7 +61,7 @@ export async function flyToBag(from: Element | DOMRect | null | undefined, image
   const p = { t: 0 };
   await new Promise<void>((done) => {
     gsap.timeline({ onComplete: done })
-      .to(g, { scale: 1.06, boxShadow: '0 26px 50px -18px rgba(60, 40, 20, .6)', duration: 0.18, ease: 'power2.out' })
+      .to(g, { scale: 1.06, boxShadow: '0 26px 50px -18px rgba(80, 36, 32, .6)', duration: 0.18, ease: 'power2.out' })
       .to(p, {
         t: 1, duration: 0.85, ease: 'power2.inOut',
         onUpdate: () => {

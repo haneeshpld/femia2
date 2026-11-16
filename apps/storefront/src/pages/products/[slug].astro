@@ -7,6 +7,7 @@ import { getCommon } from '../../lib/content.ts';
 import { formatINR, freeShippingText, percentOff, richText, scriptJson, srcset } from '../../lib/format.ts';
 import { ApiError } from '@femia/sdk';
 import { t } from '@femia/i18n';
+import { TRY_ON_ENABLED } from '../../lib/features.ts';
 
 const slug = Astro.params.slug!;
 const [{ site, categories }, product] = await Promise.all([
@@ -136,7 +137,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
           <Icon name="heart" />
         </button>
       </div>
-      {store.whatsapp && available && (
+      {TRY_ON_ENABLED && store.whatsapp && available && (
         <button type="button" class="try" data-trial>
           <span class="try__icon"><Icon name="hanger" size={22} /></span>
           <span class="try__text">
@@ -270,7 +271,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, sta
     .gallery__dots span.is-on { width: 18px; background: var(--c-accent); }
   }
   @media (max-width: 767px) {
-    .info__buy { position: fixed; left: 0; right: 0; bottom: calc(56px + env(safe-area-inset-bottom)); z-index: 44; background: color-mix(in srgb, var(--c-cream) 95%, transparent); backdrop-filter: blur(10px); padding: var(--sp-3) var(--layout-gutter); border-top: 1px solid var(--c-line); }
+    .info__buy { position: fixed; left: 0; right: 0; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); z-index: 44; background: color-mix(in srgb, var(--c-cream) 95%, transparent); backdrop-filter: blur(10px); padding: var(--sp-3) var(--layout-gutter); border-top: 1px solid var(--c-line); }
     .pdp { padding-bottom: 96px; }
   }
 </style>

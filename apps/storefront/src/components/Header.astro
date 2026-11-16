@@ -1,51 +1,178 @@
 ---
+/**
+ * Header. Wide screens: logo, menu, search / account / wishlist / bag. As you scroll it lifts into a floating capsule.
+ *  • Shop and Collections open mega panels (categories with photos, the newest pieces, collections) on hover or focus.
+ *  • Search opens inside the capsule with instant results; Account and Bag show small previews on hover or focus.
+ *  • A stitched thread under the menu rests under the current page and is pulled across to whatever you point at.
+ * Phones and tablets: menu button (opens the drawer) and search on the left, logo, account on the right; wishlist and
+ * bag live in the bottom tab bar. The header persists across client-router navigations.
+ */
 import Icon from './ui/Icon.astro';
 import Logo from './ui/Logo.astro';
+import MenuDrawer from './nav/MenuDrawer.astro';
+import type { Category, PublicSettings } from '@femia/contracts';
+import { api } from '../lib/api.ts';
+import { formatINR } from '../lib/format.ts';
 import { t } from '@femia/i18n';
+interface Props { settings: PublicSettings; categories: Category[] }
+const { settings, categories } = Astro.props;
 const path = Astro.url.pathname;
-type Item = { href: string; label: string; active: boolean };
+type Item = { href: string; label: string; active: boolean; mega?: 'shop' | 'collections' };
 const nav: Item[] = [
   { href: '/', label: t('nav.home'), active: path === '/' },
-  { href: '/shop', label: t('nav.shop'), active: path.startsWith('/shop') || path.startsWith('/products') },
-  { href: '/collections', label: t('nav.collections'), active: path.startsWith('/collections') },
+  { href: '/shop', label: t('nav.shop'), active: path.startsWith('/shop') || path.startsWith('/products'), mega: 'shop' },
+  { href: '/collections', label: t('nav.collections'), active: path.startsWith('/collections'), mega: 'collections' },
   { href: '/about', label: t('nav.about'), active: path.startsWith('/about') },
   { href: '/visit', label: t('nav.visit'), active: path.startsWith('/visit') },
 ];
+// For the mega panels and the phone drawer. The header renders once per full page load (it persists after that).
+const [collections, newest] = await Promise.all([
+  api().catalog.collections().catch(() => []),
+  api().catalog.products({ sort: 'new', pageSize: 8 }).then((r) => r.items.filter((p) => !p.soldOut && p.images.length).slice(0, 3)).catch(() => []),
+]);
+const featured = collections.filter((c) => c.image).slice(0, 3);
 ---
 <header class="hdr" data-header>
   <div class="hdr__plate" aria-hidden="true"><div class="hdr__bg" data-hdr-bg></div></div>
 
   <div class="container hdr__inner">
     <div class="hdr__m-left hdr__m-only">
+      <button class="icon-btn" type="button" data-drawer-open aria-label="Menu"><Icon name="menu" /></button>
       <button class="icon-btn" type="button" data-ui="search:open" aria-label={t('nav.search')}><Icon name="search" /></button>
-      <a class="icon-btn hdr__acct" href="/account" aria-label="Your account" data-account-link><Icon name="user" /><span class="hdr__acct-dot" data-account-dot hidden></span></a>
     </div>
 
     <a href="/" class="hdr__brand" aria-label="Femia home" data-hdr-brand><Logo /></a>
 
     <nav class="hdr__nav" aria-label="Main">
       <ul role="list">
-        {nav.map((n) => <li><a href={n.href} aria-current={n.active ? 'page' : undefined}>{n.label}</a></li>)}
+        {nav.map((n) => (
+          <li class:list={[{ 'has-mega': n.mega }]} data-mega={n.mega}>
+            <a href={n.href} aria-current={n.active ? 'page' : undefined} data-top>{n.label}</a>
+            {n.mega === 'shop' && categories.length > 0 && (
+              <div class="mega">
+                <div class="mega__grid">
+                  <div>
+                    <ul role="list" class="mega__cats" style={`--n:${Math.min(categories.length, 5)}`}>
+                      {categories.map((c) => (
+                        <li>
+                          <a class="mega__cat" href={`/shop/${c.slug}`}>
+                            <span class="mega__ph">{c.image && <img src={c.image.src['480']} width={c.image.width} height={c.image.height} alt="" loading="lazy" decoding="async" />}</span>
+                            <span class="mega__name">{c.name}</span>
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                    <a class="mega__more" href="/shop">Shop everything <Icon name="arrowRight" size={16} /></a>
+                  </div>
+                  {newest.length > 0 && (
+                    <aside class="mega__side">
+                      <p class="mega__h">Just in</p>
+                      <ul role="list" class="mega__list">
+                        {newest.map((p) => {
+                          const img = p.images.find((i) => i.role === 'main') ?? p.images[0]!;
+                          return (
+                            <li><a class="mega__item" href={`/products/${p.slug}`}>
+                              <img src={img.src['480']} width={img.width} height={img.height} alt="" loading="lazy" decoding="async" />
+                              <span><span class="mega__item-name">{p.title}</span><span class="mega__price">{formatINR(p.price)}</span></span>
+                            </a></li>
+                          );
+                        })}
+                      </ul>
+                      <a class="mega__more" href="/shop?sort=new">All new arrivals <Icon name="arrowRight" size={16} /></a>
+                    </aside>
+                  )}
+                </div>
+              </div>
+            )}
+            {n.mega === 'collections' && collections.length > 0 && (
+              <div class="mega">
+                <div class="mega__grid">
+                  <ul role="list" class="mega__feature">
+                    {featured.map((c) => (
+                      <li>
+                        <a class="mega__card" href={`/collections/${c.slug}`}>
+                          <span class="mega__ph mega__ph--wide"><img src={c.image!.src['480']} width={c.image!.width} height={c.image!.height} alt="" loading="lazy" decoding="async" /></span>
+                          <span class="mega__name">{c.name}</span>
+                          {c.description && <span class="mega__desc">{c.description}</span>}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                  <aside class="mega__side">
+                    <p class="mega__h">All collections</p>
+                    <ul role="list" class="mega__links">
+                      {collections.map((c) => <li><a href={`/collections/${c.slug}`}>{c.name}</a></li>)}
+                    </ul>
+                    <a class="mega__more" href="/collections">See all collections <Icon name="arrowRight" size={16} /></a>
+                  </aside>
+                </div>
+              </div>
+            )}
+          </li>
+        ))}
       </ul>
+      <span class="hdr__thread" aria-hidden="true" data-nav-thread></span>
     </nav>
 
+    <!-- search, opened inside the capsule (wide screens) -->
+    <form class="hsearch" role="search" action="/search" method="get" data-hsearch>
+      <Icon name="search" size={20} />
+      <label for="hsearch-q" class="sr-only">Search products</label>
+      <input id="hsearch-q" name="q" type="search" placeholder="Search kurtas, co-ords, fabrics…" autocomplete="off" enterkeyhint="search"
+        aria-controls="hsearch-results" data-hsearch-input />
+      <button class="icon-btn" type="button" data-hsearch-close aria-label="Close search"><Icon name="close" size={20} /></button>
+      <div class="mega hsearch__results" id="hsearch-results" aria-live="polite" data-hsearch-results></div>
+    </form>
+
     <div class="hdr__actions">
-      <button class="icon-btn hdr__d-only" type="button" data-ui="search:open" aria-label={t('nav.search')}><Icon name="search" /></button>
-      <a class="icon-btn hdr__acct hdr__d-only" href="/account" aria-label="Your account" data-account-link>
-        <Icon name="user" /><span class="hdr__acct-dot" data-account-dot hidden></span>
-      </a>
-      <a class="icon-btn" href="/wishlist" aria-label={t('nav.wishlist')}>
+      <a class="icon-btn hdr__acct hdr__m-acct" href="/account" aria-label="Your account" data-account-link><Icon name="user" /><span class="hdr__acct-dot" data-account-dot hidden></span></a>
+      <button class="icon-btn hdr__d-only" type="button" data-hsearch-open aria-label={t('nav.search')} aria-controls="hsearch-q"><Icon name="search" /></button>
+
+      <div class="hpop hdr__d-only" data-hpop>
+        <a class="icon-btn hdr__acct" href="/account" aria-label="Your account" data-account-link>
+          <Icon name="user" /><span class="hdr__acct-dot" data-account-dot hidden></span>
+        </a>
+        <div class="hpop__card hpop__card--acct">
+          <div data-acct-in hidden>
+            <p class="hpop__hello">Hello, <span data-acct-name></span></p>
+            <ul role="list" class="hpop__links">
+              <li><a href="/account#orders"><Icon name="bag" size={18} /> Your orders</a></li>
+              <li><a href="/account#addresses"><Icon name="pin" size={18} /> Addresses</a></li>
+              <li><a href="/wishlist"><Icon name="heart" size={18} /> Wishlist</a></li>
+              <li><a href="/track"><Icon name="truck" size={18} /> Track an order</a></li>
+            </ul>
+            <button type="button" class="hpop__out" data-sign-out><Icon name="logout" size={18} /> Sign out</button>
+          </div>
+          <div data-acct-out>
+            <p class="hpop__hello">Welcome to Femia</p>
+            <p class="hpop__note">Sign in to see your orders, saved addresses and offers.</p>
+            <a class="btn btn--sm hpop__cta" href="/account/sign-in">Sign in or create an account</a>
+            <ul role="list" class="hpop__links">
+              <li><a href="/track"><Icon name="truck" size={18} /> Track an order</a></li>
+              <li><a href="/wishlist"><Icon name="heart" size={18} /> Wishlist</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <a class="icon-btn hdr__d-only" href="/wishlist" aria-label={t('nav.wishlist')}>
         <Icon name="heart" /><span class="badge" data-wish-count hidden></span>
       </a>
-      <button class="icon-btn" type="button" data-ui="cart:open" aria-label={t('nav.bag')} data-bag-button>
-        <Icon name="bag" /><span class="badge" data-cart-count hidden></span>
-      </button>
+
+      <div class="hpop hdr__d-only" data-hpop>
+        <button class="icon-btn" type="button" data-ui="cart:open" aria-label={t('nav.bag')} data-bag-button>
+          <Icon name="bag" /><span class="badge" data-cart-count hidden></span>
+        </button>
+        <div class="hpop__card hpop__card--bag" data-bag-preview></div>
+      </div>
     </div>
   </div>
+  <MenuDrawer categories={categories} collections={collections} store={settings.store} />
 </header>
 
 <style>
-  /* Flat white bar: logo left, menu centred, icons right. Slims a little as you scroll. */
+  /* Flat white bar: logo left, menu centred, icons right. As you scroll it lifts off the page into a floating
+     frosted capsule with a gold hairline (--e: 0 at the top, 1 once scrolled; set by the script below). */
   .hdr {
     --h-open: 84px; --h-closed: 64px; --dip-open: 0px;
     --hdr-h: var(--h-open); --dip: 0px; --brand-s: 1;
@@ -53,69 +180,305 @@ const nav: Item[] = [
     /* Constant layout height while the header slims: no content jump on scroll. */
     margin-bottom: calc(var(--h-open) - var(--hdr-h));
   }
-  .hdr::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: var(--c-line); pointer-events: none; }
-  .hdr__plate { position: absolute; inset: 0 0 auto 0; height: calc(var(--hdr-h) + 2px); pointer-events: none; filter: drop-shadow(0 8px 16px rgba(60, 40, 20, var(--shade, 0))); }
-  .hdr__bg { position: absolute; inset: 0; background: color-mix(in srgb, #FFFFFF 94%, transparent); backdrop-filter: saturate(1.2) blur(14px); -webkit-backdrop-filter: saturate(1.2) blur(14px); }
+  .hdr::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: var(--c-line); pointer-events: none; opacity: calc(1 - var(--e, 0)); }
+  .hdr__plate {
+    /* the capsule's edge sits 24px outside the content, so logo and icons keep their place */
+    --pill-x: calc(var(--e, 0) * max(8px, (100vw - var(--layout-max-width)) / 2 + var(--layout-gutter) - 24px));
+    position: absolute; top: calc(var(--e, 0) * 8px); left: var(--pill-x); right: var(--pill-x);
+    height: calc(var(--hdr-h) + 2px - var(--e, 0) * 18px); border-radius: calc(var(--e, 0) * 30px);
+    pointer-events: none; filter: drop-shadow(0 10px 22px rgba(80, 36, 32, var(--shade, 0)));
+  }
+  .hdr__plate::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; box-shadow: inset 0 0 0 1px rgba(200, 165, 116, calc(var(--e, 0) * .65)); }
+  .hdr__bg { position: absolute; inset: 0; border-radius: inherit; background: color-mix(in srgb, #FFFFFF 97%, transparent); backdrop-filter: saturate(1.3) blur(20px); -webkit-backdrop-filter: saturate(1.3) blur(20px); }
 
   .hdr__inner { position: relative; display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: 'brand nav actions'; align-items: center; height: 100%; gap: var(--sp-8); }
   .hdr__brand { grid-area: brand; display: block; transform: scale(var(--brand-s)); transform-origin: 0 50%; }
-  .hdr__nav { grid-area: nav; justify-self: center; }
-  .hdr__nav ul { display: flex; gap: clamp(var(--sp-6), 3.2vw, var(--sp-12)); }
-  .hdr__nav a { position: relative; display: inline-flex; align-items: center; min-height: 44px; color: var(--c-ink);
+  /* the nav is not positioned: the thread and the mega panels are placed against the whole header row */
+  .hdr__nav { grid-area: nav; justify-self: center; transition: opacity 250ms ease, visibility 0s; }
+  .hdr__nav > ul { display: flex; gap: clamp(var(--sp-6), 3.2vw, var(--sp-12)); }
+  .hdr__nav [data-top] { position: relative; display: inline-flex; align-items: center; min-height: 44px; color: var(--c-ink);
     font-size: .8125rem; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; transition: color var(--motion-fast) ease; }
-  .hdr__nav a:hover, .hdr__nav a:focus-visible { color: var(--c-accent); }
-  /* the current page gets a fine caramel underline */
-  .hdr__nav a::before { content: ''; position: absolute; left: 0; right: .12em; bottom: 8px; height: 1.5px; background: var(--c-accent); transform: scaleX(0); transform-origin: left; transition: transform 320ms var(--motion-ease-out); }
-  .hdr__nav a[aria-current='page'] { color: var(--c-accent); }
-  .hdr__nav a[aria-current='page']::before { transform: scaleX(1); }
+  .hdr__nav [data-top]:hover, .hdr__nav [data-top]:focus-visible, .has-mega.is-open > [data-top] { color: var(--c-accent); }
+  .hdr__nav [data-top][aria-current='page'] { color: var(--c-accent); }
+  /* the thread: a short rosewood running stitch ending in a gold lozenge, under the current page; pointing at another
+     item pulls it across (it stretches, then settles) and it slides back when you leave the menu */
+  .hdr__thread {
+    position: absolute; left: 0; top: calc(50% + 12px); width: 0; height: 2px; pointer-events: none; opacity: 0; transition: opacity 250ms ease;
+    background: repeating-linear-gradient(90deg, var(--c-accent) 0 6px, transparent 6px 9px); border-radius: 1px;
+  }
+  .hdr__thread::after { content: ''; position: absolute; right: -7px; top: 50%; width: 6px; height: 6px; margin-top: -3px; background: var(--c-zari); transform: rotate(45deg); }
+  :global(.no-js) .hdr__nav [data-top][aria-current='page']::before { content: ''; position: absolute; left: 0; right: .12em; bottom: 8px; height: 1.5px; background: var(--c-accent); }
+
+  /* ── mega panels: drop out of the capsule, aligned to its edges ── */
+  .mega {
+    position: absolute; top: calc(100% + 6px); left: max(0px, calc(var(--layout-gutter) - 24px)); right: max(0px, calc(var(--layout-gutter) - 24px));
+    padding: var(--sp-6); border-radius: 24px; background: rgba(255, 255, 255, .97); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+    box-shadow: inset 0 0 0 1px rgba(200, 165, 116, .45), 0 30px 60px -24px rgba(80, 36, 32, .3);
+    visibility: hidden; opacity: 0; translate: 0 -8px; pointer-events: none;
+    transition: opacity 200ms ease, translate 300ms var(--motion-ease-out), visibility 0s linear 300ms;
+  }
+  .mega::before { content: ''; position: absolute; left: 0; right: 0; top: -18px; height: 18px; } /* a bridge, so the pointer can cross the gap */
+  .has-mega.is-open > .mega, .has-mega:focus-within:not(.is-closed) > .mega { visibility: visible; opacity: 1; translate: 0 0; pointer-events: auto; transition-delay: 0s; }
+  .mega__grid { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: var(--sp-8); }
+  .mega__cats { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: var(--sp-4); }
+  .mega__cat, .mega__card { display: grid; gap: var(--sp-2); color: var(--c-ink); }
+  .mega__ph { display: block; aspect-ratio: 3 / 4; overflow: hidden; border-radius: var(--r-img); background: var(--c-sand); }
+  .mega__ph--wide { aspect-ratio: 4 / 3; }
+  .mega__ph img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 25%; transition: scale 900ms var(--motion-ease-out); }
+  .mega__cat:hover img, .mega__card:hover img { scale: 1.03; }
+  .mega__name { font-family: var(--font-display); font-size: 1.375rem; font-weight: 500; line-height: 1.15; }
+  .mega__cat:hover .mega__name, .mega__card:hover .mega__name { color: var(--c-accent); }
+  .mega__desc { font-size: .875rem; color: var(--c-muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .mega__feature { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-4); }
+  .mega__side { padding-left: var(--sp-8); border-left: 1px solid var(--c-line); display: grid; align-content: start; gap: var(--sp-3); }
+  .mega__h { font-size: .9375rem; font-weight: 600; color: var(--c-ink); }
+  .mega__list { display: grid; gap: var(--sp-3); }
+  .mega__item { display: grid; grid-template-columns: 56px 1fr; gap: var(--sp-3); align-items: center; color: var(--c-ink); }
+  .mega__item img { width: 56px; aspect-ratio: 3 / 4; object-fit: cover; border-radius: var(--r-img); background: var(--c-sand); }
+  .mega__item-name { display: block; font-size: .9375rem; font-weight: 500; line-height: 1.3; }
+  .mega__item:hover .mega__item-name { color: var(--c-accent); }
+  .mega__price { display: block; font-size: .875rem; color: var(--c-text); font-variant-numeric: tabular-nums; }
+  .mega__links { display: grid; }
+  .mega__links a { display: flex; align-items: center; min-height: 38px; color: var(--c-text); }
+  .mega__links a:hover { color: var(--c-accent); }
+  .mega__more { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; margin-top: var(--sp-2); font-size: .9375rem; font-weight: 500; color: var(--c-accent); }
+  .mega a:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 3px; border-radius: 6px; }
+
+  /* ── search inside the capsule ── */
+  .hsearch { grid-area: nav; justify-self: center; width: min(560px, 100%); display: none; align-items: center; gap: var(--sp-3);
+    height: 46px; padding: 0 4px 0 var(--sp-5); border-radius: 999px; background: var(--c-surface); box-shadow: inset 0 0 0 1px var(--c-line); color: var(--c-muted); }
+  .hsearch:focus-within { box-shadow: inset 0 0 0 1.5px var(--c-accent); }
+  .hsearch input { flex: 1; min-width: 0; height: 100%; border: 0; background: transparent; color: var(--c-ink); font-size: 1rem; caret-color: var(--c-accent); }
+  .hsearch input:focus { outline: none; }
+  .hsearch input::-webkit-search-cancel-button { display: none; }
+  .hdr.is-searching .hsearch { display: flex; animation: hsearch-in 320ms var(--motion-ease-out); }
+  .hdr.is-searching .hdr__nav { opacity: 0; visibility: hidden; transition-delay: 0s, 250ms; }
+  @keyframes hsearch-in { from { opacity: 0; scale: .96; } }
+  .hdr.is-searching .hsearch__results:not(:empty) { visibility: visible; opacity: 1; translate: 0 0; pointer-events: auto; transition-delay: 0s; }
+  .hsearch__results { left: 50%; right: auto; width: min(640px, calc(100vw - 32px)); margin-left: max(-320px, calc((100vw - 32px) / -2)); padding: var(--sp-4); }
+  .hsearch__results :global(ul) { display: grid; gap: var(--sp-1); list-style: none; padding: 0; }
+  .hsearch__results :global(a.hs-item) { display: grid; grid-template-columns: 48px 1fr auto; gap: var(--sp-4); align-items: center; padding: var(--sp-2); border-radius: 12px; color: var(--c-ink); }
+  .hsearch__results :global(a.hs-item:hover), .hsearch__results :global(a.hs-item:focus-visible) { background: var(--c-blush); outline: none; }
+  .hsearch__results :global(.hs-item img) { width: 48px; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 8px; background: var(--c-sand); }
+  .hsearch__results :global(.hs-price) { font-variant-numeric: tabular-nums; color: var(--c-text); }
+  .hsearch__results :global(.hs-note) { padding: var(--sp-2) var(--sp-3); color: var(--c-muted); }
+  .hsearch__results :global(.hs-all) { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 var(--sp-3); font-weight: 500; color: var(--c-accent); }
+
+  /* ── account and bag previews ── */
+  .hpop { position: relative; display: inline-grid; }
+  .hpop__card {
+    position: absolute; top: calc(100% + 14px); right: -8px; width: 300px; padding: var(--sp-5); border-radius: 20px;
+    background: rgba(255, 255, 255, .98); box-shadow: inset 0 0 0 1px rgba(200, 165, 116, .45), 0 24px 50px -20px rgba(80, 36, 32, .32);
+    visibility: hidden; opacity: 0; translate: 0 -6px; pointer-events: none;
+    transition: opacity 180ms ease, translate 260ms var(--motion-ease-out), visibility 0s linear 260ms;
+  }
+  .hpop__card::before { content: ''; position: absolute; left: 0; right: 0; top: -16px; height: 16px; }
+  .hpop.is-open .hpop__card, .hpop:focus-within:not(.is-closed) .hpop__card { visibility: visible; opacity: 1; translate: 0 0; pointer-events: auto; transition-delay: 0s; }
+  .hpop__hello { font-family: var(--font-display); font-size: 1.375rem; font-weight: 500; color: var(--c-ink); }
+  .hpop__note { margin-top: var(--sp-1); font-size: .875rem; color: var(--c-muted); }
+  .hpop__cta { width: 100%; margin-top: var(--sp-4); }
+  .hpop__links { display: grid; margin-top: var(--sp-3); }
+  .hpop__links a, .hpop__out { display: flex; align-items: center; gap: var(--sp-3); min-height: 42px; width: 100%; color: var(--c-text); background: none; border: 0; padding: 0; font: inherit; font-size: .9375rem; cursor: pointer; text-align: left; }
+  .hpop__links a:hover, .hpop__out:hover { color: var(--c-accent); }
+  .hpop__out { margin-top: var(--sp-2); padding-top: var(--sp-2); border-top: 1px solid var(--c-line); }
+  .hpop__card--bag { width: 340px; }
+  .hpop__card :global(.bp-h) { font-family: var(--font-display); font-size: 1.375rem; font-weight: 500; color: var(--c-ink); }
+  .hpop__card :global(.bp-list) { display: grid; gap: var(--sp-3); margin-top: var(--sp-3); }
+  .hpop__card :global(.bp-line) { display: grid; grid-template-columns: 52px 1fr auto; gap: var(--sp-3); align-items: center; }
+  .hpop__card :global(.bp-line img) { width: 52px; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 8px; background: var(--c-sand); }
+  .hpop__card :global(.bp-name) { display: block; font-size: .9375rem; font-weight: 500; color: var(--c-ink); line-height: 1.3; }
+  .hpop__card :global(.bp-opt) { display: block; font-size: .8125rem; color: var(--c-muted); }
+  .hpop__card :global(.bp-price) { font-size: .9375rem; font-variant-numeric: tabular-nums; color: var(--c-ink); }
+  .hpop__card :global(.bp-more) { font-size: .8125rem; color: var(--c-muted); }
+  .hpop__card :global(.bp-sub) { display: flex; justify-content: space-between; margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--c-line); font-weight: 600; color: var(--c-ink); font-variant-numeric: tabular-nums; }
+  .hpop__card :global(.bp-actions) { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); margin-top: var(--sp-4); }
+  .hpop__card :global(.bp-empty) { margin-top: var(--sp-1); font-size: .9375rem; color: var(--c-muted); }
+
   .hdr__actions { grid-area: actions; display: flex; gap: var(--sp-1); margin-right: -10px; }
   .hdr__actions :global(.badge) { overflow: hidden; }
   .hdr__actions :global(.roll) { display: flex; flex-direction: column; line-height: 18px; }
   .hdr__actions :global(.roll span) { display: block; height: 18px; }
   .hdr__m-only { display: none; }
   .hdr__acct { position: relative; }
+  .hdr__m-acct { display: none; }
   .hdr__acct-dot { position: absolute; top: 9px; right: 8px; width: 9px; height: 9px; border-radius: 50%; background: var(--c-zari); box-shadow: 0 0 0 2px #FFFFFF; }
 
   @media (max-width: 1023px) {
     .hdr { --h-open: 64px; --h-closed: 56px; }
     .hdr__inner { grid-template-columns: 1fr auto 1fr; grid-template-areas: 'mleft brand actions'; gap: var(--sp-4); }
     .hdr__brand { justify-self: center; transform-origin: 50% 50%; }
-    .hdr__nav { display: none; }
-    .hdr__m-only { display: inline-grid; margin-left: -10px; justify-self: start; }
-    .hdr__m-left { grid-area: mleft; display: flex; }
+    .hdr__nav, .hsearch { display: none !important; }
+    .hdr__m-only { display: inline-flex; margin-left: -10px; justify-self: start; }
+    .hdr__m-left { grid-area: mleft; }
     .hdr__actions { justify-self: end; }
     .hdr__d-only { display: none; }
+    .hdr__m-acct { display: inline-grid; } /* wishlist and bag are in the tab bar */
   }
+  @media (prefers-reduced-motion: reduce) { .mega, .hpop__card { transition-duration: 1ms; } .hdr.is-searching .hsearch { animation: none; } }
   @media print { .hdr { position: static; } }
 </style>
 
 <script>
-  import { $cartCount, $wishlist } from '../lib/stores.ts';
+  import { $cart, $cartCount, $wishlist } from '../lib/stores.ts';
   import { emit } from '../lib/ui-events.ts';
   import { onPage } from '../lib/lifecycle.ts';
-  import { signedInHint } from '../lib/account.ts';
+  import { acct, setSignedIn, signedInHint } from '../lib/account.ts';
 
-  // Account icon: a small gold dot once signed in (a display hint only; the session cookie is HttpOnly).
+  const inr = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
+  const money = (paise: number) => inr.format(paise / 100);
+  const el = (tag: string, cls?: string, text?: string): HTMLElement => {
+    const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e;
+  };
+  const link = (cls: string, text: string, href: string) => { const a = el('a', cls, text) as HTMLAnchorElement; a.href = href; return a; };
+  const put = (parent: Node, ...kids: Node[]) => { kids.forEach((k) => parent.appendChild(k)); return parent; };
+  const pic = (src?: string | null) => { const i = document.createElement('img'); i.alt = ''; i.loading = 'lazy'; if (src) i.src = src; return i; };
+  const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Account: a small gold dot once signed in, and the right preview (a display hint only; the session cookie is HttpOnly).
   const syncAccount = () => {
     const who = signedInHint();
     document.querySelectorAll<HTMLElement>('[data-account-dot]').forEach((d) => d.toggleAttribute('hidden', !who));
     document.querySelectorAll<HTMLAnchorElement>('[data-account-link]').forEach((l) => l.setAttribute('aria-label', who ? `Your account (${who.name})` : 'Sign in or create an account'));
+    document.querySelectorAll<HTMLElement>('[data-acct-in]').forEach((d) => (d.hidden = !who));
+    document.querySelectorAll<HTMLElement>('[data-acct-out]').forEach((d) => (d.hidden = !!who));
+    document.querySelectorAll<HTMLElement>('[data-acct-name]').forEach((d) => (d.textContent = who ? who.name.split(' ')[0]! : ''));
   };
   syncAccount();
   window.addEventListener('femia:account', syncAccount);
   window.addEventListener('storage', (e) => { if (e.key === 'femia.account.v1') syncAccount(); });
+  document.querySelector('[data-sign-out]')?.addEventListener('click', async () => {
+    await acct('/auth/customer/sign-out', { body: {} }).catch(() => {});
+    setSignedIn(null);
+    if (location.pathname.startsWith('/account')) location.assign('/');
+  });
 
-  // Header and tab bar persist across client-router navigations: mark the current section on every page.
+  // ── Hover intent for the mega panels and the previews: open after a beat, close after a grace period ──
+  const header = document.querySelector<HTMLElement>('[data-header]');
+  const openers = [...document.querySelectorAll<HTMLElement>('.has-mega, [data-hpop]')];
+  const timers = new WeakMap<HTMLElement, number>();
+  const closeAll = (except?: HTMLElement) => openers.forEach((o) => { if (o !== except) o.classList.remove('is-open'); });
+  openers.forEach((o) => {
+    o.addEventListener('pointerenter', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      clearTimeout(timers.get(o)); o.classList.remove('is-closed');
+      timers.set(o, window.setTimeout(() => { closeAll(o); o.classList.add('is-open'); }, header?.querySelector('.is-open') ? 0 : 90));
+    });
+    o.addEventListener('pointerleave', () => { clearTimeout(timers.get(o)); timers.set(o, window.setTimeout(() => o.classList.remove('is-open'), 180)); });
+    o.addEventListener('focusin', () => closeAll(o));
+    o.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      o.classList.remove('is-open'); o.classList.add('is-closed');
+      o.querySelector<HTMLElement>('[data-top], [data-account-link], [data-bag-button]')?.focus();
+    });
+    o.addEventListener('focusout', (e) => { if (!o.contains(e.relatedTarget as Node)) o.classList.remove('is-closed'); });
+  });
+
+  // ── The thread under the menu: rests under the current page, is pulled across to whatever you point at ──
+  const navEl = document.querySelector<HTMLElement>('.hdr__nav');
+  const thread = navEl?.querySelector<HTMLElement>('[data-nav-thread]');
+  const tops = [...(navEl?.querySelectorAll<HTMLAnchorElement>('[data-top]') ?? [])];
+  let at: { l: number; w: number } | null = null;
+  const current = () => tops.find((a) => a.getAttribute('aria-current') === 'page') ?? null;
+  const moveTo = (a: HTMLElement | null, animate = true) => {
+    const box = thread?.offsetParent as HTMLElement | null;
+    if (!thread || !box) return;
+    if (!a) { thread.style.opacity = '0'; at = null; return; }
+    const n = box.getBoundingClientRect(), r = a.getBoundingClientRect();
+    const to = { l: r.left - n.left, w: r.width - parseFloat(getComputedStyle(a).letterSpacing || '0') };
+    if (at && animate && !still() && Math.abs(at.l - to.l) > 1) {
+      // stretch over both items first, then settle: like thread drawn through cloth
+      const l = Math.min(at.l, to.l), w = Math.max(at.l + at.w, to.l + to.w) - l;
+      thread.animate([
+        { transform: `translateX(${at.l}px)`, width: `${at.w}px` },
+        { transform: `translateX(${l}px)`, width: `${w}px`, offset: 0.45 },
+        { transform: `translateX(${to.l}px)`, width: `${to.w}px` },
+      ], { duration: 620, easing: 'cubic-bezier(.16,1,.3,1)' });
+    }
+    thread.style.transform = `translateX(${to.l}px)`;
+    thread.style.width = `${to.w}px`;
+    thread.style.opacity = '1';
+    at = to;
+  };
+  if (navEl && thread) {
+    tops.forEach((a) => { a.addEventListener('pointerenter', () => moveTo(a)); a.addEventListener('focus', () => moveTo(a)); });
+    navEl.addEventListener('pointerleave', () => moveTo(current()));
+    navEl.addEventListener('focusout', (e) => { if (!navEl.contains(e.relatedTarget as Node)) moveTo(current()); });
+    new ResizeObserver(() => moveTo(current(), false)).observe(navEl);
+    document.fonts?.ready.then(() => moveTo(current(), false));
+  }
+
+  // ── Search inside the capsule (wide screens) ──
+  const form = document.querySelector<HTMLFormElement>('[data-hsearch]');
+  const input = form?.querySelector<HTMLInputElement>('[data-hsearch-input]');
+  const results = form?.querySelector<HTMLElement>('[data-hsearch-results]');
+  const openSearch = () => { if (!header || !input) return; closeAll(); header.classList.add('is-searching'); requestAnimationFrame(() => input.focus()); };
+  const closeSearch = () => { if (!header || !input || !results) return; header.classList.remove('is-searching'); input.value = ''; results.replaceChildren(); };
+  let ctrl: AbortController | undefined, debounce = 0;
+  const render = (q: string, items: { slug: string; title: string; price: number; images: { role: string; src: Record<string, string> }[] }[]) => {
+    if (!results) return;
+    if (!items.length) { results.replaceChildren(el('p', 'hs-note', `Nothing matches “${q}” yet. Try a fabric or a colour.`)); return; }
+    const ul = el('ul');
+    for (const p of items) {
+      const img = p.images.find((i) => i.role === 'main') ?? p.images[0];
+      const a = link('hs-item', '', `/products/${p.slug}`);
+      put(a, pic(img?.src['480']), el('span', '', p.title), el('span', 'hs-price', money(p.price)));
+      const li = el('li'); put(li, a); put(ul, li);
+    }
+    const all = link('hs-all', 'See all results', `/search?q=${encodeURIComponent(q)}`);
+    results.replaceChildren(ul, all);
+  };
+  input?.addEventListener('input', () => {
+    clearTimeout(debounce);
+    const q = input.value.trim();
+    if (q.length < 2) { results?.replaceChildren(); return; }
+    debounce = window.setTimeout(() => {
+      ctrl?.abort(); ctrl = new AbortController();
+      fetch(`/api/catalog/products?q=${encodeURIComponent(q)}&pageSize=6`, { signal: ctrl.signal })
+        .then((r) => r.json() as Promise<{ items?: Parameters<typeof render>[1] }>).then((d) => render(q, d.items ?? [])).catch(() => {});
+    }, 180);
+  });
+  document.querySelector('[data-hsearch-open]')?.addEventListener('click', openSearch);
+  form?.querySelector('[data-hsearch-close]')?.addEventListener('click', closeSearch);
+  form?.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeSearch(); document.querySelector<HTMLElement>('[data-hsearch-open]')?.focus(); } });
+  document.addEventListener('pointerdown', (e) => { if (header?.classList.contains('is-searching') && !form?.contains(e.target as Node) && !(e.target as Element).closest('[data-hsearch-open]')) closeSearch(); });
+  addEventListener('keydown', (e) => { if (e.key === '/' && !(e.target as Element).closest('input, textarea') && innerWidth >= 1024) { e.preventDefault(); openSearch(); } });
+
+  // ── Bag preview: the first lines, the subtotal, and the way on ──
+  const bagCard = document.querySelector<HTMLElement>('[data-bag-preview]');
+  $cart.subscribe((lines) => {
+    if (!bagCard) return;
+    if (!lines.length) {
+      const shop = link('btn btn--sm', 'Shop new arrivals', '/shop?sort=new'); shop.style.marginTop = 'var(--sp-4)'; shop.style.width = '100%';
+      bagCard.replaceChildren(el('p', 'bp-h', 'Your bag is empty'), el('p', 'bp-empty', 'Pieces you add will wait here.'), shop);
+      return;
+    }
+    const count = lines.reduce((n, l) => n + l.qty, 0);
+    const list = el('ul', 'bp-list');
+    for (const l of lines.slice(0, 3)) {
+      const li = el('li', 'bp-line'); const im = pic(l.image);
+      const txt = el('span'); put(txt, el('span', 'bp-name', l.title), el('span', 'bp-opt', `${l.optionLabel}${l.qty > 1 ? ` · ${l.qty}` : ''}`));
+      put(li, im, txt, el('span', 'bp-price', money(l.price * l.qty))); put(list, li);
+    }
+    const parts: Node[] = [el('p', 'bp-h', `Your bag (${count})`), list];
+    if (lines.length > 3) parts.push(el('p', 'bp-more', `and ${lines.length - 3} more`));
+    const sub = el('p', 'bp-sub'); put(sub, el('span', '', 'Subtotal'), el('span', '', money(lines.reduce((s, l) => s + l.price * l.qty, 0))));
+    const actions = el('div', 'bp-actions');
+    const view = el('button', 'btn btn--outline btn--sm', 'View bag') as HTMLButtonElement; view.type = 'button'; view.dataset.ui = 'cart:open';
+    const pay = link('btn btn--sm', 'Checkout', '/checkout');
+    put(actions, view, pay);
+    bagCard.replaceChildren(...parts, sub, actions);
+  });
+
+  // Every page: mark the current section (the header persists across pages), close anything open.
   const section = (p: string) => (p === '/' ? '/' : p.startsWith('/shop') || p.startsWith('/products') ? '/shop' : p.startsWith('/collections') ? '/collections' : p.startsWith('/visit') ? '/visit' : p.startsWith('/about') ? '/about' : null);
   onPage(() => {
     const cur = section(location.pathname);
-    document.querySelectorAll<HTMLAnchorElement>('.hdr__nav a, .tabbar a').forEach((a) => {
-      if (a.getAttribute('href') === cur) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
-    });
+    tops.forEach((a) => { if (a.getAttribute('href') === cur) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+    closeAll(); closeSearch(); (document.activeElement as HTMLElement | null)?.blur?.();
+    moveTo(current()); // travels from the last page's item to this one
   });
 
-  // ── Masthead: slims a little and gains a soft shadow as you scroll ──
-  const header = document.querySelector<HTMLElement>('[data-header]');
+  // ── Masthead: lifts into the floating capsule as you scroll ──
   if (header) {
     const num = (v: string) => parseFloat(getComputedStyle(header).getPropertyValue(v));
     let start = 0, hOpen = 84, hClosed = 64, last = -1;
@@ -132,7 +495,8 @@ const nav: Item[] = [
       const e = 1 - Math.pow(1 - p, 3); // ease-out so it settles softly
       header.style.setProperty('--hdr-h', `${hOpen + (hClosed - hOpen) * e}px`);
       header.style.setProperty('--brand-s', String(1 - 0.12 * e));
-      header.style.setProperty('--shade', String(0.12 * e));
+      header.style.setProperty('--shade', String(0.16 * e));
+      header.style.setProperty('--e', e.toFixed(3));
       header.classList.toggle('is-scrolled', p > 0.02);
     };
     let raf = 0;
@@ -142,20 +506,20 @@ const nav: Item[] = [
   }
 
   // ── Badges ──
-  const setBadge = (el: Element | null, n: number) => { if (el instanceof HTMLElement) { el.hidden = n === 0; el.textContent = String(n); } };
+  const setBadge = (b: Element | null, n: number) => { if (b instanceof HTMLElement) { b.hidden = n === 0; b.textContent = String(n); } };
   let shown = -1;
-  const rollBadge = (el: Element | null, n: number) => {
-    if (!(el instanceof HTMLElement)) return;
+  const rollBadge = (b: Element | null, n: number) => {
+    if (!(b instanceof HTMLElement)) return;
     const prev = shown; shown = n;
-    el.hidden = n === 0;
-    if (prev <= 0 || prev === n || n === 0 || matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = String(n); return; }
+    b.hidden = n === 0;
+    if (prev <= 0 || prev === n || n === 0 || still()) { b.textContent = String(n); return; }
     const up = n > prev;
-    el.innerHTML = `<span class="roll"><span>${up ? prev : n}</span><span>${up ? n : prev}</span></span>`;
+    b.innerHTML = `<span class="roll"><span>${up ? prev : n}</span><span>${up ? n : prev}</span></span>`;
     // Delay ≈ the photo's flight, so the number changes as it lands in the bag.
-    (el.firstElementChild as HTMLElement).animate(
+    (b.firstElementChild as HTMLElement).animate(
       [{ transform: `translateY(${up ? '0' : '-50%'})` }, { transform: `translateY(${up ? '-50%' : '0'})` }],
       { duration: 420, delay: up ? 900 : 0, easing: 'cubic-bezier(.16,1,.3,1)', fill: 'both' },
-    ).onfinish = () => { if (shown === n) el.textContent = String(n); };
+    ).onfinish = () => { if (shown === n) b.textContent = String(n); };
   };
   $cartCount.subscribe((n) => {
     rollBadge(document.querySelector('[data-cart-count]'), n);
@@ -163,9 +527,10 @@ const nav: Item[] = [
   });
   $wishlist.subscribe((w) => setBadge(document.querySelector('[data-wish-count]'), w.length));
   document.addEventListener('click', (e) => {
-    const el = (e.target as Element).closest<HTMLElement>('[data-ui]');
-    if (!el) return;
+    const ui = (e.target as Element).closest<HTMLElement>('[data-ui]');
+    if (!ui) return;
     e.preventDefault();
-    emit({ type: el.dataset.ui as 'cart:open' | 'search:open' | 'trial:open' });
+    closeAll();
+    emit({ type: ui.dataset.ui as 'cart:open' | 'search:open' | 'trial:open' });
   });
 </script>

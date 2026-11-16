@@ -23,6 +23,7 @@
     "dev": "echo 'Run in 3 terminals: npm run dev:api | npm run dev:store | npm run dev:admin'",
     "provision": "node tools/release/provision.mjs",
     "deploy": "node tools/release/deploy.mjs",
+    "preview:store": "node tools/release/preview-storefront.mjs",
     "secrets": "node tools/release/secrets.mjs",
     "client:new": "node tools/release/new-client.mjs",
     "data": "node tools/release/data.mjs",

@@ -1,46 +1,121 @@
 ---
+/**
+ * Style gallery: editorial portraits or customer photos spread around the heading.
+ * Wide screens: the heading and an optional invitation to tag the boutique sit in the middle; the prints (up to eight) lie in
+ * two cascading, slightly overlapping groups hugging it, laid out for however many there are. As the section scrolls in, the prints fly out from behind the heading to their
+ * places (CSS scroll-driven; reduced motion and older browsers show them in place). Pointing at a print straightens
+ * it, lifts it to the front and shows its caption. Phones: heading on top, then a two-column spread of prints.
+ */
 import type { MediaRef } from '@femia/contracts';
 import Icon from '../ui/Icon.astro';
 import { emph, srcset } from '../../lib/format.ts';
 interface Props { block: Record<string, any>; media: Record<string, MediaRef>; instagram: string; uid?: string }
 const { block: b, media, instagram, uid = 'styled' } = Astro.props;
-const imgs = (b.images ?? []).map((i: { image: string; link?: string; caption?: string }) => ({ ...i, m: media[i.image] })).filter((i: { m?: MediaRef }) => i.m);
+type Shot = { m: MediaRef; link?: string; caption?: string };
+const imgs: Shot[] = (b.images ?? []).map((i: { image: string; link?: string; caption?: string }) => ({ ...i, m: media[i.image] })).filter((i: { m?: MediaRef }) => i.m).slice(0, 8);
+
+// The spread, laid out for however many prints there are. All units are % of the stage width (cqw); the stage is
+// 2.4:1 and prints are 4:5. The prints split into a left and a right group that hug the clear middle (35–65) where
+// the heading sits; within a group they cascade across, alternating high and low and overlapping a little, so the
+// table always looks full. Fewer prints are drawn bigger.
+const STAGE_H = 100 / 2.4;
+const SIDE = 35;
+const WIDTH = [0, 22, 19, 16.5, 14.5];                    // print width by prints in the group
+const ANGLE = [0, 0, 0, 0];                               // premium pass: prints hang straight
+const group = (k: number, side: 'l' | 'r') => Array.from({ length: k }, (_, j) => {
+  const w = WIDTH[k]!, h = w * 1.25;
+  const step = k > 1 ? (SIDE - w - 1) / (k - 1) : 0;
+  const x = k > 1 ? 1 + j * step : (SIDE - w) / 2;
+  const y = k === 1 ? (STAGE_H - h) / 2 : j % 2 ? STAGE_H - h - 3 : 2;
+  const r = ANGLE[j % 4]!;
+  return side === 'l' ? { x, y, w, h, r } : { x: 100 - x - w, y, w, h, r: -r };
+});
+const nLeft = Math.ceil(imgs.length / 2);
+const slots = [...group(nLeft, 'l'), ...group(imgs.length - nLeft, 'r')];
+const placed = imgs.map((img, i) => {
+  const s = slots[i]!;
+  const dx = +(50 - (s.x + s.w / 2)).toFixed(2);          // offset from the stage centre, for the fly-out
+  const dy = +(STAGE_H / 2 - (s.y + s.h / 2)).toFixed(2);
+  return { ...img, style: `--l:${s.x.toFixed(2)}cqw;--t:${s.y.toFixed(2)}cqw;--w:${s.w}cqw;--r:${s.r}deg;--dx:${dx}cqw;--dy:${dy}cqw` };
+});
+const handle = b.handle && instagram ? b.handle : null;
 ---
-{b.enabled && imgs.length > 0 && (
+{b.enabled && placed.length > 0 && (
   <section class="section styled" aria-labelledby={`${uid}-title`}>
-    <div class="container section-head">
-      <h2 id={`${uid}-title`} data-split set:html={emph(b.eyebrow)} />
-      <span class="thread-rule" aria-hidden="true"></span>
-      {b.handle && instagram && <a class="link-arrow styled__handle" href={instagram} target="_blank" rel="noopener"><Icon name="instagram" /> {b.handle}</a>}
+    <div class="container">
+      <div class="styled__stage">
+        <div class="styled__center">
+          <h2 id={`${uid}-title`} data-split set:html={emph(b.eyebrow)} />
+          {handle && (
+            <p class="styled__ask">Wearing Femia? Tag us at <a href={instagram} target="_blank" rel="noopener"><Icon name="instagram" size={16} />{handle}</a> to be featured here.</p>
+          )}
+        </div>
+        <ul role="list" class="styled__prints">
+          {placed.map((p) => {
+            const img = <img src={p.m.src['480']} srcset={srcset(p.m)} sizes="(min-width: 900px) 16vw, 46vw" width={p.m.width} height={p.m.height} alt={p.m.alt} loading="lazy" decoding="async" />;
+            const cap = p.caption && <span class="print__cap">{p.caption}</span>;
+            return (
+              <li class="print-slot" style={p.style}>
+                {p.link
+                  ? <a class="print" href={p.link} target="_blank" rel="noopener">{img}{cap}</a>
+                  : <div class="print">{img}{cap}</div>}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </div>
-    <ul role="list" class="styled__track" data-polaroids>
-      {imgs.map((i: { m: MediaRef; link?: string; caption?: string }) => (
-        <li>
-          {i.link ? <a href={i.link} target="_blank" rel="noopener"><img src={i.m.src['480']} srcset={srcset(i.m)} sizes="(min-width: 1024px) 20vw, 44vw" width={i.m.width} height={i.m.height} alt={i.m.alt} loading="lazy" decoding="async" /></a>
-                  : <img src={i.m.src['480']} srcset={srcset(i.m)} sizes="(min-width: 1024px) 20vw, 44vw" width={i.m.width} height={i.m.height} alt={i.m.alt} loading="lazy" decoding="async" />}
-          {i.caption && <p class="print__caption">{i.caption}</p>}
-        </li>
-      ))}
-    </ul>
   </section>
 )}
 <style>
-  .styled { padding-bottom: 0; }
-  /* Wide screens: heading and handle on the left, the prints to the right. */
-  @media (min-width: 1100px) {
-    .styled { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); align-items: center; padding-left: calc(max(0px, (100vw - var(--layout-max-width)) / 2) + var(--layout-gutter)); }
-    .styled > .section-head { width: auto; max-width: none; padding: 0; margin: 0; grid-template-columns: 1fr; grid-template-areas: 'title' 'rule' 'aside'; justify-items: start; text-align: left; row-gap: var(--sp-4); }
-    .styled > .section-head :global(.thread-rule), .styled > .section-head > :global(:not(h2)) { justify-self: start; }
-    .styled .styled__track { padding-inline: var(--sp-6) var(--layout-gutter); }
+  /* ── the centre: heading and the invitation ── */
+  .styled__center { display: grid; justify-items: center; gap: var(--sp-5); text-align: center; }
+  .styled__center h2 { font-size: var(--fs-section); }
+  .styled__ask { max-width: 30ch; font-size: 1rem; line-height: 1.6; color: var(--c-text); }
+  .styled__ask a { display: inline-flex; align-items: center; gap: 5px; font-weight: 500; color: var(--c-accent); text-decoration: underline; text-decoration-color: var(--c-zari); text-underline-offset: 4px; white-space: nowrap; }
+  .styled__ask a:hover { text-decoration-color: var(--c-accent); }
+
+  /* ── a print: white border, soft shadow, caption on the photo's foot ── */
+  .print { position: relative; display: block; padding: 8px; background: #FFFFFF; border-radius: 2px; box-shadow: 0 1px 2px rgba(80, 36, 32, .06), 0 18px 36px -24px rgba(80, 36, 32, .28); }
+  .print img { display: block; width: 100%; aspect-ratio: 4 / 5; object-fit: cover; object-position: 50% 25%; border-radius: 2px; background: var(--c-sand); }
+  .print__cap {
+    position: absolute; left: 6px; right: 6px; bottom: 6px; padding: 28px 10px 9px; border-radius: 0 0 2px 2px; pointer-events: none;
+    background: linear-gradient(0deg, rgba(60, 26, 24, .62), transparent); color: #FFFDF8;
+    font-family: var(--font-display); font-style: italic; font-size: 1.125rem; line-height: 1.2; text-align: center;
   }
-  .styled__handle { text-decoration: underline; }
-  .styled__track { display: flex; gap: var(--sp-4); overflow-x: auto; scrollbar-width: none; padding-inline: var(--layout-gutter); scroll-snap-type: x proximity; }
-  .styled__track::-webkit-scrollbar { display: none; }
-  @media (min-width: 1280px) { .styled__track { padding-inline: calc((100vw - var(--layout-max-width)) / 2 + var(--layout-gutter)); } }
-  .styled__track li { flex: 0 0 clamp(160px, 21vw, 280px); scroll-snap-align: start; }
-  .styled__track li { padding: 8px 8px 28px; background: #FFFDF9; border-radius: 4px; box-shadow: var(--shadow-card); }
-  .styled__track li:nth-child(odd) { transform: rotate(-1.2deg); } .styled__track li:nth-child(even) { transform: rotate(1deg) translateY(10px); }
-  .styled__track img { width: 100%; aspect-ratio: 0.95; object-fit: cover; border-radius: 2px; background: var(--c-sand); }
-  .styled__track { padding-block: var(--sp-4) var(--sp-8); }
-  .print__caption { font-family: var(--font-display); font-style: italic; font-weight: 500; font-size: 1.125rem; color: var(--c-ink); text-align: center; margin-top: 6px; line-height: 1.2; }
+  a.print:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 3px; }
+
+  /* ── wide screens: the spread ── */
+  @media (min-width: 900px) {
+    .styled__stage { position: relative; container-type: inline-size; aspect-ratio: 2.4; }
+    .styled__center { position: absolute; z-index: 2; inset: 0 35cqw; place-content: center; } /* prints fly out from behind it */
+    .styled__center h2 { font-size: clamp(2.25rem, 4.6cqw, 3.5rem); }
+    .print-slot {
+      position: absolute; left: var(--l); top: var(--t); width: var(--w); z-index: 1;
+      rotate: var(--r); transition: rotate 600ms var(--motion-ease-out), scale 600ms var(--motion-ease-out);
+    }
+    .print { transition: box-shadow 400ms ease; }
+    .print-slot:is(:hover, :focus-within) { z-index: 3; rotate: 0deg; scale: 1.08; }
+    .print-slot:is(:hover, :focus-within) .print { box-shadow: var(--shadow-card-hover); }
+    @media (hover: hover) {
+      .print__cap { opacity: 0; transition: opacity 300ms ease; }
+      .print-slot:is(:hover, :focus-within) .print__cap { opacity: 1; }
+    }
+    /* dealt onto the table: each print flies out from behind the heading as the section scrolls in */
+    @media (prefers-reduced-motion: no-preference) {
+      @supports (animation-timeline: view()) {
+        .styled__stage { view-timeline: --spread block; }
+        .print { animation: styled-deal linear both; animation-timeline: --spread; animation-range: entry 5% cover 30%; }
+      }
+    }
+  }
+  /* premium pass: a calm arrival (fade and a slight rise) instead of the fly-out */
+  @keyframes styled-deal { from { translate: 0 28px; opacity: 0; } }
+
+  /* ── phones: heading on top, a two-column spread ── */
+  @media (max-width: 899px) {
+    .styled__prints { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-4) var(--sp-3); margin-top: var(--sp-8); padding-bottom: 28px; }
+    .styled__prints > li:nth-child(even) { translate: 0 28px; }
+    .print__cap { font-size: 1rem; }
+  }
 </style>

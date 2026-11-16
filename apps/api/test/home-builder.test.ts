@@ -28,6 +28,15 @@ describe('home page builder', () => {
     expect(sections.map((s: { id: string }) => s.id)).toEqual(['hero', 'sale', 'new', 'festive', 'about']);
     expect(sections[3].enabled).toBe(false);
     expect(sections[2].data.count).toBe(4);
+    expect(sections[0].data.railSource).toBe('newest'); // older content gets the default
+  });
+
+  it('keeps the main banner\'s choice of pieces beside the photo, and rejects an unknown one', async () => {
+    const hero = (data: Record<string, unknown>) => ({ ...base, home: { sections: [{ id: 'hero', type: 'hero', data: { title: 'T', ctaLabel: 'S', ctaLink: '/', ...data } }] } });
+    expect((await call('PUT', '/admin/content/draft', { data: hero({ railSource: 'collection', railCollection: 'col_festive' }) })).status).toBe(200);
+    const pub = await call('POST', '/admin/content/publish');
+    expect(pub.json.data.home.sections[0].data).toMatchObject({ railSource: 'collection', railCollection: 'col_festive', railCategory: null });
+    expect((await call('PUT', '/admin/content/draft', { data: hero({ railSource: 'random' }) })).status).toBe(422);
   });
 
   it('refuses a page where the hero is moved down or added twice', async () => {

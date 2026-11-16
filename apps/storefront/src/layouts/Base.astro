@@ -50,7 +50,7 @@ const org = {
 const ld = [org, ...(jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [])];
 ---
 <!doctype html>
-<html lang="en" class="no-js" data-festive={settings.festive?.theme} data-festive-opts={settings.festive ? JSON.stringify(settings.festive.options) : undefined}>
+<html lang="en" class="no-js" transition:animate="none" data-festive={settings.festive?.theme} data-festive-opts={settings.festive ? JSON.stringify(settings.festive.options) : undefined}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -108,7 +108,7 @@ const ld = [org, ...(jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [])]
     <a class="skip-link" href="#main">{t('nav.skip')}</a>
     <!-- Persisted across client-router navigations (display: contents keeps sticky/fixed layout intact). -->
     <div class="persist" transition:persist="announce"><AnnouncementBar messages={announcement} /></div>
-    <div class="persist" transition:persist="header"><Header /></div>
+    <div class="persist" transition:persist="header"><Header settings={settings} categories={categories} /></div>
     <main id="main" tabindex="-1">
       <slot />
     </main>
@@ -119,6 +119,7 @@ const ld = [org, ...(jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [])]
     <ShellLoader freeShippingThreshold={settings.shipping.freeShippingThreshold} sizeGuide={c.sizeGuide?.chart ?? ''} store={store} />
     <script>
       import '../scripts/motion.ts';
+      import '../scripts/img-fade.ts';
       import '../festive/index.ts';
     </script>
   </body>

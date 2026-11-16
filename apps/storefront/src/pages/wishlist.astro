@@ -3,8 +3,9 @@ import Base from '../layouts/Base.astro';
 import Icon from '../components/ui/Icon.astro';
 import { getCommon } from '../lib/content.ts';
 import { t } from '@femia/i18n';
+import { TRY_ON_ENABLED } from '../lib/features.ts';
 const { site, categories } = await getCommon();
-const canTry = !!site.settings.store.whatsapp;
+const canTry = TRY_ON_ENABLED && !!site.settings.store.whatsapp;
 ---
 <Base site={site} categories={categories} title={t('wishlist.title')} noindex>
   <section class="section container">
